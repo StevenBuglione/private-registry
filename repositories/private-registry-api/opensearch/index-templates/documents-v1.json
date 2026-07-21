@@ -1,0 +1,24 @@
+{
+  "index_patterns": ["private-registry-documents-v1-*"],
+  "template": {
+    "settings": {"number_of_shards": 6, "number_of_replicas": 1},
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": {"type": "keyword"},
+        "package_id": {"type": "keyword"},
+        "version": {"type": "keyword"},
+        "path": {"type": "keyword"},
+        "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+        "body": {"type": "text"},
+        "kind": {"type": "keyword"},
+        "owners": {"type": "keyword"},
+        "visibility": {"type": "keyword"},
+        "lifecycle": {"type": "keyword"},
+        "updated_at": {"type": "date"}
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1
+}

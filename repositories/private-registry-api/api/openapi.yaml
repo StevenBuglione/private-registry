@@ -1,0 +1,193 @@
+openapi: 3.1.0
+info:
+  title: Private Registry Catalog API
+  version: 1.0.0
+  description: Compatibility API for the OpenTofu Registry UI plus enterprise governance extensions. Package bytes are never served by this API.
+servers:
+  - url: https://registry.example.invalid
+security:
+  - albOidc: []
+paths:
+  /health/live:
+    get:
+      security: []
+      responses:
+        '200': {description: Process is live}
+  /health/ready:
+    get:
+      security: []
+      responses:
+        '200': {description: Required dependencies are ready}
+        '503': {description: A required dependency is unavailable}
+  /registry/docs/search:
+    get:
+      parameters:
+        - {name: q, in: query, schema: {type: string}}
+        - {name: type, in: query, schema: {type: string, enum: [module, provider]}}
+        - {name: owner, in: query, schema: {type: string}}
+        - {name: lifecycle, in: query, schema: {type: string}}
+        - {name: support_level, in: query, schema: {type: string}}
+        - {name: verification, in: query, schema: {type: string}}
+        - {name: risk_tier, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: Search page
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SearchPage'}
+  /registry/docs/modules/index.json:
+    get:
+      responses:
+        '200':
+          description: Visible module packages
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PackageList'}
+  /registry/docs/modules/{namespace}/{name}/{target}/index.json:
+    get:
+      parameters:
+        - {$ref: '#/components/parameters/Namespace'}
+        - {$ref: '#/components/parameters/Name'}
+        - {name: target, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Module package and versions
+          content: {application/json: {schema: {$ref: '#/components/schemas/Package'}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /registry/docs/modules/{namespace}/{name}/{target}/{version}/README.md:
+    get:
+      parameters:
+        - {$ref: '#/components/parameters/Namespace'}
+        - {$ref: '#/components/parameters/Name'}
+        - {name: target, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Version'}
+      responses:
+        '200': {description: Versioned module Markdown, content: {text/markdown: {schema: {type: string}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /registry/docs/providers/index.json:
+    get:
+      responses:
+        '200':
+          description: Visible provider packages
+          content: {application/json: {schema: {$ref: '#/components/schemas/PackageList'}}}
+  /registry/docs/providers/{namespace}/{name}/index.json:
+    get:
+      parameters:
+        - {$ref: '#/components/parameters/Namespace'}
+        - {$ref: '#/components/parameters/Name'}
+      responses:
+        '200': {description: Provider package and versions, content: {application/json: {schema: {$ref: '#/components/schemas/Package'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /registry/docs/providers/{namespace}/{name}/{version}/{kind}/{document}.md:
+    get:
+      parameters:
+        - {$ref: '#/components/parameters/Namespace'}
+        - {$ref: '#/components/parameters/Name'}
+        - {$ref: '#/components/parameters/Version'}
+        - {name: kind, in: path, required: true, schema: {type: string, enum: [resources, data-sources, functions, guides, ephemeral-resources, actions, list-resources]}}
+        - {name: document, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Versioned provider Markdown, content: {text/markdown: {schema: {type: string}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/enterprise/packages/{packageId}/governance:
+    get:
+      parameters:
+        - {name: packageId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Authorized governance metadata, content: {application/json: {schema: {$ref: '#/components/schemas/Governance'}}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    albOidc:
+      type: openIdConnect
+      openIdConnectUrl: https://identity.example.invalid/.well-known/openid-configuration
+  parameters:
+    Namespace: {name: namespace, in: path, required: true, schema: {type: string}}
+    Name: {name: name, in: path, required: true, schema: {type: string}}
+    Version: {name: version, in: path, required: true, schema: {type: string}}
+  responses:
+    NotFound: {description: Not found, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+    Forbidden: {description: Forbidden, content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}}
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties: {code: {type: string}, message: {type: string}}
+    PackageList:
+      type: object
+      required: [items, total]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Package'}}
+        total: {type: integer, minimum: 0}
+    Package:
+      type: object
+      required: [id, kind, namespace, name, title, description, latest_version, owners, support_level, lifecycle, verification, risk_tier, source_address]
+      properties:
+        id: {type: string}
+        kind: {type: string, enum: [module, provider]}
+        namespace: {type: string}
+        name: {type: string}
+        target: {type: string}
+        title: {type: string}
+        description: {type: string}
+        latest_version: {type: string}
+        owners: {type: array, items: {type: string}}
+        support_level: {type: string}
+        lifecycle: {type: string}
+        verification: {type: string}
+        risk_tier: {type: string}
+        source_address: {type: string}
+        versions: {type: array, items: {$ref: '#/components/schemas/Version'}}
+    Version:
+      type: object
+      required: [version, published_at, package_digest, documentation_digest, documentation_root, source_commit]
+      properties:
+        version: {type: string}
+        published_at: {type: string, format: date-time}
+        package_digest: {type: string}
+        documentation_digest: {type: string}
+        documentation_root: {type: string}
+        source_commit: {type: string}
+        prerelease: {type: boolean}
+        deprecated: {type: boolean}
+        revoked: {type: boolean}
+    SearchPage:
+      type: object
+      required: [results, total]
+      properties:
+        results: {type: array, items: {$ref: '#/components/schemas/SearchResult'}}
+        total: {type: integer, minimum: 0}
+        next_cursor: {type: string}
+    SearchResult:
+      type: object
+      required: [id, type, name, description, path, score]
+      properties:
+        id: {type: string}
+        type: {type: string}
+        name: {type: string}
+        description: {type: string}
+        path: {type: string}
+        score: {type: number}
+    Governance:
+      type: object
+      required: [package_id, owners, support_level, lifecycle, risk_tier, verification, approvals]
+      properties:
+        package_id: {type: string}
+        owners: {type: array, items: {type: string}}
+        support_level: {type: string}
+        lifecycle: {type: string}
+        risk_tier: {type: string}
+        verification: {type: string}
+        approvals: {type: array, items: {type: object}}
+        source_address: {type: string}
+        version_constraint: {type: string}
+        support_url: {type: string, format: uri}
+        source_repository_url: {type: string, format: uri}
+        jfrog_console_url: {type: string, format: uri}

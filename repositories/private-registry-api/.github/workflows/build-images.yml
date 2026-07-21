@@ -1,0 +1,44 @@
+name: Build service images
+on:
+  workflow_dispatch:
+    inputs:
+      environment: {type: choice, required: true, options: [dev, prod, dr]}
+      aws_region: {required: true}
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  build:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: private-registry-${{ inputs.environment }}-api
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/$REPOSITORY:$TAG"
+          docker build -t "$image" .
+          docker push "$image"
+          digest=$(aws ecr describe-images \
+            --repository-name "$REPOSITORY" \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          {
+            echo "### API image"
+            echo
+            echo "- Image: $image"
+            echo "- Digest: $digest"
+            echo
+            echo "Deploy by updating the matching Terraform image tag and running the protected apply workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

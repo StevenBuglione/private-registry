@@ -1,0 +1,39 @@
+name: Run database migrations
+on:
+  workflow_dispatch:
+    inputs:
+      environment: {type: choice, required: true, options: [dev, prod, dr]}
+      cluster: {required: true}
+      task_definition: {required: true}
+      subnet_ids: {required: true, description: 'Comma-separated private subnet IDs'}
+      security_group_id: {required: true}
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  migrate:
+    environment: ${{ inputs.environment }}-migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_MIGRATION_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Start migration task and wait
+        env:
+          CLUSTER: ${{ inputs.cluster }}
+          TASK_DEFINITION: ${{ inputs.task_definition }}
+          SUBNET_IDS: ${{ inputs.subnet_ids }}
+          SECURITY_GROUP_ID: ${{ inputs.security_group_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CLUSTER" =~ ^[A-Za-z0-9_:/.-]+$ ]]
+          [[ "$TASK_DEFINITION" =~ ^[A-Za-z0-9_:/.-]+$ ]]
+          [[ "$SUBNET_IDS" =~ ^subnet-[0-9a-fA-F]+(,subnet-[0-9a-fA-F]+)*$ ]]
+          [[ "$SECURITY_GROUP_ID" =~ ^sg-[0-9a-fA-F]+$ ]]
+          network_configuration="awsvpcConfiguration={subnets=[$SUBNET_IDS],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=DISABLED}"
+          task_arn=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "$TASK_DEFINITION" --launch-type FARGATE --network-configuration "$network_configuration" --query 'tasks[0].taskArn' --output text)
+          [[ -n "$task_arn" && "$task_arn" != "None" ]]
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task_arn"
+          code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task_arn" --query 'tasks[0].containers[0].exitCode' --output text)
+          test "$code" = "0"

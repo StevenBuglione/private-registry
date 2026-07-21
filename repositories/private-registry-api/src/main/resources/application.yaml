@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: private-registry-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/registry}
+    username: ${SPRING_DATASOURCE_USERNAME:registry}
+    password: ${SPRING_DATASOURCE_PASSWORD:registry}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+      validation-timeout: 3000
+  flyway:
+    clean-disabled: true
+    validate-on-migrate: true
+  jackson:
+    default-property-inclusion: non_null
+    property-naming-strategy: SNAKE_CASE
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+registry:
+  opensearch:
+    endpoint: ${REGISTRY_OPENSEARCH_ENDPOINT:http://localhost:9200}
+  security:
+    permit-all: ${REGISTRY_SECURITY_PERMIT_ALL:false}

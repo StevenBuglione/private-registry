@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "module",
+  "identity": {
+    "namespace": "cloud-platform",
+    "name": "vpc",
+    "target": "aws",
+    "version": "2.4.1"
+  },
+  "display": {
+    "title": "AWS VPC",
+    "description": "Creates an approved multi-AZ application VPC with enterprise network defaults.",
+    "keywords": [
+      "aws",
+      "network",
+      "vpc"
+    ],
+    "owners": [
+      "cloud-network-engineering"
+    ],
+    "supportChannel": "https://support.example.invalid/cloud-network",
+    "supportLevel": "supported",
+    "verification": "enterprise-verified",
+    "lifecycle": "approved",
+    "riskTier": "medium",
+    "visibility": "enterprise"
+  },
+  "registry": {
+    "hostname": "artifacts.example.invalid",
+    "repository": "iac-modules-virtual",
+    "source": "artifacts.example.invalid/iac-modules-virtual__cloud-platform/vpc/aws",
+    "artifactPath": "cloud-platform/vpc/aws/2.4.1.zip",
+    "consoleUrl": "https://artifacts.example.invalid/ui/repos/tree/General/iac-modules-release-local/cloud-platform/vpc/aws/2.4.1.zip"
+  },
+  "compatibility": {
+    "terraform": ">= 1.8, < 2.0",
+    "opentofu": ">= 1.8, < 2.0"
+  },
+  "source": {
+    "repository": "https://github.example.invalid/cloud/vpc-module",
+    "commit": "8d08f7f7c44d01a38b3d1f2f4752d7dcdd3947dd",
+    "tag": "v2.4.1"
+  },
+  "release": {
+    "publishedAt": "2026-07-21T14:00:00Z",
+    "packageDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "documentationPath": "v1/modules/cloud-platform/vpc/aws/2.4.1/documentation.tar.gz",
+    "documentationDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "sbomPath": "v1/modules/cloud-platform/vpc/aws/2.4.1/sbom.cdx.json",
+    "provenancePath": "v1/modules/cloud-platform/vpc/aws/2.4.1/provenance.json",
+    "changelogPath": "CHANGELOG.md"
+  }
+}

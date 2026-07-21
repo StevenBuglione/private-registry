@@ -1,0 +1,46 @@
+{
+  "index_patterns": ["private-registry-packages-v1-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "analysis": {
+        "analyzer": {
+          "registry_name": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase", "asciifolding", "edge_ngram_filter"]
+          }
+        },
+        "filter": {
+          "edge_ngram_filter": {"type": "edge_ngram", "min_gram": 2, "max_gram": 20}
+        }
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "id": {"type": "keyword"},
+        "kind": {"type": "keyword"},
+        "namespace": {"type": "keyword"},
+        "name": {"type": "text", "analyzer": "registry_name", "fields": {"keyword": {"type": "keyword"}}},
+        "target": {"type": "keyword"},
+        "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+        "description": {"type": "text"},
+        "keywords": {"type": "keyword"},
+        "owners": {"type": "keyword"},
+        "support_level": {"type": "keyword"},
+        "lifecycle": {"type": "keyword"},
+        "verification": {"type": "keyword"},
+        "risk_tier": {"type": "keyword"},
+        "terraform_compatible": {"type": "boolean"},
+        "opentofu_compatible": {"type": "boolean"},
+        "latest_version": {"type": "keyword"},
+        "published_at": {"type": "date"},
+        "updated_at": {"type": "date"}
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1
+}

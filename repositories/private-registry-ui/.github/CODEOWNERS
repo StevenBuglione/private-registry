@@ -1,0 +1,6 @@
+* @platform-team
+/app/ @frontend-platform-team
+/deploy/ @platform-team @security-team
+/.upstream/ @platform-team @open-source-reviewers
+/UPSTREAM.md @open-source-reviewers
+/PATCHES.md @frontend-platform-team @open-source-reviewers

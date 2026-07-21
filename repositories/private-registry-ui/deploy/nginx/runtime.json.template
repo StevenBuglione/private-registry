@@ -1,0 +1,13 @@
+{
+  "dataApiUrl": "${REGISTRY_DATA_API_URL}",
+  "enterpriseApiUrl": "${REGISTRY_ENTERPRISE_API_URL}",
+  "jfrogHostname": "${REGISTRY_JFROG_HOSTNAME}",
+  "environment": "${REGISTRY_ENVIRONMENT}",
+  "supportUrl": "${REGISTRY_SUPPORT_URL}",
+  "features": {
+    "providers": ${REGISTRY_FEATURE_PROVIDERS},
+    "modules": ${REGISTRY_FEATURE_MODULES},
+    "securityTab": ${REGISTRY_FEATURE_SECURITY},
+    "auditTab": ${REGISTRY_FEATURE_AUDIT}
+  }
+}

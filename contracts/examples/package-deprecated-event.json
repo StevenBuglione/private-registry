@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "eventType": "PackageDeprecated",
+  "eventId": "22222222-2222-4222-8222-222222222222",
+  "occurredAt": "2026-07-21T14:15:00Z",
+  "correlationId": "release-run-123456",
+  "producer": "governed-release-workflow",
+  "detail": {
+    "kind": "module",
+    "namespace": "cloud-platform",
+    "name": "vpc",
+    "version": "2.4.1",
+    "repository": "iac-modules-virtual",
+    "artifactPath": "cloud-platform/vpc/aws/2.4.1.zip",
+    "packageDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "manifestPath": "v1/modules/cloud-platform/vpc/aws/2.4.1/manifest.json",
+    "manifestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "documentationPath": "v1/modules/cloud-platform/vpc/aws/2.4.1/documentation.tar.gz",
+    "sourceCommit": "8d08f7f7c44d01a38b3d1f2f4752d7dcdd3947dd",
+    "approvalRecordId": "approval-2026-000123",
+    "target": "aws",
+    "reason": "Use the vpc-next package for all new workloads.",
+    "replacementSource": "artifacts.example.invalid/iac-modules-virtual__cloud-platform/vpc-next/aws",
+    "effectiveAt": "2026-08-01T00:00:00Z"
+  }
+}

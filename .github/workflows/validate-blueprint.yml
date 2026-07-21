@@ -1,0 +1,29 @@
+name: Validate blueprint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install validation libraries
+        run: python -m pip install --disable-pip-version-check pyyaml jsonschema python-hcl2
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: repositories/private-registry-api/go.mod
+          cache-dependency-path: repositories/private-registry-api/go.mod
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.15.8'
+      - name: Validate
+        run: ./scripts/validate-blueprint.sh

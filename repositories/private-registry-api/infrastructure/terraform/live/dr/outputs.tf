@@ -1,0 +1,12 @@
+output "registry_url" { value = module.registry.registry_url }
+output "ecs_cluster_name" { value = module.registry.ecs_cluster_name }
+output "ecr_repository_urls" { value = module.registry.ecr_repository_urls }
+output "event_bus_arn" { value = module.registry.event_bus_arn }
+output "ingestion_queue_url" { value = module.registry.ingestion_queue_url }
+output "database_cluster_arn" { value = module.registry.database_cluster_arn }
+output "database_proxy_endpoint" { value = module.registry.database_proxy_endpoint }
+output "opensearch_endpoint" { value = module.registry.opensearch_endpoint }
+output "documentation_bucket" { value = module.registry.documentation_bucket }
+output "audit_bucket" { value = module.registry.audit_bucket }
+output "github_role_arns" { value = module.registry.github_role_arns }
+output "task_definition_arns" { value = module.registry.task_definition_arns }

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "kind": "provider",
+  "identity": {
+    "namespace": "platform",
+    "name": "internal-cloud",
+    "version": "3.2.0"
+  },
+  "display": {
+    "title": "Internal Cloud Provider",
+    "description": "Manages approved internal cloud platform APIs.",
+    "keywords": [
+      "platform",
+      "cloud",
+      "provider"
+    ],
+    "owners": [
+      "cloud-platform-engineering"
+    ],
+    "supportChannel": "https://support.example.invalid/cloud-platform",
+    "supportLevel": "supported",
+    "verification": "enterprise-verified",
+    "lifecycle": "approved",
+    "riskTier": "high",
+    "visibility": "enterprise"
+  },
+  "registry": {
+    "hostname": "artifacts.example.invalid",
+    "repository": "iac-providers-virtual",
+    "source": "artifacts.example.invalid/iac-providers-virtual-rt-ns-platform/internal-cloud",
+    "artifactPath": "platform/internal-cloud/3.2.0/",
+    "consoleUrl": "https://artifacts.example.invalid/ui/repos/tree/General/iac-providers-release-local/platform/internal-cloud/3.2.0"
+  },
+  "compatibility": {
+    "terraform": ">= 1.8, < 2.0",
+    "opentofu": ">= 1.8, < 2.0"
+  },
+  "source": {
+    "repository": "https://github.example.invalid/cloud/internal-cloud-provider",
+    "commit": "9d08f7f7c44d01a38b3d1f2f4752d7dcdd3947ee",
+    "tag": "v3.2.0"
+  },
+  "release": {
+    "publishedAt": "2026-07-21T14:10:00Z",
+    "packageDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "documentationPath": "v1/providers/platform/internal-cloud/3.2.0/documentation.tar.gz",
+    "documentationDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "sbomPath": "v1/providers/platform/internal-cloud/3.2.0/sbom.cdx.json",
+    "provenancePath": "v1/providers/platform/internal-cloud/3.2.0/provenance.json",
+    "changelogPath": "CHANGELOG.md"
+  },
+  "provider": {
+    "platforms": [
+      {
+        "os": "linux",
+        "arch": "amd64"
+      },
+      {
+        "os": "linux",
+        "arch": "arm64"
+      },
+      {
+        "os": "darwin",
+        "arch": "amd64"
+      },
+      {
+        "os": "darwin",
+        "arch": "arm64"
+      },
+      {
+        "os": "windows",
+        "arch": "amd64"
+      }
+    ],
+    "signing": {
+      "type": "gpg",
+      "verified": true,
+      "fingerprint": "0123 4567 89AB CDEF 0123 4567 89AB CDEF 0123 4567",
+      "publicKeyPath": "keys/provider-signing-public.asc"
+    }
+  }
+}

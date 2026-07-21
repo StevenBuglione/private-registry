@@ -1,0 +1,40 @@
+name: Terraform plan
+on:
+  pull_request:
+    paths: ['infrastructure/**']
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  plan:
+    strategy:
+      matrix: {environment: [dev, prod, dr]}
+    environment: ${{ matrix.environment }}-plan
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_oidc_client_secret: ${{ secrets.OIDC_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: {terraform_version: '1.15.8'}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Materialize protected Terraform inputs
+        working-directory: infrastructure/terraform/live/${{ matrix.environment }}
+        env:
+          BACKEND_CONFIG: ${{ secrets.TF_BACKEND_CONFIG }}
+          TERRAFORM_VARS: ${{ secrets.TF_VARS }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKEND_CONFIG"
+          test -n "$TERRAFORM_VARS"
+          printf '%s\n' "$BACKEND_CONFIG" > backend.hcl
+          printf '%s\n' "$TERRAFORM_VARS" > terraform.tfvars
+          chmod 0600 backend.hcl terraform.tfvars
+      - working-directory: infrastructure/terraform/live/${{ matrix.environment }}
+        run: terraform init -input=false -backend-config=backend.hcl
+      - working-directory: infrastructure/terraform/live/${{ matrix.environment }}
+        run: terraform plan -input=false -lock-timeout=5m -var-file=terraform.tfvars -out=tfplan
