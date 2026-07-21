@@ -1,0 +1,57 @@
+name: Materialize preserved blueprint
+
+on:
+  push:
+    branches:
+      - agent/enterprise-private-registry-blueprint
+    paths:
+      - private-registry-blueprint.tar.gz
+      - .github/workflows/materialize-blueprint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-private-registry-blueprint
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the publication branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/enterprise-private-registry-blueprint
+          fetch-depth: 0
+
+      - name: Verify preserved archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'd1650fdfb3a1cf27c1270fa6fe544e99e73d522a814d295028bdebe5bed63238  private-registry-blueprint.tar.gz' | sha256sum --check --strict
+
+      - name: Materialize the complete repository tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xzf private-registry-blueprint.tar.gz
+          rm -f private-registry-blueprint.tar.gz
+          rm -f .github/workflows/materialize-blueprint.yml
+
+      - name: Validate the materialized blueprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/validate-blueprint.sh
+
+      - name: Commit the full implementation package
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Materialize enterprise private registry implementation'
+          git push origin HEAD:agent/enterprise-private-registry-blueprint
