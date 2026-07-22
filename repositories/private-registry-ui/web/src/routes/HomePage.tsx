@@ -2,6 +2,7 @@ import {
   ArrowRightIcon,
   BookOpenTextIcon,
   CubeIcon,
+  GlobeSimpleIcon,
   InfoIcon,
   PackageIcon,
   ShieldCheckIcon,
@@ -19,8 +20,8 @@ export function HomePage() {
     kind: "provider",
     apmId: selectedApmId,
     approval: "approved",
-    sort: "updated",
-    limit: 6,
+    sort: "name",
+    limit: 50,
   });
   const modules = useCatalogPage({
     kind: "module",
@@ -105,7 +106,7 @@ export function HomePage() {
             description="Popular infrastructure plugins approved for your access context."
             href="/providers"
             loading={providers.isPending}
-            items={providers.data?.items ?? []}
+            items={featuredProviders(providers.data?.items ?? [])}
             variant="providers"
           />
           <CatalogSection
@@ -120,6 +121,29 @@ export function HomePage() {
       )}
     </div>
   );
+}
+
+const featuredProviderOrder = [
+  "aws",
+  "kubernetes",
+  "google",
+  "azurerm",
+  "helm",
+  "datadog",
+];
+
+function featuredProviders(items: Parameters<typeof PackageCard>[0]["item"][]) {
+  return [...items]
+    .sort((left, right) => {
+      const leftRank = featuredProviderOrder.indexOf(left.name.toLowerCase());
+      const rightRank = featuredProviderOrder.indexOf(right.name.toLowerCase());
+      return (
+        (leftRank < 0 ? Number.MAX_SAFE_INTEGER : leftRank) -
+          (rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank) ||
+        left.name.localeCompare(right.name)
+      );
+    })
+    .slice(0, 6);
 }
 
 function CatalogSection({
@@ -141,7 +165,12 @@ function CatalogSection({
     <section className={`home-catalog-section ${variant}`}>
       <div className="source-section-heading">
         <div>
-          <p>{eyebrow}</p>
+          <p>
+            {variant === "providers" ? (
+              <GlobeSimpleIcon size={14} aria-hidden="true" />
+            ) : null}
+            {eyebrow}
+          </p>
           <span>{description}</span>
         </div>
         <Link to={href}>

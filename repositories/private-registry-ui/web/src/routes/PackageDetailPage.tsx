@@ -125,7 +125,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const showDocumentation = kind === "provider" && tab === "documentation";
 
   return (
-    <div className="detail-page">
+    <div className={`detail-page ${kind}-detail-page`}>
       <header className="package-source-header source-container">
         <nav className="source-breadcrumbs" aria-label="Breadcrumb">
           <Link to={kind === "provider" ? "/providers" : "/modules"}>
@@ -139,7 +139,11 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
           <span>v{item.version}</span>
         </nav>
         <div className="package-title-row">
-          <PackageIcon kind={kind} name={item.name} size="large" />
+          <PackageIcon
+            kind={kind}
+            name={kind === "module" ? item.provider : item.name}
+            size="large"
+          />
           <div>
             <div className="package-name-line">
               <h1>{item.name}</h1>
@@ -180,6 +184,13 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
         </div>
         <p className="package-description">{item.description}</p>
         <div className="package-facts">
+          {kind === "module" ? (
+            <span className="package-provider-fact">
+              Provider:
+              <PackageIcon kind="provider" name={item.provider} size="small" />
+              <strong>{item.provider}</strong>
+            </span>
+          ) : null}
           <span>
             Versions: <strong>{item.versions.length}</strong>
           </span>
@@ -204,7 +215,9 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             Risk: <strong>{item.risk}</strong>
           </span>
         </div>
-        <span className="package-category">{capitalize(item.lifecycle)}</span>
+        {kind === "provider" ? (
+          <span className="package-category">{capitalize(item.lifecycle)}</span>
+        ) : null}
       </header>
 
       <nav
@@ -499,23 +512,42 @@ function ProviderDocumentation({
   );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const selectedGroup = providerDocumentGroups(symbols, "").find((group) =>
-      group.items.some((symbol) => symbol.path === selectedPath),
+      group.sections.some((section) =>
+        section.items.some((symbol) => symbol.path === selectedPath),
+      ),
     );
-    return selectedGroup ? new Set([selectedGroup.label]) : new Set();
+    if (!selectedGroup) return new Set();
+    const selectedSection = selectedGroup.sections.find((section) =>
+      section.items.some((symbol) => symbol.path === selectedPath),
+    );
+    return new Set([
+      selectedGroup.label,
+      ...(selectedSection
+        ? [documentSectionKey(selectedGroup.label, selectedSection.label)]
+        : []),
+    ]);
   });
   const headings = extractMarkdownHeadings(docs).filter(
     (heading) => heading.level > 1,
   );
   const matchingDocumentCount = groups.reduce(
-    (count, group) => count + group.items.length,
+    (count, group) =>
+      count +
+      group.sections.reduce(
+        (sectionCount, section) => sectionCount + section.items.length,
+        0,
+      ),
     0,
   );
   const autoExpandedGroups = useMemo(() => {
     if (filter.trim()) {
       return new Set(
-        groups
-          .filter((group) => group.items.length > 0)
-          .map((group) => group.label),
+        groups.flatMap((group) => [
+          group.label,
+          ...group.sections
+            .filter((section) => section.items.length > 0)
+            .map((section) => documentSectionKey(group.label, section.label)),
+        ]),
       );
     }
     return undefined;
@@ -588,31 +620,70 @@ function ProviderDocumentation({
                   size={13}
                 />
                 {group.label}
-                <span>{group.items.length}</span>
               </button>
             </h2>
             {isGroupExpanded(group.label)
-              ? group.items.map((symbol) => (
-                  <button
-                    type="button"
-                    key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
-                    className={selectedPath === symbol.path ? "active" : ""}
-                    aria-current={
-                      selectedPath === symbol.path ? "page" : undefined
-                    }
-                    title={symbol.description}
-                    onClick={() => {
-                      setExpandedGroups(new Set([group.label]));
-                      select(symbol.path);
-                    }}
-                  >
-                    {displayProviderSymbolName(packageName, symbol)}
-                  </button>
-                ))
+              ? group.sections.map((section) => {
+                  const sectionKey = documentSectionKey(
+                    group.label,
+                    section.label,
+                  );
+                  const flattened =
+                    group.sections.length === 1 &&
+                    section.label === group.label;
+                  return (
+                    <div className="docs-nav-section" key={sectionKey}>
+                      {!flattened ? (
+                        <button
+                          type="button"
+                          className="docs-section-toggle"
+                          aria-expanded={isGroupExpanded(sectionKey)}
+                          onClick={() => toggleGroup(sectionKey)}
+                        >
+                          <CaretRightIcon
+                            className={
+                              isGroupExpanded(sectionKey) ? "expanded" : ""
+                            }
+                            size={12}
+                          />
+                          {section.label}
+                        </button>
+                      ) : null}
+                      {flattened || isGroupExpanded(sectionKey)
+                        ? section.items.map((symbol) => (
+                            <button
+                              type="button"
+                              key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
+                              className={
+                                selectedPath === symbol.path ? "active" : ""
+                              }
+                              aria-current={
+                                selectedPath === symbol.path
+                                  ? "page"
+                                  : undefined
+                              }
+                              title={symbol.description}
+                              onClick={() => {
+                                setExpandedGroups(
+                                  new Set([group.label, sectionKey]),
+                                );
+                                select(symbol.path);
+                              }}
+                            >
+                              {displayProviderSymbolName(packageName, symbol)}
+                            </button>
+                          ))
+                        : null}
+                    </div>
+                  );
+                })
               : null}
           </section>
         ))}
-        {filter && groups.every((group) => group.items.length === 0) ? (
+        {filter &&
+        groups.every((group) =>
+          group.sections.every((section) => section.items.length === 0),
+        ) ? (
           <p className="docs-filter-empty">No documentation matches.</p>
         ) : null}
       </aside>
@@ -676,48 +747,26 @@ function ModuleTabContent({
 }
 
 function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
+  const required = symbols.filter((symbol) => symbol.required);
+  const optional = symbols.filter((symbol) => !symbol.required);
   return (
     <section className="module-symbol-panel">
-      <div className="symbol-panel-heading">
-        <div>
-          <h2>Inputs</h2>
-          <p>Configuration values accepted by this module version.</p>
-        </div>
-        <span>{symbols.length}</span>
-      </div>
-      <div className="symbol-table-wrap" role="region" tabIndex={0}>
-        <table className="symbol-table">
-          <caption>Module input definitions</caption>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Description</th>
-              <th scope="col">Type</th>
-              <th scope="col">Default</th>
-              <th scope="col">Required</th>
-              <th scope="col">Sensitive</th>
-            </tr>
-          </thead>
-          <tbody>
-            {symbols.map((symbol) => (
-              <tr key={`${symbol.name}-${symbol.path}`}>
-                <th scope="row">
-                  <code>{symbol.name}</code>
-                </th>
-                <td>{symbol.description ?? "No description published."}</td>
-                <td>
-                  <code>{symbol.type ?? "Unknown"}</code>
-                </td>
-                <td>
-                  <code>{formatDefaultValue(symbol.defaultValue)}</code>
-                </td>
-                <td>{formatBoolean(symbol.required)}</td>
-                <td>{formatBoolean(symbol.sensitive)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {required.length ? (
+        <DefinitionSection
+          title="Required Inputs"
+          description="These variables must be set in the module block when using this module."
+          symbols={required}
+          showDefault={false}
+        />
+      ) : null}
+      {optional.length ? (
+        <DefinitionSection
+          title="Optional Inputs"
+          description="These variables have default values and don't have to be set to use this module. You may set these variables to override their default values."
+          symbols={optional}
+          showDefault
+        />
+      ) : null}
     </section>
   );
 }
@@ -725,41 +774,94 @@ function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
 function OutputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
   return (
     <section className="module-symbol-panel">
-      <div className="symbol-panel-heading">
-        <div>
-          <h2>Outputs</h2>
-          <p>Values exported for use by other configurations.</p>
-        </div>
-        <span>{symbols.length}</span>
-      </div>
-      <div className="symbol-table-wrap" role="region" tabIndex={0}>
-        <table className="symbol-table output-table">
-          <caption>Module output definitions</caption>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Description</th>
-              <th scope="col">Type</th>
-              <th scope="col">Sensitive</th>
-            </tr>
-          </thead>
-          <tbody>
-            {symbols.map((symbol) => (
-              <tr key={`${symbol.name}-${symbol.path}`}>
-                <th scope="row">
-                  <code>{symbol.name}</code>
-                </th>
-                <td>{symbol.description ?? "No description published."}</td>
-                <td>
-                  <code>{symbol.type ?? "Unknown"}</code>
-                </td>
-                <td>{formatBoolean(symbol.sensitive)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DefinitionSection
+        title="Outputs"
+        description="Values exported for use by other configurations."
+        symbols={symbols}
+        showDefault={false}
+        showType={false}
+      />
     </section>
+  );
+}
+
+function DefinitionSection({
+  title,
+  description,
+  symbols,
+  showDefault,
+  showType = true,
+}: {
+  title: string;
+  description: string;
+  symbols: PackageSymbol[];
+  showDefault: boolean;
+  showType?: boolean;
+}) {
+  return (
+    <section className="module-definition-section" aria-label={title}>
+      <h2>{title}</h2>
+      <p>
+        {title === "Required Inputs" ? (
+          <>
+            These variables must be set in the <code>module</code> block when
+            using this module.
+          </>
+        ) : (
+          description
+        )}
+      </p>
+      <dl className="module-definition-list">
+        {symbols.map((symbol) => (
+          <div key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
+            <dt>
+              <strong>{symbol.name}</strong>
+              <DefinitionCopyButton value={symbol.name} />
+              {showType ? (
+                <code className="definition-type">
+                  {symbol.type ?? "Unknown"}
+                </code>
+              ) : null}
+              {symbol.sensitive ? (
+                <span className="definition-sensitive">Sensitive</span>
+              ) : null}
+            </dt>
+            <dd>
+              <p>
+                <em>Description:</em>{" "}
+                {cleanSymbolDescription(symbol.description)}
+              </p>
+              {showDefault ? (
+                <p>
+                  <em>Default:</em>{" "}
+                  <code>{formatDefaultValue(symbol.defaultValue)}</code>
+                </p>
+              ) : null}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function DefinitionCopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+  return (
+    <button
+      className="definition-copy"
+      type="button"
+      aria-label={`Copy ${value}`}
+      title={copied ? "Copied" : `Copy ${value}`}
+      onClick={() => void copy()}
+    >
+      {copied ? <CheckIcon size={13} /> : <ClipboardIcon size={13} />}
+    </button>
   );
 }
 
@@ -800,7 +902,7 @@ function SymbolList({
               <p>
                 {dependency
                   ? dependencyDescription(symbol)
-                  : (symbol.description ?? "No description published.")}
+                  : cleanSymbolDescription(symbol.description)}
               </p>
               <dl>
                 <div>
@@ -993,25 +1095,151 @@ function providerDocumentGroups(symbols: PackageSymbol[], filter: string) {
     `${symbol.name} ${symbol.description ?? ""}`
       .toLowerCase()
       .includes(normalizedFilter);
-  const definitions = [
-    { label: "Guides", kinds: ["guide", "document", "overview"] },
-    { label: "Resources", kinds: ["resource"] },
-    { label: "Data Sources", kinds: ["data_source", "datasource"] },
-    { label: "Functions", kinds: ["function"] },
+  const filtered = symbols.filter(matches);
+  const guides = filtered.filter((symbol) =>
+    ["guide", "document", "overview"].includes(
+      normalizeSymbolKind(symbol.kind),
+    ),
+  );
+  const functions = filtered.filter(
+    (symbol) => normalizeSymbolKind(symbol.kind) === "function",
+  );
+  const categorySymbols = filtered.filter((symbol) =>
+    ["resource", "data_source", "datasource", "list_resource"].includes(
+      normalizeSymbolKind(symbol.kind),
+    ),
+  );
+  const categories = new Map<string, PackageSymbol[]>();
+  for (const symbol of categorySymbols) {
+    const category = providerServiceCategory(symbol.name);
+    categories.set(category, [...(categories.get(category) ?? []), symbol]);
+  }
+
+  const standalone = [
+    { label: "Guides", items: guides },
+    { label: "Functions", items: functions },
+  ]
+    .filter((group) => group.items.length > 0)
+    .map((group) => ({
+      label: group.label,
+      sections: [{ label: group.label, items: group.items }],
+    }));
+  const services = [...categories.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([label, items]) => ({
+      label,
+      sections: [
+        {
+          label: "Resources",
+          items: items.filter(
+            (symbol) => normalizeSymbolKind(symbol.kind) === "resource",
+          ),
+        },
+        {
+          label: "Data Sources",
+          items: items.filter((symbol) =>
+            ["data_source", "datasource"].includes(
+              normalizeSymbolKind(symbol.kind),
+            ),
+          ),
+        },
+        {
+          label: "List Resources",
+          items: items.filter(
+            (symbol) => normalizeSymbolKind(symbol.kind) === "list_resource",
+          ),
+        },
+      ].filter((section) => section.items.length > 0),
+    }));
+  return [...standalone, ...services];
+}
+
+function documentSectionKey(group: string, section: string) {
+  return `${group}::${section}`;
+}
+
+function providerServiceCategory(name: string): string {
+  const normalized = name
+    .toLowerCase()
+    .replace(/^azurerm_/, "")
+    .replaceAll("-", "_");
+  const categories: Array<[RegExp, string]> = [
+    [/^(resource_group|subscription|resource_provider)/, "Base"],
+    [/^(aad_b2c|aadb2c)/, "AAD B2C"],
+    [/^(api_management)/, "API Management"],
+    [/^(active_directory_domain)/, "Active Directory Domain Services"],
+    [/^(advisor)/, "Advisor"],
+    [/^(analysis_services)/, "Analysis Services"],
+    [/^(app_configuration)/, "App Configuration"],
+    [
+      /^(app_service|function_app|service_plan|static_web_app)/,
+      "App Service (Web Apps)",
+    ],
+    [/^(application_insights)/, "Application Insights"],
+    [/^(arc_|kubernetes_flux)/, "ArcKubernetes"],
+    [/^(authorization|role_|pim_|lighthouse)/, "Authorization"],
+    [/^(automation)/, "Automation"],
+    [/^(batch)/, "Batch"],
+    [/^(billing)/, "Billing"],
+    [/^(bot_)/, "Bot"],
+    [/^(cdn_|frontdoor)/, "CDN"],
+    [/^(chaos_)/, "Chaos Studio"],
+    [/^(cognitive_|ai_services)/, "Cognitive Services"],
+    [/^(communication_)/, "Communication"],
+    [
+      /^(linux_virtual_machine|windows_virtual_machine|virtual_machine|managed_disk|snapshot|image|gallery_)/,
+      "Compute",
+    ],
+    [/^(container_|kubernetes_|log_analytics_solution)/, "Container"],
+    [/^(cosmosdb_)/, "CosmosDB (DocumentDB)"],
+    [/^(cost_management_)/, "Cost Management"],
+    [/^(custom_provider)/, "Custom Providers"],
+    [/^(dashboard)/, "Dashboard"],
+    [/^(data_explorer|kusto_)/, "Data Explorer"],
+    [/^(data_factory)/, "Data Factory"],
+    [/^(data_share)/, "Data Share"],
+    [/^(database_migration)/, "Database Migration"],
+    [/^(mssql_|mysql_|postgresql_|mariadb_)/, "Database"],
+    [/^(databricks_)/, "Databricks"],
+    [/^(desktop_virtualization)/, "Desktop Virtualization"],
+    [/^(dev_center|dev_test)/, "Dev Center"],
+    [/^(digital_twins)/, "Digital Twins"],
+    [/^(dns_|private_dns)/, "DNS"],
+    [/^(eventgrid_|eventhub_|servicebus_|relay_)/, "Messaging"],
+    [/^(healthcare_)/, "Healthcare"],
+    [/^(iot_|iothub_)/, "IoT Hub"],
+    [/^(key_vault)/, "Key Vault"],
+    [/^(load_test)/, "Load Test"],
+    [/^(log_analytics)/, "Log Analytics"],
+    [/^(logic_app)/, "Logic App"],
+    [/^(machine_learning)/, "Machine Learning"],
+    [/^(maintenance_)/, "Maintenance"],
+    [/^(management_group|management_lock)/, "Management"],
+    [/^(maps_)/, "Maps"],
+    [/^(monitor_|monitoring_|action_group)/, "Monitor"],
+    [/^(netapp_)/, "NetApp"],
+    [
+      /^(virtual_network|subnet|network_|public_ip|private_endpoint|application_gateway|load_balancer|firewall|express_route|route_|traffic_manager|nat_gateway|bastion_)/,
+      "Network",
+    ],
+    [/^(policy_)/, "Policy"],
+    [/^(portal_)/, "Portal"],
+    [/^(powerbi_)/, "PowerBI"],
+    [/^(purview_)/, "Purview"],
+    [/^(recovery_services|backup_)/, "Recovery Services"],
+    [/^(redis_)/, "Redis"],
+    [/^(search_)/, "Search"],
+    [/^(security_center|sentinel_)/, "Security Center"],
+    [/^(service_fabric)/, "Service Fabric"],
+    [/^(spring_cloud)/, "Spring Cloud"],
+    [/^(storage_|storageaccount)/, "Storage"],
+    [/^(stream_analytics)/, "Stream Analytics"],
+    [/^(synapse_)/, "Synapse"],
+    [/^(template_|resource_deployment)/, "Template"],
   ];
-  const recognized = new Set(definitions.flatMap((group) => group.kinds));
-  return definitions.map((group) => ({
-    label: group.label,
-    items: symbols.filter((symbol) => {
-      const kind = normalizeSymbolKind(symbol.kind);
-      const belongs =
-        group.kinds.includes(kind) ||
-        (group.label === "Guides" &&
-          !recognized.has(kind) &&
-          !["input", "output", "dependency"].includes(kind));
-      return belongs && matches(symbol);
-    }),
-  }));
+  return (
+    categories.find(([pattern]) => pattern.test(normalized))?.[1] ?? "Other"
+  );
 }
 
 function normalizeSymbolKind(kind: string): string {
@@ -1049,8 +1277,16 @@ function formatDefaultValue(value: unknown): string {
   }
 }
 
-function formatBoolean(value?: boolean): string {
-  return value === undefined ? "Unknown" : value ? "Yes" : "No";
+function cleanSymbolDescription(value?: string): string {
+  const description = value?.trim();
+  if (
+    !description ||
+    /^<<[A-Z_]+$/.test(description) ||
+    /^(?:optional|list|map|set|object)\s*\(/.test(description)
+  ) {
+    return "No description published.";
+  }
+  return description;
 }
 
 function extractMarkdownHeadings(markdown: string) {
@@ -1130,7 +1366,10 @@ function InstallPanel({
             Terraform configuration. Then, run <code>terraform init</code>.
           </>
         ) : (
-          "Copy this approved configuration into your project, then initialize your workspace."
+          <>
+            Copy and paste into your Terraform configuration, insert the
+            variables, and run <code>terraform init</code>:
+          </>
         )}
       </p>
       {kind === "provider" ? <strong>Terraform 0.13+</strong> : null}

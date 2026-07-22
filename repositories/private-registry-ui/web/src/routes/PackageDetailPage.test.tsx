@@ -250,18 +250,18 @@ describe("PackageDetailPage symbol-driven views", () => {
       "/modules/platform/vpc/aws/2.4.1?tab=inputs",
     );
 
-    const inputs = screen.getByRole("table", {
-      name: "Module input definitions",
-    });
+    const inputs = screen.getByRole("region", { name: "Optional Inputs" });
     expect(within(inputs).getByText("cidr_block")).toBeInTheDocument();
     expect(within(inputs).getByText("10.0.0.0/16")).toBeInTheDocument();
-    expect(within(inputs).getAllByText("No")).toHaveLength(2);
+    expect(
+      within(inputs).getByRole("button", { name: "Copy cidr_block" }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Outputs (1)" }));
     expect(
-      within(
-        screen.getByRole("table", { name: "Module output definitions" }),
-      ).getByText("vpc_id"),
+      within(screen.getByRole("region", { name: "Outputs" })).getByText(
+        "vpc_id",
+      ),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Dependencies (1)" }));

@@ -25,6 +25,7 @@ import { runtimeConfig } from "../runtime-config";
 import { RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function AppShell() {
   const session = useSession();
@@ -124,6 +125,7 @@ function AuthenticatedShell() {
               <BooksIcon size={17} /> Documentation
             </NavLink>
             <AccessSelect compact />
+            <ThemeToggle showLabel />
           </nav>
         ) : null}
       </header>
@@ -170,6 +172,7 @@ function HeaderActions() {
     <div className="header-actions">
       <BrowseMenu />
       <AccessSelect />
+      <ThemeToggle />
       <Menu as="div" className="user-menu">
         <MenuButton className="user-menu-button">
           <span className="avatar" aria-hidden="true">
@@ -303,6 +306,7 @@ function PublicFrame({
           {sessionName ? (
             <span className="public-user">{sessionName}</span>
           ) : null}
+          <ThemeToggle />
         </div>
       </header>
       <main>{children}</main>
