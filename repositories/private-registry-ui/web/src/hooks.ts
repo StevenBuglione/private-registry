@@ -1,15 +1,22 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import {
   ApiError,
   catalogEventsUrl,
   getCatalogPage,
+  getHomepageSettings,
   getPackage,
   getPackageDocumentation,
   getPackageGovernance,
   getSession,
+  updateHomepageSettings,
 } from "./api";
-import type { CatalogQuery, GovernanceRecord, PackageKind } from "./types";
+import type {
+  CatalogQuery,
+  GovernanceRecord,
+  HomepageSettingsUpdate,
+  PackageKind,
+} from "./types";
 
 const queryRetry = (failureCount: number, error: Error) =>
   error instanceof ApiError && error.status >= 500 && failureCount < 1;
@@ -30,6 +37,27 @@ export function useCatalogPage(query: CatalogQuery) {
     retry: queryRetry,
     staleTime: 20_000,
     placeholderData: (previous) => previous,
+  });
+}
+
+export function useHomepageSettings() {
+  return useQuery({
+    queryKey: ["homepage-settings"],
+    queryFn: getHomepageSettings,
+    retry: queryRetry,
+    staleTime: 30_000,
+  });
+}
+
+export function useUpdateHomepageSettings(csrfToken?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (update: HomepageSettingsUpdate) =>
+      updateHomepageSettings(update, csrfToken),
+    onSuccess: async (settings) => {
+      queryClient.setQueryData(["homepage-settings"], settings);
+      await queryClient.invalidateQueries({ queryKey: ["homepage-settings"] });
+    },
   });
 }
 

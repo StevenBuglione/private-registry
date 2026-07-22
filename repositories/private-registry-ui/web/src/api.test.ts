@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getHomepageSettings,
   getPackage,
   getPackageDocumentation,
   getPackageGovernance,
   getSession,
   logout,
   normalizeCatalogPage,
+  updateHomepageSettings,
 } from "./api";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -63,6 +65,55 @@ describe("OpenAPI response normalization", () => {
     expect(new Headers(call[1]?.headers).get("X-XSRF-TOKEN")).toBe(
       "csrf-value",
     );
+  });
+
+  it("loads and updates administrator-managed homepage settings", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(() =>
+      Promise.resolve(
+        jsonResponse({
+          notification_enabled: true,
+          notification_title: "Registry notice",
+          notification_message: "Approved packages are available.",
+          featured_provider_ids: ["provider/hashicorp/aws"],
+          updated_at: "2026-07-22T12:00:00Z",
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const settings = await getHomepageSettings();
+    expect(settings).toMatchObject({
+      notificationEnabled: true,
+      notificationTitle: "Registry notice",
+      featuredProviderIds: ["provider/hashicorp/aws"],
+    });
+
+    await updateHomepageSettings(
+      {
+        notificationEnabled: false,
+        notificationTitle: "Maintenance",
+        notificationMessage: "The catalog is read-only.",
+        featuredProviderIds: [],
+      },
+      "csrf-value",
+    );
+    const call = fetchMock.mock.calls[1];
+    if (call === undefined) throw new Error("Expected a homepage update");
+    expect(call[0]).toContain("/registry/homepage");
+    expect(call[1]?.method).toBe("PUT");
+    expect(new Headers(call[1]?.headers).get("X-XSRF-TOKEN")).toBe(
+      "csrf-value",
+    );
+    const requestBody = call[1]?.body;
+    if (typeof requestBody !== "string") {
+      throw new Error("Expected a serialized homepage update body");
+    }
+    expect(JSON.parse(requestBody)).toEqual({
+      notification_enabled: false,
+      notification_title: "Maintenance",
+      notification_message: "The catalog is read-only.",
+      featured_provider_ids: [],
+    });
   });
 
   it("surfaces the nested OpenAPI error code and message", async () => {

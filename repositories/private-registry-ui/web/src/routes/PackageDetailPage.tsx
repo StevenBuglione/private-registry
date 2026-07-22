@@ -798,14 +798,8 @@ function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
 
 function OutputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
   return (
-    <section className="module-symbol-panel">
-      <DefinitionSection
-        title="Outputs"
-        description="Values exported for use by other configurations."
-        symbols={symbols}
-        showDefault={false}
-        showType={false}
-      />
+    <section className="module-symbol-panel" aria-label="Outputs">
+      <DefinitionList symbols={symbols} showDefault={false} showType={false} />
     </section>
   );
 }
@@ -836,37 +830,54 @@ function DefinitionSection({
           description
         )}
       </p>
-      <dl className="module-definition-list">
-        {symbols.map((symbol) => (
-          <div key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
-            <dt>
-              <strong>{symbol.name}</strong>
-              <DefinitionCopyButton value={symbol.name} />
-              {showType ? (
-                <code className="definition-type">
-                  {symbol.type ?? "Unknown"}
-                </code>
-              ) : null}
-              {symbol.sensitive === true ? (
-                <span className="definition-sensitive">Sensitive</span>
-              ) : null}
-            </dt>
-            <dd>
-              <p>
-                <em>Description:</em>{" "}
-                {cleanSymbolDescription(symbol.description)}
-              </p>
-              {showDefault ? (
-                <p>
-                  <em>Default:</em>{" "}
-                  <code>{formatDefaultValue(symbol.defaultValue)}</code>
-                </p>
-              ) : null}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <DefinitionList
+        symbols={symbols}
+        showDefault={showDefault}
+        showType={showType}
+      />
     </section>
+  );
+}
+
+function DefinitionList({
+  symbols,
+  showDefault,
+  showType,
+}: {
+  symbols: PackageSymbol[];
+  showDefault: boolean;
+  showType: boolean;
+}) {
+  return (
+    <dl className="module-definition-list">
+      {symbols.map((symbol) => (
+        <div key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
+          <dt>
+            <strong>{symbol.name}</strong>
+            <DefinitionCopyButton value={symbol.name} />
+            {showType ? (
+              <code className="definition-type">
+                {symbol.type ?? "Unknown"}
+              </code>
+            ) : null}
+            {symbol.sensitive === true ? (
+              <span className="definition-sensitive">Sensitive</span>
+            ) : null}
+          </dt>
+          <dd>
+            <p>
+              <em>Description:</em> {cleanSymbolDescription(symbol.description)}
+            </p>
+            {showDefault ? (
+              <p>
+                <em>Default:</em>{" "}
+                <code>{formatDefaultValue(symbol.defaultValue)}</code>
+              </p>
+            ) : null}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

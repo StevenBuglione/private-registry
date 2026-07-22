@@ -1,92 +1,75 @@
 # Terraform Registry visual-parity QA
 
-## Source visual truth
+## Source and implementation
 
-- Live source: `https://registry.terraform.io/`, captured in the in-app browser on July 22, 2026.
-- Source states: home, provider browse, module browse, AzureRM overview, AzureRM documentation index, `azurerm_resource_group`, module README, module Inputs, and module Outputs.
-- Primary source screenshots:
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-home-desktop-full.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-provider-resource-desktop.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-module-inputs-desktop.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-home-mobile.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-provider-resource-mobile.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/source-module-inputs-mobile.png`
-- Captured source geometry and tokens: system sans-serif stack, 16/24 body text, 30/38/700 H1, 36-pixel controls, five-pixel control radii, black application shell, white content surfaces, restrained gray borders, blue active states, and pale purple notices.
-- Terraform and HashiCorp marks, public-marketplace claims, public authentication actions, and public download statistics are not copied. They are intentionally replaced with Registry identity, Entra identity, APM authorization, truthful mirrored counts, JFrog paths, lifecycle, approval, and risk data.
+- Source of visual truth: `https://registry.terraform.io/`, captured in the in-app browser on July 22, 2026.
+- Local implementation: `http://localhost:3000/` from the production Docker Compose stack.
+- Compared authenticated states: home, AzureRM provider documentation, and Helm module Outputs.
+- Comparison viewport: 1440 x 900 CSS pixels at DPR 1. The browser capture area is 1425 x 891 pixels because application chrome is excluded.
+- Responsive verification: 1440, 1024, 768, and 390 CSS-pixel widths; the automated browser suite asserts no horizontal overflow at the intermediate widths and exercises the mobile navigation at 390 pixels.
 
-## Implementation evidence
+The public Terraform/HashiCorp marks, Publish action, public sign-in, public download figures, and marketplace claims are intentionally excluded. Registry identity, Entra identity, APM authorization, truthful mirrored counts, governance metadata, and Artifactory installation data replace them without changing the source layout model.
 
-- Local implementation: `http://localhost:3000/`
-- Compared local states:
-  - `/`
-  - `/providers`
-  - `/providers/hashicorp/azurerm/4.37.0?tab=docs&doc=resources%2Fresource_group.md`
-  - `/modules/Azure/avm-res-network-virtualnetwork/azurerm/0.8.1?tab=inputs`
-- Viewports: 1440 x 1000, 1024 x 900, 768 x 900, and 390 x 844 CSS pixels.
-- Final light screenshots:
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-home-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-provider-resource-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-module-inputs-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-home-light-1024.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-providers-light-768.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-home-light-390.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-provider-resource-light-390.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-module-inputs-light-390.png`
-- Final dark screenshots:
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-home-dark-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-provider-resource-dark-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-module-inputs-dark-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/final-home-dark-390.png`
-- Required same-viewport side-by-side boards:
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-home-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-provider-resource-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-module-inputs-light-1440.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-home-light-390.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-provider-resource-light-390.png`
-  - `D:/Users/steve/private-registry/.codex-artifacts/terraform-ui-reference/compare-module-inputs-light-390.png`
+## Measured visual system
+
+- Font stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"`.
+- Body type: 16-pixel font with 24-pixel line height.
+- Application header: 60 pixels high; global search band: 63 pixels high.
+- Home H1: 30/38 pixels at weight 700; hero copy: 14/20 pixels.
+- Buttons and selects: 36 pixels high with five-pixel radii.
+- Provider cards: three-column desktop grid with source-matched border, padding, icon geometry, and compact metadata.
+- Detail pages: compact breadcrumb/header metadata, underline tabs, provider documentation tree/article/on-this-page columns, and module content/sidebar proportions.
+
+## Side-by-side evidence
+
+These images combine the public reference and local implementation in the same input before judgment:
+
+- Home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-home-1440x900.png`
+- AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-azurerm-docs-1440x900.png`
+- Helm module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-module-outputs-1440x900.png`
+
+Final local captures:
+
+- Light home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-home-light-full-1440.png`
+- Light AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-azurerm-docs-light-1440x900.png`
+- Light module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-module-outputs-light-1440x900.png`
+- Dark home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-home-dark-1440x900.png`
+- Dark AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-azurerm-docs-dark-1440x900.png`
+- Dark module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-module-outputs-dark-1440x900.png`
 
 ## Comparison history
 
-1. Initial P1: the private home, provider docs, and module Inputs used a looser product-specific layout, module tables, and a generic documentation navigator.
-   - Fix: matched the official shell, search band, notice, hero, contextual strip, card grid, detail header, tabs, three-column documentation layout, and definition-list Inputs/Outputs anatomy.
-2. Initial P1: AzureRM resources were not organized or filtered like the official provider documentation.
-   - Fix: added service-grouped navigation, nested Resources/Data Sources/List Resources sections, automatic filtered expansion, matching-result counts, selected states, and an on-this-page rail.
-3. Initial P1: the module Inputs and Outputs omitted the official required/optional structure and presented incomplete mirrored descriptions literally.
-   - Fix: added Required Inputs and Optional Inputs groups, descriptions, defaults, type badges, copy controls, and safe `No description published.` normalization.
-4. Initial P2: the first combined home comparison showed notice, hero, and access-context bands taller than the source; the module header also carried excess vertical space.
-   - Fix: restored the measured 74-pixel notice, 320-pixel hero, 54-pixel context band, and tightened the module detail header.
-5. Final combined comparison: home, AzureRM resource documentation, module Inputs, and mobile states have no remaining P0, P1, or P2 visual defects.
-
-## Required fidelity surfaces
-
-- Typography: system sans-serif type, source-like hierarchy, weights, line heights, code treatment, and compact metadata.
-- Geometry: matching black shell, full-width search, measured home bands, three-column cards, detail header, underline tabs, provider documentation rail/article/table-of-contents, and module content/sidebar proportions.
-- Controls: matching 36-pixel buttons and selects, restrained radii and borders, blue active states, searchable documentation navigation, version controls, copy controls, and responsive menu behavior.
-- Data fidelity: 12 providers and 30 modules are backend-derived. Versions, owners, lifecycle, risk, APM access, source repositories, and Artifactory paths remain private and truthful.
-- Asset fidelity: existing real provider assets and the first-party Registry emblem are used. Interface icons come from Phosphor; no CSS art, emoji, text-glyph substitutes, placeholder boxes, handcrafted SVGs, or remote hotlinks were introduced.
-- Responsive behavior: the mobile implementation preserves the official information hierarchy while preventing the source site's horizontal clipping from hiding primary controls or placing the install rail before the Inputs content.
-- Dark mode: the official Registry has no dark theme to capture. The requested dark mode therefore preserves the measured layout and interaction model while applying a neutral charcoal inversion, accessible contrast, matching borders, and the same blue/purple semantics. The selection persists across reloads and respects the system preference for first use.
+1. The application used an APM dropdown and a top-level theme control, unlike the requested authenticated shell.
+   - Fixed: all entitled APMs are aggregated and enforced server-side; the selector was removed. Theme selection now lives only inside the signed-in user menu.
+2. The Registry emblem escaped its header container.
+   - Fixed: a measured 25 x 25 frame clips the 25 x 25 image. Browser inspection confirmed identical frame and image bounds, hidden overflow, and no internal scroll overflow.
+3. Home content diverged with Featured Modules and a standalone Docs route.
+   - Fixed: Featured Modules became the Terraform/provider/module explainer section, `/docs` redirects home, and Docs was removed from desktop and mobile navigation.
+4. The provider latest route omitted the resource documentation hierarchy and the module latest route omitted Inputs/Outputs.
+   - Fixed: latest-version symbol enrichment now returns the same provider groups and module definitions as pinned versions. Browser checks confirmed AzureRM groups and the Helm `deployment` output.
+5. Homepage notice text and featured-provider selection were static.
+   - Fixed: registry administrators can update the notice and choose up to six featured providers from the signed-in menu. Settings persist in PostgreSQL and changes are audited.
+6. Final combined comparisons show source-matched typography, density, geometry, controls, and information hierarchy with no remaining P0, P1, or P2 visual defects.
 
 ## Interaction and runtime verification
 
-- Real Entra-authenticated session loaded as `Registry E2E Administrator`; no mock identity or Graph response was used.
-- Browse menu, authorized global search, provider/module navigation, APM context, version switching, documentation filtering, tabs, copy feedback, and mobile menu were exercised in the in-app browser.
-- AzureRM `resource_group` documentation rendered real mirrored notes, example content, arguments, timeouts, and import sections.
-- Theme selection persisted across a reload.
-- The browser error/warning log was empty after the final Compose rebuild.
-- Docker Compose reported API, indexer, LocalStack, OpenSearch, PostgreSQL, and UI healthy.
-- `pnpm lint`: passed.
-- `pnpm test`: 6 files and 13 tests passed, including accessibility checks.
-- `pnpm build`: passed.
+- User-menu light/dark selection worked and persisted across reloads.
+- Admin homepage settings loaded and saved successfully; the final home rendered six selected providers.
+- `/docs` redirected to `/`.
+- No APM selector is present and catalog requests contain no client-selected `apm_id`.
+- AzureRM latest documentation exposed Guides, Functions, AAD B2C, Active Directory Domain Services, Advisor, and subsequent resource groups.
+- Helm latest Outputs exposed the `deployment` output.
+- The header brand measured 25 x 25 pixels, was fully contained, and did not overflow.
+- Browser console inspection found no local application errors.
+- Playwright, axe-core, and responsive overflow checks passed at the required widths.
 
-## Intentional product differences
+## Intentional private-registry differences
 
-- Registry and its emblem replace Terraform/HashiCorp marks.
-- Entra user/APM controls replace public Publish and Sign In actions.
-- Private governance and Artifactory installation data replace public download panels, marketplace tiers, and public package statistics.
-- A light/dark toggle is added because it is an explicit product requirement.
-- The mirrored AzureRM version is 4.37.0 while the captured public source version is 4.81.0.
-
-These are required identity, authorization, and data differences rather than visual defects.
+- Registry identity replaces Terraform/HashiCorp branding.
+- The authenticated Entra user menu replaces Publish and public Sign In actions.
+- APM authorization is server-side and aggregate; there is no client access-context dropdown.
+- Private governance and Artifactory provisioning replace public download analytics.
+- Dark mode is an added requirement; it preserves the measured layout while applying accessible charcoal surface tokens.
+- Mirrored package versions differ from the live public versions and remain truthful to the local catalog.
 
 final result: passed

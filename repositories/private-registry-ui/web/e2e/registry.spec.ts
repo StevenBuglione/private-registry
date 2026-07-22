@@ -108,6 +108,20 @@ async function mockRegistry(page: Page): Promise<string[]> {
       return;
     }
 
+    if (url.pathname === "/api/v1/registry/homepage") {
+      await route.fulfill({
+        json: {
+          notification_enabled: true,
+          notification_title: "Your private Registry is ready",
+          notification_message:
+            "Browse approved providers and modules from every APM group you belong to.",
+          featured_provider_ids: ["provider/hashicorp/azurerm"],
+          updated_at: "2026-07-22T12:00:00Z",
+        },
+      });
+      return;
+    }
+
     if (url.pathname.endsWith("/documentation")) {
       const selected = url.searchParams.get("path");
       await route.fulfill({
@@ -174,15 +188,32 @@ test("authorized home and theme are accessible at desktop and mobile sizes", asy
 }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Registry" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /AzureRM/i })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Azure by Cloud Platform/i }),
+  ).toBeVisible();
 
   const desktopScan = await new AxeBuilder({ page }).analyze();
   expect(desktopScan.violations).toEqual([]);
 
-  await page.getByRole("button", { name: "Switch to dark mode" }).click();
+  await page.getByRole("button", { name: /Browser User/ }).click();
+  await page.getByRole("menuitem", { name: "Switch to dark mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  for (const viewport of [
+    { width: 1024, height: 900 },
+    { width: 768, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const layoutWidth = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+    expect(layoutWidth.scroll).toBeLessThanOrEqual(layoutWidth.client);
+    const responsiveScan = await new AxeBuilder({ page }).analyze();
+    expect(responsiveScan.violations).toEqual([]);
+  }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open menu" }).click();
@@ -211,6 +242,10 @@ test("provider resources match the canonical detail and documentation flow", asy
   await expect(
     page.getByRole("heading", { name: "azurerm_resource_group Resource" }),
   ).toBeVisible();
+
+  await page.goto("/providers/hashicorp/azurerm/latest?tab=documentation");
+  await page.getByRole("button", { name: "Base" }).click();
+  await expect(page.getByRole("button", { name: "Resources" })).toBeVisible();
 });
 
 test("module inputs and outputs remain discoverable", async ({ page }) => {
@@ -224,7 +259,7 @@ test("module inputs and outputs remain discoverable", async ({ page }) => {
   );
 });
 
-test("every catalog request carries the selected APM and no restricted metadata", async ({
+test("catalog requests aggregate server-side APM access without a client selector", async ({
   page,
 }) => {
   const requests = await mockRegistry(page);
@@ -233,8 +268,11 @@ test("every catalog request carries the selected APM and no restricted metadata"
     page.getByRole("heading", { name: /Results for/ }),
   ).toBeVisible();
   await expect(page.getByText("restricted-provider")).toHaveCount(0);
+  await expect(
+    page.getByRole("combobox", { name: "Access context" }),
+  ).toHaveCount(0);
   expect(requests.length).toBeGreaterThan(0);
   for (const request of requests) {
-    expect(new URL(request).searchParams.get("apm_id")).toBe("APM0000001");
+    expect(new URL(request).searchParams.get("apm_id")).toBeNull();
   }
 });

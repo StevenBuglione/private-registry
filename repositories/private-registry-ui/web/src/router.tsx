@@ -7,7 +7,6 @@ import {
 import { AppShell } from "./components/AppShell";
 import { StatePanel } from "./components/StatePanel";
 import { CatalogPage } from "./routes/CatalogPage";
-import { DocsPage } from "./routes/DocsPage";
 import { HomePage } from "./routes/HomePage";
 import { PackageDetailPage } from "./routes/PackageDetailPage";
 import type { PackageKind } from "./types";
@@ -30,7 +29,7 @@ export const router = createBrowserRouter([
         path: "modules/:namespace/:name/:target/:version?",
         element: <PackageDetailPage kind="module" />,
       },
-      { path: "docs", element: <DocsPage /> },
+      { path: "docs", element: <Navigate replace to="/" /> },
       {
         path: "provider/:namespace/:name/:version?/*",
         element: <LegacyPackageRedirect kind="provider" />,

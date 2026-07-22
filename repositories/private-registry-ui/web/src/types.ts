@@ -27,6 +27,18 @@ export interface RegistrySession {
   admin: boolean;
 }
 
+export interface HomepageSettings {
+  notificationEnabled: boolean;
+  notificationTitle: string;
+  notificationMessage: string;
+  notificationLinkLabel?: string | undefined;
+  notificationLinkUrl?: string | undefined;
+  featuredProviderIds: string[];
+  updatedAt: string;
+}
+
+export type HomepageSettingsUpdate = Omit<HomepageSettings, "updatedAt">;
+
 export interface PackageSummary {
   kind: PackageKind;
   namespace: string;

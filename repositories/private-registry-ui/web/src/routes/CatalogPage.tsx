@@ -113,7 +113,7 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
       ? "Providers are a logical abstraction of an upstream API. They expose approved infrastructure resources and services."
       : kind === "module"
         ? "Modules are self-contained packages of infrastructure configuration that are managed and versioned as a group."
-        : "Search and filter every provider and module available to your APM context.";
+        : "Search and filter every provider and module available through your APM memberships.";
 
   const providerItems =
     result.data?.items.filter((item) => item.kind === "provider") ?? [];
@@ -129,7 +129,6 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
         <NavLink to="/providers">Providers</NavLink>
         <NavLink to="/modules">Modules</NavLink>
         <NavLink to="/browse">All Packages</NavLink>
-        <NavLink to="/docs">Documentation</NavLink>
       </nav>
       <button
         className="mobile-filter-button"

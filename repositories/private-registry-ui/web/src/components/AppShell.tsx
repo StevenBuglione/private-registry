@@ -6,23 +6,24 @@ import {
   Transition,
 } from "@headlessui/react";
 import {
-  BooksIcon,
   CaretDownIcon,
   CubeIcon,
   ListIcon,
   MagnifyingGlassIcon,
   PackageIcon,
   SignOutIcon,
+  SlidersHorizontalIcon,
   UserCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { Fragment, type ReactNode, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router";
+import { Link, NavLink, Outlet } from "react-router";
 import { ApiError, logout } from "../api";
 import { useCatalogEvents, useSession } from "../hooks";
 import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
+import { AdminHomepageDialog } from "./AdminHomepageDialog";
 import { RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
@@ -87,8 +88,7 @@ export function AppShell() {
 
 function AuthenticatedShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { selectedApmId } = useRegistry();
-  useCatalogEvents(selectedApmId);
+  useCatalogEvents();
 
   return (
     <div className="app-shell">
@@ -141,16 +141,7 @@ function AuthenticatedShell() {
             >
               <MagnifyingGlassIcon size={17} /> Browse all
             </NavLink>
-            <NavLink
-              to="/docs"
-              onClick={() => {
-                setMobileOpen(false);
-              }}
-            >
-              <BooksIcon size={17} /> Documentation
-            </NavLink>
-            <AccessSelect compact />
-            <ThemeToggle showLabel />
+            <MobileAccount />
           </nav>
         ) : null}
       </header>
@@ -173,9 +164,9 @@ function AuthenticatedShell() {
 }
 
 function HeaderActions() {
-  const navigate = useNavigate();
   const { session } = useRegistry();
   const [busy, setBusy] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const initials = session.displayName
     .split(/\s+/)
     .slice(0, 2)
@@ -194,55 +185,86 @@ function HeaderActions() {
   };
 
   return (
-    <div className="header-actions">
-      <BrowseMenu />
-      <AccessSelect />
-      <ThemeToggle />
-      <Menu as="div" className="user-menu">
-        <MenuButton className="user-menu-button">
-          <span className="avatar" aria-hidden="true">
-            {initials || "U"}
-          </span>
-          <span className="user-name">{session.displayName}</span>
-          <CaretDownIcon size={14} aria-hidden="true" />
-        </MenuButton>
-        <Transition
-          as={Fragment}
-          enter="menu-enter"
-          enterFrom="menu-enter-from"
-          enterTo="menu-enter-to"
-          leave="menu-leave"
-          leaveFrom="menu-leave-from"
-          leaveTo="menu-leave-to"
-        >
-          <MenuItems anchor="bottom end" className="user-menu-items">
-            <div className="user-menu-identity">
-              <strong>{session.displayName}</strong>
-              <span>{session.email}</span>
-            </div>
-            <MenuItem>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigate("/docs#access");
-                }}
+    <>
+      <div className="header-actions">
+        <BrowseMenu />
+        <Menu as="div" className="user-menu">
+          {({ close }) => (
+            <>
+              <MenuButton className="user-menu-button">
+                <span className="avatar" aria-hidden="true">
+                  {initials || "U"}
+                </span>
+                <span className="user-name">{session.displayName}</span>
+                <CaretDownIcon size={14} aria-hidden="true" />
+              </MenuButton>
+              <Transition
+                as={Fragment}
+                enter="menu-enter"
+                enterFrom="menu-enter-from"
+                enterTo="menu-enter-to"
+                leave="menu-leave"
+                leaveFrom="menu-leave-from"
+                leaveTo="menu-leave-to"
               >
-                <UserCircleIcon size={17} /> Access help
-              </button>
-            </MenuItem>
-            <MenuItem>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void signOut()}
-              >
-                <SignOutIcon size={17} /> {busy ? "Signing out…" : "Sign out"}
-              </button>
-            </MenuItem>
-          </MenuItems>
-        </Transition>
-      </Menu>
-    </div>
+                <MenuItems anchor="bottom end" className="user-menu-items">
+                  <div className="user-menu-identity">
+                    <strong>{session.displayName}</strong>
+                    <span>{session.email}</span>
+                  </div>
+                  <div className="user-menu-access">
+                    <strong>Catalog access</strong>
+                    <span>
+                      {session.admin
+                        ? "Registry administrator · all approved packages"
+                        : "All eligible APM groups are included"}
+                    </span>
+                    {!session.admin
+                      ? session.apms.map((apm) => (
+                          <small key={apm.id}>
+                            {apm.id} · {apm.name}
+                          </small>
+                        ))
+                      : null}
+                  </div>
+                  {session.admin ? (
+                    <MenuItem>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminOpen(true);
+                        }}
+                      >
+                        <SlidersHorizontalIcon size={17} /> Homepage settings
+                      </button>
+                    </MenuItem>
+                  ) : null}
+                  <ThemeToggle showLabel menuItem onToggle={close} />
+                  <MenuItem>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void signOut()}
+                    >
+                      <SignOutIcon size={17} />{" "}
+                      {busy ? "Signing out…" : "Sign out"}
+                    </button>
+                  </MenuItem>
+                </MenuItems>
+              </Transition>
+            </>
+          )}
+        </Menu>
+      </div>
+      {session.admin ? (
+        <AdminHomepageDialog
+          open={adminOpen}
+          onClose={() => {
+            setAdminOpen(false);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -281,43 +303,25 @@ function BrowseMenu() {
             </span>
           </Link>
         </MenuItem>
-        <MenuItem>
-          <Link to="/docs">
-            <BooksIcon size={19} />
-            <span>
-              <strong>Documentation</strong>
-              <small>Access, governance, and usage guidance.</small>
-            </span>
-          </Link>
-        </MenuItem>
       </MenuItems>
     </Menu>
   );
 }
 
-function AccessSelect({ compact = false }: { compact?: boolean }) {
-  const { session, selectedApmId, setSelectedApmId } = useRegistry();
-  if (session.admin && session.apms.length === 0) {
-    return <span className="admin-context">Registry administrator</span>;
-  }
+function MobileAccount() {
+  const { session } = useRegistry();
   return (
-    <label className={compact ? "access-select compact" : "access-select"}>
-      <span>Access context</span>
-      <select
-        aria-label="Access context"
-        value={selectedApmId ?? ""}
-        onChange={(event) => {
-          setSelectedApmId(event.target.value);
-        }}
-      >
-        {session.admin ? <option value="">All approved packages</option> : null}
-        {session.apms.map((apm) => (
-          <option key={apm.id} value={apm.id}>
-            {apm.id} · {apm.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="mobile-account">
+      <span>
+        <UserCircleIcon size={17} /> {session.displayName}
+      </span>
+      <small>
+        {session.admin
+          ? "Registry administrator"
+          : `${String(session.apms.length)} APM groups`}
+      </small>
+      <ThemeToggle showLabel />
+    </div>
   );
 }
 
@@ -339,7 +343,6 @@ function PublicFrame({
           {sessionName !== undefined && sessionName.length > 0 ? (
             <span className="public-user">{sessionName}</span>
           ) : null}
-          <ThemeToggle />
         </div>
       </header>
       <main>{children}</main>

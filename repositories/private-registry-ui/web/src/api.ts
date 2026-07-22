@@ -5,6 +5,8 @@ import type {
   CatalogPage,
   CatalogQuery,
   GovernanceRecord,
+  HomepageSettings,
+  HomepageSettingsUpdate,
   PackageDetail,
   PackageKind,
   PackageSummary,
@@ -215,6 +217,33 @@ export async function logout(csrfToken?: string): Promise<string | undefined> {
     response.redirectUri,
     response.redirect_uri,
   );
+}
+
+export async function getHomepageSettings(): Promise<HomepageSettings> {
+  const raw = await request("/registry/homepage", jsonObjectSchema);
+  return normalizeHomepageSettings(raw);
+}
+
+export async function updateHomepageSettings(
+  update: HomepageSettingsUpdate,
+  csrfToken?: string,
+): Promise<HomepageSettings> {
+  const raw = await request("/registry/homepage", jsonObjectSchema, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...csrfHeaders(csrfToken),
+    },
+    body: JSON.stringify({
+      notification_enabled: update.notificationEnabled,
+      notification_title: update.notificationTitle,
+      notification_message: update.notificationMessage,
+      notification_link_label: update.notificationLinkLabel,
+      notification_link_url: update.notificationLinkUrl,
+      featured_provider_ids: update.featuredProviderIds,
+    }),
+  });
+  return normalizeHomepageSettings(raw);
 }
 
 export async function getCatalogPage(
@@ -557,6 +586,34 @@ function normalizeGovernance(raw: JsonObject): GovernanceRecord {
   };
 }
 
+function normalizeHomepageSettings(raw: JsonObject): HomepageSettings {
+  return {
+    notificationEnabled: Boolean(
+      raw["notificationEnabled"] ?? raw["notification_enabled"],
+    ),
+    notificationTitle: firstString(
+      raw["notificationTitle"],
+      raw["notification_title"],
+    ),
+    notificationMessage: firstString(
+      raw["notificationMessage"],
+      raw["notification_message"],
+    ),
+    notificationLinkLabel: optionalString(
+      raw["notificationLinkLabel"],
+      raw["notification_link_label"],
+    ),
+    notificationLinkUrl: optionalString(
+      raw["notificationLinkUrl"],
+      raw["notification_link_url"],
+    ),
+    featuredProviderIds: stringList(
+      raw["featuredProviderIds"] ?? raw["featured_provider_ids"],
+    ),
+    updatedAt: firstString(raw["updatedAt"], raw["updated_at"]),
+  };
+}
+
 function normalizeApm(value: unknown): ApmAccess | null {
   if (typeof value === "string") return { id: value, name: value };
   if (!isObject(value)) return null;
@@ -612,7 +669,7 @@ async function request<T>(
   return schema.parse(payload);
 }
 
-function csrfHeaders(sessionToken?: string): HeadersInit {
+function csrfHeaders(sessionToken?: string): Record<string, string> {
   const cookieToken = document.cookie
     .split(";")
     .map((value) => value.trim())

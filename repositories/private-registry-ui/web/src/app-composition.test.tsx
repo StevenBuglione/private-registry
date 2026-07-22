@@ -1,7 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import {
+  MemoryRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as ApiExports from "./api";
 import { ApiError } from "./api";
@@ -10,7 +16,6 @@ import type * as HookExports from "./hooks";
 import { RegistryProvider } from "./registry-provider";
 import { LegacyPackageRedirect } from "./router";
 import { CatalogPage } from "./routes/CatalogPage";
-import { DocsPage } from "./routes/DocsPage";
 import { HomePage } from "./routes/HomePage";
 import type {
   CatalogPage as CatalogPageData,
@@ -23,6 +28,8 @@ const hookMocks = vi.hoisted(() => ({
   useCatalogPage: vi.fn(),
   useCatalogSuggestions: vi.fn(),
   useCatalogEvents: vi.fn(),
+  useHomepageSettings: vi.fn(),
+  useUpdateHomepageSettings: vi.fn(),
 }));
 
 const apiMocks = vi.hoisted(() => ({ logout: vi.fn() }));
@@ -35,6 +42,8 @@ vi.mock("./hooks", async (importOriginal) => {
     useCatalogPage: hookMocks.useCatalogPage,
     useCatalogSuggestions: hookMocks.useCatalogSuggestions,
     useCatalogEvents: hookMocks.useCatalogEvents,
+    useHomepageSettings: hookMocks.useHomepageSettings,
+    useUpdateHomepageSettings: hookMocks.useUpdateHomepageSettings,
   };
 });
 
@@ -108,7 +117,7 @@ function renderShell(initialEntry = "/") {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<div>Authenticated outlet</div>} />
-          <Route path="docs" element={<DocsPage />} />
+          <Route path="docs" element={<Navigate replace to="/" />} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -139,6 +148,23 @@ beforeEach(() => {
   hookMocks.useCatalogSuggestions.mockReturnValue(
     queryResult({ items: [], total: 0 }),
   );
+  hookMocks.useHomepageSettings.mockReturnValue({
+    data: {
+      notificationEnabled: true,
+      notificationTitle: "Registry notice",
+      notificationMessage: "Approved catalog content.",
+      featuredProviderIds: ["provider/hashicorp/aws"],
+      updatedAt: "2026-07-22T12:00:00Z",
+    },
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  hookMocks.useUpdateHomepageSettings.mockReturnValue({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    error: null,
+  });
   apiMocks.logout.mockResolvedValue("/signed-out");
 });
 
@@ -199,13 +225,13 @@ describe("application composition", () => {
     const { container } = renderShell();
 
     expect(screen.getByText("Authenticated outlet")).toBeVisible();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Access context" }),
-      "APM0000002",
-    );
-    expect(localStorage.getItem("registry.apm.user-1")).toBe("APM0000002");
+    expect(
+      screen.queryByRole("combobox", { name: "Access context" }),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Ada Lovelace/i }));
+    expect(screen.getByText(/All eligible APM groups/)).toBeVisible();
     await user.click(
-      screen.getByRole("button", { name: "Switch to dark mode" }),
+      screen.getByRole("menuitem", { name: "Switch to dark mode" }),
     );
     expect(document.documentElement.dataset["theme"]).toBe("dark");
     await user.click(screen.getByRole("button", { name: "Browse" }));
@@ -226,14 +252,68 @@ describe("application composition", () => {
     expect(result.violations).toEqual([]);
   });
 
+  it("lets registry administrators edit homepage content and featured providers", async () => {
+    const user = userEvent.setup();
+    const mutateAsync = vi.fn().mockResolvedValue(undefined);
+    hookMocks.useSession.mockReturnValueOnce(
+      sessionResult({ data: { ...session, admin: true } }),
+    );
+    hookMocks.useUpdateHomepageSettings.mockReturnValue({
+      mutateAsync,
+      isPending: false,
+      error: null,
+    });
+    renderShell();
+
+    await user.click(screen.getByRole("button", { name: /Ada Lovelace/i }));
+    await user.click(
+      screen.getByRole("menuitem", { name: "Homepage settings" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Homepage settings" }),
+    ).toBeVisible();
+    const title = screen.getByRole("textbox", { name: "Title" });
+    await user.clear(title);
+    await user.type(title, "Planned maintenance");
+    const message = screen.getByRole("textbox", { name: "Message" });
+    await user.clear(message);
+    await user.type(message, "The catalog will be read-only tonight.");
+    await user.click(screen.getByRole("checkbox", { name: "Enabled" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Link label (optional)" }),
+      "Status",
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "HTTPS or Registry-relative URL" }),
+      "/status",
+    );
+    await user.click(screen.getByRole("checkbox", { name: /awshashicorp/i }));
+    await user.click(screen.getByRole("button", { name: "Save homepage" }));
+
+    expect(mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notificationEnabled: false,
+        notificationTitle: "Planned maintenance",
+        notificationMessage: "The catalog will be read-only tonight.",
+        notificationLinkLabel: "Status",
+        notificationLinkUrl: "/status",
+        featuredProviderIds: [],
+      }),
+    );
+  });
+
   it("renders truthful home counts and catalog content", () => {
     renderWithRegistry(<HomePage />);
     expect(screen.getAllByText("1")).toHaveLength(2);
     expect(
       screen.getByRole("link", { name: /AWSby Cloud Platform/i }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: /platform\/vpc/i })).toBeVisible();
-    expect(screen.getByText(/APM0000001/)).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "How Terraform, providers and modules work",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText(/all 2 APM groups/)).toBeVisible();
   });
 
   it("renders home loading, empty, error, and administrator states truthfully", () => {
@@ -272,7 +352,7 @@ describe("application composition", () => {
     const loading = renderWithRegistry(<HomePage />);
     expect(
       loading.container.querySelectorAll(".source-card-skeleton"),
-    ).toHaveLength(9);
+    ).toHaveLength(6);
     loading.unmount();
 
     hookMocks.useCatalogPage.mockReturnValue(
@@ -280,12 +360,12 @@ describe("application composition", () => {
     );
     const adminSession = { ...session, admin: true, apms: [] };
     renderWithRegistry(<HomePage />, "/", adminSession);
-    expect(screen.getByText("Registry administrator")).toBeVisible();
+    expect(screen.getByText(/Registry administrators can see/)).toBeVisible();
     expect(
       screen.getAllByRole("heading", {
         name: "No packages match these filters",
       }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("updates catalog filters, sort order, pagination, and responsive controls", async () => {
@@ -341,16 +421,9 @@ describe("application composition", () => {
     ).toBeVisible();
   });
 
-  it("keeps documentation reachable from a direct route", () => {
+  it("redirects the removed documentation route to the homepage", () => {
     renderShell("/docs");
-    expect(
-      screen.getByRole("heading", {
-        name: "Use approved infrastructure with confidence",
-      }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Getting started" }),
-    ).toHaveAttribute("href", "#getting-started");
+    expect(screen.getByText("Authenticated outlet")).toBeVisible();
   });
 
   it("preserves provider and module deep links through canonical redirects", () => {

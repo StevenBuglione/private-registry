@@ -160,7 +160,8 @@ public class JdbcCatalogService implements CatalogService {
               .single();
       var item = enrich(List.of(row)).getFirst();
       if (version == null || version.isBlank() || "latest".equals(version)) {
-        return item;
+        return withSelectedVersion(
+            item, item.latestVersion(), symbolsForVersion(row.databaseId(), item.latestVersion()));
       }
       var selected =
           item.versions().stream()

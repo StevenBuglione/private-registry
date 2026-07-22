@@ -1,6 +1,5 @@
 import {
   ArrowRightIcon,
-  BookOpenTextIcon,
   CubeIcon,
   GlobeSimpleIcon,
   InfoIcon,
@@ -11,51 +10,63 @@ import { Link } from "react-router";
 import { PackageCard } from "../components/PackageCard";
 import { RegistryMark } from "../components/RegistryMark";
 import { StatePanel } from "../components/StatePanel";
-import { useCatalogPage } from "../hooks";
+import { useCatalogPage, useHomepageSettings } from "../hooks";
+import type { HomepageSettings } from "../types";
 import { useRegistry } from "../use-registry";
 
 export function HomePage() {
-  const { selectedApmId, session } = useRegistry();
+  const { session } = useRegistry();
+  const settings = useHomepageSettings();
   const providers = useCatalogPage({
     kind: "provider",
-    apmId: selectedApmId,
     approval: "approved",
     sort: "name",
     limit: 50,
   });
   const modules = useCatalogPage({
     kind: "module",
-    apmId: selectedApmId,
     approval: "approved",
-    sort: "updated",
-    limit: 5,
+    sort: "name",
+    limit: 1,
   });
-  const activeApm = session.apms.find((item) => item.id === selectedApmId);
   const providerCount = providers.data?.total ?? 0;
   const moduleCount = modules.data?.total ?? 0;
   const catalogError = providers.isError || modules.isError;
+  const homepageSettings = settings.data ?? DEFAULT_HOMEPAGE_SETTINGS;
+  const featured = featuredProviders(
+    providers.data?.items ?? [],
+    homepageSettings.featuredProviderIds,
+  );
 
   return (
     <div className="home-page">
-      <section className="home-announcement">
-        <div className="source-container">
-          <InfoIcon size={20} weight="regular" />
-          <div>
-            <strong>Your private registry is ready</strong>
-            <p>
-              Packages are filtered to your current enterprise access context.
-              Browse only the infrastructure approved for your teams.
-            </p>
+      {homepageSettings.notificationEnabled ? (
+        <section className="home-announcement">
+          <div className="source-container">
+            <InfoIcon size={20} weight="regular" />
+            <div>
+              <strong>{homepageSettings.notificationTitle}</strong>
+              <p>
+                {homepageSettings.notificationMessage}
+                {homepageSettings.notificationLinkLabel !== undefined &&
+                homepageSettings.notificationLinkUrl !== undefined ? (
+                  <NotificationLink
+                    label={homepageSettings.notificationLinkLabel}
+                    href={homepageSettings.notificationLinkUrl}
+                  />
+                ) : null}
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="registry-hero source-container">
         <RegistryMark />
         <h1>Registry</h1>
         <p>
-          Discover approved providers and reusable modules for building secure,
-          reliable infrastructure.
+          Discover approved Terraform providers and reusable modules for
+          building secure, reliable infrastructure.
         </p>
         <div className="hero-actions">
           <Link to="/providers">
@@ -63,9 +74,6 @@ export function HomePage() {
           </Link>
           <Link to="/modules">
             <CubeIcon size={19} /> Browse Modules
-          </Link>
-          <Link to="/docs">
-            <BookOpenTextIcon size={19} /> Read Documentation
           </Link>
         </div>
         <div className="hero-counts">
@@ -77,18 +85,12 @@ export function HomePage() {
       <section className="access-strip">
         <div className="source-container">
           <ShieldCheckIcon size={20} />
-          <strong>
-            {activeApm !== undefined
-              ? `${activeApm.id} · ${activeApm.name}`
-              : "Registry administrator"}
-          </strong>
+          <strong>APM-authorized catalog</strong>
           <span>
-            Your counts, search results, documentation, and live updates use
-            this access context.
+            {session.admin
+              ? "Registry administrators can see every approved package."
+              : `Showing packages across all ${String(session.apms.length)} APM group${session.apms.length === 1 ? "" : "s"} you belong to.`}
           </span>
-          <Link to="/docs#access">
-            Learn more <ArrowRightIcon size={14} />
-          </Link>
         </div>
       </section>
 
@@ -108,44 +110,108 @@ export function HomePage() {
             description="Popular infrastructure plugins approved for your access context."
             href="/providers"
             loading={providers.isPending}
-            items={featuredProviders(providers.data?.items ?? [])}
+            items={featured}
             variant="providers"
           />
-          <CatalogSection
-            eyebrow="Featured modules"
-            description="Reusable, governed infrastructure configurations maintained by your platform teams."
-            href="/modules"
-            loading={modules.isPending}
-            items={modules.data?.items ?? []}
-            variant="modules"
-          />
+          <HowTerraformWorks />
         </div>
       )}
     </div>
   );
 }
 
-const featuredProviderOrder = [
-  "aws",
-  "kubernetes",
-  "google",
-  "azurerm",
-  "helm",
-  "datadog",
+const DEFAULT_FEATURED_PROVIDER_IDS = [
+  "provider/hashicorp/google",
+  "provider/hashicorp/azurerm",
+  "provider/hashicorp/aws",
+  "provider/hashicorp/kubernetes",
+  "provider/hashicorp/helm",
+  "provider/datadog/datadog",
 ];
 
-function featuredProviders(items: Parameters<typeof PackageCard>[0]["item"][]) {
+const DEFAULT_HOMEPAGE_SETTINGS: HomepageSettings = {
+  notificationEnabled: true,
+  notificationTitle: "Your private Registry is ready",
+  notificationMessage:
+    "Browse approved providers and modules from every APM group you belong to.",
+  featuredProviderIds: DEFAULT_FEATURED_PROVIDER_IDS,
+  updatedAt: "",
+};
+
+function featuredProviders(
+  items: Parameters<typeof PackageCard>[0]["item"][],
+  selectedIds: string[],
+) {
+  const order = selectedIds.length
+    ? selectedIds
+    : DEFAULT_FEATURED_PROVIDER_IDS;
   return [...items]
     .sort((left, right) => {
-      const leftRank = featuredProviderOrder.indexOf(left.name.toLowerCase());
-      const rightRank = featuredProviderOrder.indexOf(right.name.toLowerCase());
+      const leftRank = order.indexOf(providerId(left));
+      const rightRank = order.indexOf(providerId(right));
       return (
         (leftRank < 0 ? Number.MAX_SAFE_INTEGER : leftRank) -
           (rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank) ||
         left.name.localeCompare(right.name)
       );
     })
+    .filter(
+      (item) => !selectedIds.length || selectedIds.includes(providerId(item)),
+    )
     .slice(0, 6);
+}
+
+function providerId(item: Parameters<typeof PackageCard>[0]["item"]) {
+  return `provider/${item.namespace}/${item.name}`;
+}
+
+function NotificationLink({ label, href }: { label: string; href: string }) {
+  return href.startsWith("/") ? (
+    <Link to={href}>
+      {label} <ArrowRightIcon size={14} />
+    </Link>
+  ) : (
+    <a href={href} target="_blank" rel="noreferrer">
+      {label} <ArrowRightIcon size={14} />
+    </a>
+  );
+}
+
+function HowTerraformWorks() {
+  return (
+    <section className="how-terraform">
+      <img
+        src="/assets/registry-flow.png"
+        alt="Approved Registry packages flow into Terraform and provision infrastructure"
+      />
+      <div>
+        <h2>How Terraform, providers and modules work</h2>
+        <p>
+          <strong>Terraform</strong> plans and applies infrastructure changes
+          from configuration written in HashiCorp Configuration Language.
+        </p>
+        <p>
+          <strong>Providers</strong> connect Terraform to cloud and service
+          APIs. <strong>Modules</strong> package reusable configurations for
+          consistent infrastructure delivery.
+        </p>
+        <p>
+          <strong>The Registry</strong> gives your teams approved versions of
+          both. Add a provider or module to your configuration and run{" "}
+          <code>terraform init</code> to retrieve it from the configured private
+          source.
+        </p>
+        <div className="how-terraform-links">
+          <Link to="/providers">
+            Browse providers <ArrowRightIcon size={14} />
+          </Link>
+          <Link to="/modules">
+            Browse modules <ArrowRightIcon size={14} />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function CatalogSection({
