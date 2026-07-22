@@ -193,19 +193,28 @@ public class CatalogIngestionService {
     private java.util.List<CatalogWriteRepository.StoredManifestDocument> storeDocuments(
             String manifestRepository, CatalogManifestV1 manifest) {
         var declared = manifest.documents() == null ? java.util.List.<CatalogManifestV1.Document>of() : manifest.documents();
-        var stored = new ArrayList<CatalogWriteRepository.StoredManifestDocument>();
-        for (var document : declared) {
-            var content = artifactory.download(
-                    manifestRepository, document.artifactPath(), properties.maximumDocumentBytes());
-            var key = "v1/%s/%s/%s".formatted(
-                    manifest.publicId(), manifest.identity().version(), document.path());
-            var result = documents.putImmutable(
-                    key,
-                    content,
-                    document.contentType() == null ? "text/markdown" : document.contentType(),
-                    document.digest());
-            stored.add(new CatalogWriteRepository.StoredManifestDocument(
-                    document.path(), document.title(), result));
+        var stored = new ArrayList<CatalogWriteRepository.StoredManifestDocument>(declared.size());
+        var threadFactory = Thread.ofVirtual().name("catalog-document-ingest-", 0).factory();
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(
+                properties.documentIngestionConcurrency(), threadFactory)) {
+            var tasks = declared.stream()
+                    .<java.util.concurrent.Callable<CatalogWriteRepository.StoredManifestDocument>>map(document ->
+                            () -> storeDocument(manifestRepository, manifest, document))
+                    .toList();
+            for (var future : executor.invokeAll(tasks)) {
+                try {
+                    stored.add(future.get());
+                } catch (java.util.concurrent.ExecutionException exception) {
+                    var cause = exception.getCause();
+                    if (cause instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+                    throw new IllegalStateException("Catalog document ingestion failed", cause);
+                }
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while ingesting catalog documents", exception);
         }
         if (!stored.isEmpty()
                 && stored.stream().noneMatch(document -> document.stored()
@@ -215,6 +224,36 @@ public class CatalogIngestionService {
                     "documentation_bundle_missing", "No document matches the release documentation digest");
         }
         return java.util.List.copyOf(stored);
+    }
+
+    private CatalogWriteRepository.StoredManifestDocument storeDocument(
+            String manifestRepository,
+            CatalogManifestV1 manifest,
+            CatalogManifestV1.Document document) {
+        var digestKey = document.digest().substring("sha256:".length());
+        var key = "v1/%s/%s/%s/%s".formatted(
+                manifest.publicId(), manifest.identity().version(), digestKey, document.path());
+        var contentType = document.contentType() == null ? "text/markdown" : document.contentType();
+        var metadata = artifactory.metadata(manifestRepository, document.artifactPath());
+        if (metadata.sha256() == null
+                || metadata.sha256().isBlank()
+                || !document.digest().equals(prefixDigest(metadata.sha256()))
+                || metadata.size() != document.sizeBytes()) {
+            throw new QuarantineException(
+                    "documentation_metadata_mismatch", "Documentation metadata does not match the catalog manifest");
+        }
+        var existing = documents.existingImmutable(key, document.digest(), document.sizeBytes(), contentType);
+        if (existing != null) {
+            return new CatalogWriteRepository.StoredManifestDocument(document.path(), document.title(), existing);
+        }
+        var content = artifactory.download(
+                manifestRepository, document.artifactPath(), properties.maximumDocumentBytes());
+        var result = documents.putImmutable(
+                key,
+                content,
+                contentType,
+                document.digest());
+        return new CatalogWriteRepository.StoredManifestDocument(document.path(), document.title(), result);
     }
 
     private static void verifyApmProperties(

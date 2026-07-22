@@ -4,9 +4,10 @@ import {
   ClipboardIcon,
   FileTextIcon,
   ListIcon,
+  MagnifyingGlassIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import rehypeSanitize from "rehype-sanitize";
@@ -24,7 +25,7 @@ import {
 } from "../hooks";
 import { useRegistry } from "../registry-context";
 import { runtimeConfig } from "../runtime-config";
-import type { PackageKind } from "../types";
+import type { PackageKind, PackageSymbol } from "../types";
 import { formatRelativeDate, packageHref } from "../utils";
 
 export function PackageDetailPage({ kind }: { kind: PackageKind }) {
@@ -40,10 +41,17 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     version: params.version,
     apmId: selectedApmId,
   };
+  const defaultTab = kind === "provider" ? "overview" : "readme";
+  const tab = searchParams.get("tab") ?? defaultTab;
+  const documentPath =
+    kind === "provider" && tab === "documentation"
+      ? (searchParams.get("doc") ?? undefined)
+      : undefined;
   const detail = usePackage(identity);
   const documentation = usePackageDocumentation(
     identity,
     detail.data?.documentation,
+    documentPath,
   );
   const governance = usePackageGovernance(identity, detail.data?.governance);
   const related = useCatalogPage({
@@ -53,8 +61,6 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     approval: "approved",
     limit: 4,
   });
-  const defaultTab = kind === "provider" ? "overview" : "readme";
-  const tab = searchParams.get("tab") ?? defaultTab;
 
   if (detail.isPending)
     return (
@@ -79,7 +85,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const item = detail.data;
   const docs =
     documentation.data ??
-    item.documentation ??
+    (documentPath ? undefined : item.documentation) ??
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
   const governanceData = governance.data ?? item.governance;
   const installSnippet = buildInstallSnippet(
@@ -89,7 +95,15 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", value);
-    setSearchParams(next, { replace: true });
+    if (value !== "documentation") next.delete("doc");
+    setSearchParams(next);
+  };
+  const selectDocument = (path?: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", "documentation");
+    if (path) next.set("doc", path);
+    else next.delete("doc");
+    setSearchParams(next);
   };
   const changeVersion = (version: string) =>
     navigate(packageHref({ ...item, version }));
@@ -184,9 +198,19 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                 key={value}
                 className={tab === value ? "active" : ""}
                 type="button"
+                aria-label={
+                  value === "readme"
+                    ? "Readme"
+                    : `${capitalize(value)} (${moduleTabCount(item.symbols, value)})`
+                }
                 onClick={() => setTab(value)}
               >
-                {value}
+                {capitalize(value)}
+                {value !== "readme" ? (
+                  <span className="tab-count">
+                    {moduleTabCount(item.symbols, value)}
+                  </span>
+                ) : null}
               </button>
             ),
           )
@@ -194,7 +218,16 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
       </nav>
 
       {showDocumentation ? (
-        <ProviderDocumentation docs={docs} packageName={item.name} />
+        <ProviderDocumentation
+          docs={docs}
+          packageName={item.name}
+          symbols={item.symbols}
+          selectedPath={documentPath}
+          pending={documentation.isPending}
+          failed={documentation.isError}
+          onRetry={() => void documentation.refetch()}
+          onSelect={selectDocument}
+        />
       ) : (
         <div className="package-content-surface">
           <div className="source-container package-overview-grid">
@@ -226,18 +259,20 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                     <StatePanel kind="empty" />
                   )}
                 </>
+              ) : kind === "module" ? (
+                <ModuleTabContent
+                  tab={tab}
+                  docs={docs}
+                  symbols={item.symbols}
+                />
               ) : (
-                <article className="documentation source-readme">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeSanitize]}
-                  >
-                    {docs}
-                  </ReactMarkdown>
-                </article>
+                <MarkdownDocument docs={docs} className="source-readme" />
               )}
             </main>
-            <aside className="source-install-sidebar">
+            <aside
+              className="source-install-sidebar"
+              aria-label="Installation and governance"
+            >
               <InstallPanel snippet={installSnippet} kind={kind} />
               <section className="source-governance-card">
                 <h2>
@@ -276,11 +311,33 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
 function ProviderDocumentation({
   docs,
   packageName,
+  symbols,
+  selectedPath,
+  pending,
+  failed,
+  onRetry,
+  onSelect,
 }: {
   docs: string;
   packageName: string;
+  symbols: PackageSymbol[];
+  selectedPath?: string;
+  pending: boolean;
+  failed: boolean;
+  onRetry: () => void;
+  onSelect: (path?: string) => void;
 }) {
   const [browseOpen, setBrowseOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const groups = useMemo(
+    () => providerDocumentGroups(symbols, filter),
+    [filter, symbols],
+  );
+  const headings = extractMarkdownHeadings(docs);
+  const select = (path?: string) => {
+    onSelect(path);
+    setBrowseOpen(false);
+  };
   return (
     <div className="provider-docs-layout source-container">
       <button
@@ -291,36 +348,416 @@ function ProviderDocumentation({
       >
         <ListIcon size={18} /> Browse {packageName} documentation
       </button>
-      <aside className={`provider-docs-nav ${browseOpen ? "is-open" : ""}`}>
+      <aside
+        className={`provider-docs-nav ${browseOpen ? "is-open" : ""}`}
+        aria-label="Provider documentation navigation"
+      >
         <strong>{packageName} documentation</strong>
-        <input aria-label="Filter documentation" placeholder="Filter" />
-        <a href="#overview" className="active">
-          {packageName} provider
-        </a>
-        <a href="#guides">Guides</a>
-        <a href="#resources">Resources</a>
-        <a href="#data-sources">Data Sources</a>
-        <a href="#functions">Functions</a>
-      </aside>
-      <article className="documentation" id="overview">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSanitize]}
+        <label className="docs-filter">
+          <MagnifyingGlassIcon size={15} />
+          <input
+            aria-label="Filter documentation"
+            placeholder="Filter"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className={!selectedPath ? "active" : ""}
+          aria-current={!selectedPath ? "page" : undefined}
+          onClick={() => select()}
         >
-          {docs}
-        </ReactMarkdown>
-      </article>
-      <aside className="on-this-page">
+          {packageName} provider
+        </button>
+        {groups.map((group) => (
+          <section className="docs-nav-group" key={group.label}>
+            <h2>
+              <CaretRightIcon size={13} /> {group.label}
+              <span>{group.items.length}</span>
+            </h2>
+            {group.items.map((symbol) => (
+              <button
+                type="button"
+                key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
+                className={selectedPath === symbol.path ? "active" : ""}
+                aria-current={selectedPath === symbol.path ? "page" : undefined}
+                title={symbol.description}
+                onClick={() => select(symbol.path)}
+              >
+                {displaySymbolName(symbol.name)}
+              </button>
+            ))}
+          </section>
+        ))}
+        {filter && groups.every((group) => group.items.length === 0) ? (
+          <p className="docs-filter-empty">No documentation matches.</p>
+        ) : null}
+      </aside>
+      {pending ? (
+        <div className="documentation documentation-loading skeleton" />
+      ) : failed ? (
+        <div className="documentation">
+          <StatePanel kind="api-error" action={onRetry} />
+        </div>
+      ) : (
+        <MarkdownDocument docs={docs} />
+      )}
+      <aside className="on-this-page" aria-label="On this page">
         <strong>
           <FileTextIcon size={15} /> On this page
         </strong>
-        <a href="#overview">Overview</a>
-        <a href="#configuration">Configuration</a>
-        <a href="#examples">Examples</a>
-        <a href="#arguments">Argument reference</a>
+        {headings.slice(0, 10).map((heading) => (
+          <a
+            key={`${heading.level}-${heading.id}`}
+            className={`heading-level-${heading.level}`}
+            href={`#${heading.id}`}
+          >
+            {heading.title}
+          </a>
+        ))}
       </aside>
     </div>
   );
+}
+
+function ModuleTabContent({
+  tab,
+  docs,
+  symbols,
+}: {
+  tab: string;
+  docs: string;
+  symbols: PackageSymbol[];
+}) {
+  if (tab === "readme")
+    return <MarkdownDocument docs={docs} className="source-readme" />;
+
+  const items = symbolsForModuleTab(symbols, tab);
+  const title = capitalize(tab);
+  if (!items.length)
+    return (
+      <section className="module-symbol-panel">
+        <div className="symbol-panel-heading">
+          <h2>{title}</h2>
+          <span>0</span>
+        </div>
+        <p className="symbol-empty">
+          No declared {tab} metadata is published for this module version.
+        </p>
+      </section>
+    );
+
+  if (tab === "inputs") return <InputDefinitions symbols={items} />;
+  if (tab === "outputs") return <OutputDefinitions symbols={items} />;
+  return <SymbolList title={title} symbols={items} />;
+}
+
+function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
+  return (
+    <section className="module-symbol-panel">
+      <div className="symbol-panel-heading">
+        <div>
+          <h2>Inputs</h2>
+          <p>Configuration values accepted by this module version.</p>
+        </div>
+        <span>{symbols.length}</span>
+      </div>
+      <div className="symbol-table-wrap" role="region" tabIndex={0}>
+        <table className="symbol-table">
+          <caption>Module input definitions</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Type</th>
+              <th scope="col">Default</th>
+              <th scope="col">Required</th>
+              <th scope="col">Sensitive</th>
+            </tr>
+          </thead>
+          <tbody>
+            {symbols.map((symbol) => (
+              <tr key={`${symbol.name}-${symbol.path}`}>
+                <th scope="row">
+                  <code>{symbol.name}</code>
+                </th>
+                <td>{symbol.description ?? "No description published."}</td>
+                <td>
+                  <code>{symbol.type ?? "Unknown"}</code>
+                </td>
+                <td>
+                  <code>{formatDefaultValue(symbol.defaultValue)}</code>
+                </td>
+                <td>{formatBoolean(symbol.required)}</td>
+                <td>{formatBoolean(symbol.sensitive)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function OutputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
+  return (
+    <section className="module-symbol-panel">
+      <div className="symbol-panel-heading">
+        <div>
+          <h2>Outputs</h2>
+          <p>Values exported for use by other configurations.</p>
+        </div>
+        <span>{symbols.length}</span>
+      </div>
+      <div className="symbol-table-wrap" role="region" tabIndex={0}>
+        <table className="symbol-table output-table">
+          <caption>Module output definitions</caption>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Description</th>
+              <th scope="col">Type</th>
+              <th scope="col">Sensitive</th>
+            </tr>
+          </thead>
+          <tbody>
+            {symbols.map((symbol) => (
+              <tr key={`${symbol.name}-${symbol.path}`}>
+                <th scope="row">
+                  <code>{symbol.name}</code>
+                </th>
+                <td>{symbol.description ?? "No description published."}</td>
+                <td>
+                  <code>{symbol.type ?? "Unknown"}</code>
+                </td>
+                <td>{formatBoolean(symbol.sensitive)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function SymbolList({
+  title,
+  symbols,
+}: {
+  title: string;
+  symbols: PackageSymbol[];
+}) {
+  return (
+    <section className="module-symbol-panel">
+      <div className="symbol-panel-heading">
+        <div>
+          <h2>{title}</h2>
+          <p>
+            {title === "Dependencies"
+              ? "External providers and modules required by this version."
+              : "Infrastructure objects declared by this module version."}
+          </p>
+        </div>
+        <span>{symbols.length}</span>
+      </div>
+      <ul className="symbol-list">
+        {symbols.map((symbol) => {
+          const dependency = title === "Dependencies";
+          const source = dependency
+            ? (symbol.source ?? symbol.description)
+            : symbol.path;
+          return (
+            <li key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
+              <div>
+                <code>{symbol.name}</code>
+                <span className="symbol-kind">
+                  {symbolKindLabel(symbol.kind)}
+                </span>
+              </div>
+              <p>
+                {dependency
+                  ? dependencyDescription(symbol)
+                  : (symbol.description ?? "No description published.")}
+              </p>
+              <dl>
+                <div>
+                  <dt>{dependency ? "Kind" : "Provider"}</dt>
+                  <dd>
+                    {dependency
+                      ? dependencyKind(symbol)
+                      : resourceProvider(symbol)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{dependency ? "Source" : "Declared in"}</dt>
+                  <dd>{source ?? "Unknown"}</dd>
+                </div>
+                {dependency && symbol.defaultValue !== undefined ? (
+                  <div>
+                    <dt>Version</dt>
+                    <dd>{formatDefaultValue(symbol.defaultValue)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function dependencyDescription(symbol: PackageSymbol): string {
+  const kind = normalizeSymbolKind(symbol.kind);
+  if (symbol.type === "provider" || kind.includes("provider"))
+    return `Provider requirement for ${symbol.source ?? symbol.description ?? symbol.name}.`;
+  if (symbol.type === "module" || kind.includes("module"))
+    return `Module dependency on ${symbol.source ?? symbol.description ?? symbol.name}.`;
+  return symbol.description ?? "External dependency declared by this module.";
+}
+
+function dependencyKind(symbol: PackageSymbol): string {
+  if (symbol.type) return capitalize(symbol.type);
+  const kind = normalizeSymbolKind(symbol.kind);
+  if (kind.includes("provider")) return "Provider";
+  if (kind.includes("module")) return "Module";
+  return "Dependency";
+}
+
+function resourceProvider(symbol: PackageSymbol): string {
+  if (symbol.provider) return symbol.provider;
+  const resourceType = symbol.type ?? symbol.name.split(".")[0];
+  const separator = resourceType.indexOf("_");
+  return separator > 0 ? resourceType.slice(0, separator) : resourceType;
+}
+
+function MarkdownDocument({
+  docs,
+  className = "",
+}: {
+  docs: string;
+  className?: string;
+}) {
+  return (
+    <article className={`documentation ${className}`.trim()} id="overview">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
+        components={{
+          h1: ({ children }) => <h1 id={slugText(children)}>{children}</h1>,
+          h2: ({ children }) => <h2 id={slugText(children)}>{children}</h2>,
+          h3: ({ children }) => <h3 id={slugText(children)}>{children}</h3>,
+        }}
+      >
+        {docs}
+      </ReactMarkdown>
+    </article>
+  );
+}
+
+function moduleTabCount(symbols: PackageSymbol[], tab: string): number {
+  return symbolsForModuleTab(symbols, tab).length;
+}
+
+function symbolsForModuleTab(
+  symbols: PackageSymbol[],
+  tab: string,
+): PackageSymbol[] {
+  const accepted: Record<string, string[]> = {
+    inputs: ["input", "variable"],
+    outputs: ["output"],
+    dependencies: [
+      "dependency",
+      "module_dependency",
+      "provider_dependency",
+      "provider_requirement",
+    ],
+    resources: ["resource", "data_source", "datasource", "module_call"],
+  };
+  const kinds = accepted[tab] ?? [];
+  return symbols.filter((symbol) =>
+    kinds.includes(normalizeSymbolKind(symbol.kind)),
+  );
+}
+
+function providerDocumentGroups(symbols: PackageSymbol[], filter: string) {
+  const normalizedFilter = filter.trim().toLowerCase();
+  const matches = (symbol: PackageSymbol) =>
+    !normalizedFilter ||
+    `${symbol.name} ${symbol.description ?? ""}`
+      .toLowerCase()
+      .includes(normalizedFilter);
+  const definitions = [
+    { label: "Guides", kinds: ["guide", "document", "overview"] },
+    { label: "Resources", kinds: ["resource"] },
+    { label: "Data Sources", kinds: ["data_source", "datasource"] },
+    { label: "Functions", kinds: ["function"] },
+  ];
+  const recognized = new Set(definitions.flatMap((group) => group.kinds));
+  return definitions.map((group) => ({
+    label: group.label,
+    items: symbols.filter((symbol) => {
+      const kind = normalizeSymbolKind(symbol.kind);
+      const belongs =
+        group.kinds.includes(kind) ||
+        (group.label === "Guides" &&
+          !recognized.has(kind) &&
+          !["input", "output", "dependency"].includes(kind));
+      return belongs && matches(symbol);
+    }),
+  }));
+}
+
+function normalizeSymbolKind(kind: string): string {
+  return kind
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[\s-]+/g, "_");
+}
+
+function symbolKindLabel(kind: string): string {
+  return normalizeSymbolKind(kind).split("_").map(capitalize).join(" ");
+}
+
+function displaySymbolName(name: string): string {
+  return name;
+}
+
+function formatDefaultValue(value: unknown): string {
+  if (value === undefined) return "Unknown";
+  if (typeof value === "string") return value || '""';
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatBoolean(value?: boolean): string {
+  return value === undefined ? "Unknown" : value ? "Yes" : "No";
+}
+
+function extractMarkdownHeadings(markdown: string) {
+  return markdown
+    .split(/\r?\n/)
+    .map((line) => /^(#{1,3})\s+(.+?)\s*#*\s*$/.exec(line))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => {
+      const title = match[2].replaceAll(/[*_`[\]]/g, "").trim();
+      return { level: match[1].length, title, id: slugText(title) };
+    });
+}
+
+function slugText(value: unknown): string {
+  return String(value)
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)/g, "");
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function InstallPanel({

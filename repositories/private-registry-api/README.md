@@ -31,8 +31,9 @@ Open <http://localhost:3000> for the complete UI. Compose starts PostgreSQL,
 OpenSearch, LocalStack, the Java API and indexer, and the first-party Registry UI.
 Nginx proxies UI data and governance requests to the API on the Compose
 network. Flyway applies the production schema and a separate local-only fixture
-migration. The local security setting permits requests so the full contract can be
-exercised without an identity provider.
+migration. The default Compose profiles use the real Microsoft Entra application;
+OAuth and delegated Graph tokens remain in the server-side session while every
+catalog query is filtered to the caller's APM access context.
 
 API readiness covers PostgreSQL and OpenSearch only, so a JFrog outage does not
 remove catalog reads. The indexer exposes `/health/worker`, which checks PostgreSQL,
@@ -47,8 +48,12 @@ docker compose --profile seed run --rm seeder
 
 The seeder persists upstream downloads in the `registry-seed-cache` volume, verifies
 provider checksums, uses Artifactory checksum deploy with a streamed-file fallback,
-and retries interrupted uploads. Re-running it is safe: matching artifacts and
-manifests are skipped. For a focused recovery run, set
+and retries interrupted uploads. It extracts module inputs, outputs, dependencies,
+and declared resources from root Terraform files, plus provider guides, resources,
+data sources, and functions from provider source archives. Release archives remain
+immutable; governed manifests and documentation are refreshed only after release
+equivalence is verified. Re-running it is safe: matching artifacts are skipped. For
+a focused recovery run, set
 `REGISTRY_SEED_PACKAGES=provider/hashicorp/null` and optionally
 `REGISTRY_SEED_VERSIONS=3.2.4` before invoking Compose.
 

@@ -56,8 +56,14 @@ class CatalogApiControllerTest {
 
     @Test
     void forwardsAllCatalogFiltersWithTheAccessContext() throws Exception {
+        var module = TestCatalogFixtures.module();
+        var summary = new com.stevenbuglione.registry.model.CatalogPackage(
+                module.id(), module.kind(), module.namespace(), module.name(), module.target(), module.title(),
+                module.description(), module.latestVersion(), module.owners(), module.supportLevel(),
+                module.lifecycle(), module.verification(), module.riskTier(), module.sourceAddress(),
+                module.updatedAt(), module.versions(), List.of());
         when(catalog.findPackages(eq(accessContext), any(CatalogQuery.class)))
-                .thenReturn(new CatalogPage<>(List.of(TestCatalogFixtures.module()), "next", 17));
+                .thenReturn(new CatalogPage<>(List.of(summary), "next", 17));
 
         mvc.perform(get("/api/v1/catalog/packages")
                         .queryParam("q", "vpc")
@@ -72,7 +78,8 @@ class CatalogApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(17))
                 .andExpect(jsonPath("$.next_cursor").value("next"))
-                .andExpect(jsonPath("$.items[0].id").value("module/cloud-platform/vpc/aws"));
+                .andExpect(jsonPath("$.items[0].id").value("module/cloud-platform/vpc/aws"))
+                .andExpect(jsonPath("$.items[0].symbols").isEmpty());
 
         var query = ArgumentCaptor.forClass(CatalogQuery.class);
         verify(catalog).findPackages(eq(accessContext), query.capture());
@@ -105,7 +112,9 @@ class CatalogApiControllerTest {
         mvc.perform(get("/api/v1/catalog/packages/module/cloud-platform/vpc/aws/2.4.1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(module.id()))
-                .andExpect(jsonPath("$.latestVersion").value("2.4.1"));
+                .andExpect(jsonPath("$.latestVersion").value("2.4.1"))
+                .andExpect(jsonPath("$.symbols[0].type").value("string"))
+                .andExpect(jsonPath("$.symbols[0].default_value").value("\"us-east-1\""));
 
         verify(catalog).getPackage(accessContext, module.id(), "2.4.1");
     }
@@ -129,18 +138,32 @@ class CatalogApiControllerTest {
         var provider = TestCatalogFixtures.provider();
         when(catalog.readDocument(accessContext, module.id(), "2.4.1", "README.md"))
                 .thenReturn(new CatalogService.DocumentContent("# Module docs", "text/markdown"));
-        when(catalog.readDocument(accessContext, provider.id(), "3.8.0", "index.md"))
+        when(catalog.readDocument(accessContext, provider.id(), "3.8.0", "guides/authentication.md"))
                 .thenReturn(new CatalogService.DocumentContent("# Provider docs", "text/markdown"));
 
         mvc.perform(get("/api/v1/catalog/packages/module/cloud-platform/vpc/aws/2.4.1/documentation"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("# Module docs"));
-        mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/documentation"))
+        mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/documentation")
+                        .queryParam("path", "guides/authentication.md"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("# Provider docs"));
 
         verify(catalog).readDocument(accessContext, module.id(), "2.4.1", "README.md");
-        verify(catalog).readDocument(accessContext, provider.id(), "3.8.0", "index.md");
+        verify(catalog).readDocument(accessContext, provider.id(), "3.8.0", "guides/authentication.md");
+    }
+
+    @Test
+    void rejectsUnsafeDocumentationPathsBeforeCatalogAccess() throws Exception {
+        mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/documentation")
+                        .queryParam("path", "../secrets.md"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("bad_request"));
+
+        mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/documentation")
+                        .queryParam("path", "/etc/passwd"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("bad_request"));
     }
 
     @Test

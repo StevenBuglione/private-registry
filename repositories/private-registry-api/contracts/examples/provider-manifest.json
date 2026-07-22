@@ -77,5 +77,17 @@
       "fingerprint": "0123 4567 89AB CDEF 0123 4567 89AB CDEF 0123 4567",
       "publicKeyPath": "keys/provider-signing-public.asc"
     }
-  }
+  },
+  "symbols": [
+    {
+      "kind": "resource",
+      "name": "internal_cloud_project",
+      "description": "Manages an internal cloud project.",
+      "path": "docs/resources/project.md",
+      "type": "internal_cloud_project",
+      "default_value": null,
+      "required": false,
+      "sensitive": false
+    }
+  ]
 }

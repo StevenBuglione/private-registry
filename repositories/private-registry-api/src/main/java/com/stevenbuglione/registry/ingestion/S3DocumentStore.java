@@ -26,18 +26,39 @@ public class S3DocumentStore implements DocumentStore {
     }
 
     @Override
+    public StoredDocument existingImmutable(
+            String key, String expectedSha256Digest, long expectedSizeBytes, String contentType) {
+        try {
+            var existing = s3.headObject(HeadObjectRequest.builder()
+                    .bucket(properties.documentBucket())
+                    .key(key)
+                    .build());
+            var existingDigest = existing.metadata().get("sha256");
+            if (!expectedSha256Digest.equals(existingDigest) || existing.contentLength() != expectedSizeBytes) {
+                throw new QuarantineException(
+                        "immutable_document_conflict", "An immutable documentation key has unexpected content");
+            }
+            return new StoredDocument(key, expectedSha256Digest, existing.contentLength(), contentType);
+        } catch (NoSuchKeyException exception) {
+            return null;
+        } catch (S3Exception exception) {
+            if (exception.statusCode() == 404) {
+                return null;
+            }
+            throw exception;
+        }
+    }
+
+    @Override
     public StoredDocument putImmutable(
             String key, byte[] content, String contentType, String expectedSha256Digest) {
         var digest = sha256(content);
         if (!digest.equals(expectedSha256Digest)) {
             throw new QuarantineException("documentation_digest_mismatch", "Documentation digest does not match manifest");
         }
-        var existingDigest = existingDigest(key);
-        if (existingDigest != null) {
-            if (!existingDigest.equals(digest)) {
-                throw new QuarantineException("immutable_document_conflict", "An immutable documentation key already exists");
-            }
-            return new StoredDocument(key, digest, content.length, contentType);
+        var existing = existingImmutable(key, expectedSha256Digest, content.length, contentType);
+        if (existing != null) {
+            return existing;
         }
         s3.putObject(
                 PutObjectRequest.builder()
@@ -48,24 +69,6 @@ public class S3DocumentStore implements DocumentStore {
                         .build(),
                 RequestBody.fromBytes(content));
         return new StoredDocument(key, digest, content.length, contentType);
-    }
-
-    private String existingDigest(String key) {
-        try {
-            return s3.headObject(HeadObjectRequest.builder()
-                            .bucket(properties.documentBucket())
-                            .key(key)
-                            .build())
-                    .metadata()
-                    .get("sha256");
-        } catch (NoSuchKeyException exception) {
-            return null;
-        } catch (S3Exception exception) {
-            if (exception.statusCode() == 404) {
-                return null;
-            }
-            throw exception;
-        }
     }
 
     public static String sha256(byte[] content) {

@@ -48,5 +48,27 @@
     "sbomPath": "v1/modules/cloud-platform/vpc/aws/2.4.1/sbom.cdx.json",
     "provenancePath": "v1/modules/cloud-platform/vpc/aws/2.4.1/provenance.json",
     "changelogPath": "CHANGELOG.md"
-  }
+  },
+  "symbols": [
+    {
+      "kind": "input",
+      "name": "region",
+      "description": "AWS region in which to create the VPC.",
+      "path": "variables.tf",
+      "type": "string",
+      "default_value": "\"us-east-1\"",
+      "required": false,
+      "sensitive": false
+    },
+    {
+      "kind": "output",
+      "name": "vpc_id",
+      "description": "ID of the created VPC.",
+      "path": "outputs.tf",
+      "type": "string",
+      "default_value": null,
+      "required": false,
+      "sensitive": false
+    }
+  ]
 }

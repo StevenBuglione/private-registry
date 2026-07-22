@@ -247,6 +247,12 @@
         }
       }
     },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/symbol"
+      }
+    },
     "provider": {
       "type": "object",
       "additionalProperties": false,
@@ -352,6 +358,53 @@
     "sha256": {
       "type": "string",
       "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "name",
+        "required",
+        "sensitive"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "input",
+            "output",
+            "resource",
+            "data-source",
+            "function",
+            "guide",
+            "dependency"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "path": {
+          "type": ["string", "null"],
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\\\\).+$"
+        },
+        "type": {
+          "type": ["string", "null"]
+        },
+        "default_value": {
+          "type": ["string", "null"],
+          "description": "Raw HCL expression; Registry never evaluates this value."
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "sensitive": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

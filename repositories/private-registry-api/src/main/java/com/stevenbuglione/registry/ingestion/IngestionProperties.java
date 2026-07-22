@@ -13,7 +13,8 @@ public record IngestionProperties(
         long maximumArtifactBytes,
         long maximumDocumentBytes,
         int outboxBatchSize,
-        int outboxMaximumAttempts) {
+        int outboxMaximumAttempts,
+        int documentIngestionConcurrency) {
 
     private static final List<String> DEFAULT_REPOSITORIES = List.of(
             "iac-provider-release-local", "iac-module-release-local", "iac-catalog-release-local");
@@ -29,7 +30,7 @@ public record IngestionProperties(
             manifestSuffix = "catalog-manifest.json";
         }
         if (maximumManifestBytes < 1) {
-            maximumManifestBytes = 1_048_576;
+            maximumManifestBytes = 8_388_608;
         }
         if (maximumArtifactBytes < 1) {
             maximumArtifactBytes = 536_870_912;
@@ -42,6 +43,9 @@ public record IngestionProperties(
         }
         if (outboxMaximumAttempts < 1) {
             outboxMaximumAttempts = 10;
+        }
+        if (documentIngestionConcurrency < 1 || documentIngestionConcurrency > 64) {
+            documentIngestionConcurrency = 24;
         }
     }
 }

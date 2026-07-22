@@ -6,6 +6,7 @@ import type {
   GovernanceRecord,
   PackageDetail,
   PackageKind,
+  PackageSymbol,
   PackageSummary,
   RegistrySession,
 } from "./types";
@@ -124,12 +125,14 @@ export async function getPackageDocumentation(
   target?: string,
   version?: string,
   apmId?: string,
+  documentPath?: string,
 ): Promise<string> {
   const parts = [kind, namespace, name, target, version]
     .filter(Boolean)
     .map((part) => encodeURIComponent(part!));
   const params = new URLSearchParams();
   addParam(params, "apm_id", apmId);
+  addParam(params, "path", documentPath);
   const suffix = params.size ? `?${params.toString()}` : "";
   const raw = await request<JsonObject | string>(
     `/catalog/packages/${parts.join("/")}/documentation${suffix}`,
@@ -288,6 +291,9 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
     versions: stringList(envelope.versions).length
       ? stringList(envelope.versions)
       : [summary.version].filter((value) => value !== "—"),
+    symbols: firstArray(envelope.symbols)
+      .map(normalizeSymbol)
+      .filter((symbol): symbol is PackageSymbol => symbol !== null),
     documentation: optionalString(
       envelope.documentation,
       envelope.markdown,
@@ -313,6 +319,38 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
       selectedVersion?.packageDigest,
       selectedVersion?.package_digest,
     ),
+  };
+}
+
+function normalizeSymbol(value: unknown): PackageSymbol | null {
+  if (!isObject(value)) return null;
+  const kind = firstString(value.kind, value.type_kind).toLowerCase();
+  const name = firstString(value.name, value.title);
+  const path = firstString(value.path, value.documentPath, value.document_path);
+  if (!kind || !name || !path) return null;
+  return {
+    kind,
+    name,
+    description: optionalString(value.description, value.summary),
+    path,
+    type: optionalString(value.type, value.valueType, value.value_type),
+    defaultValue: firstDefined(
+      value.defaultValue,
+      value.default_value,
+      value.default,
+    ),
+    required: optionalBoolean(
+      value.required,
+      value.isRequired,
+      value.is_required,
+    ),
+    sensitive: optionalBoolean(
+      value.sensitive,
+      value.isSensitive,
+      value.is_sensitive,
+    ),
+    provider: optionalString(value.provider, value.provider_name),
+    source: optionalString(value.source, value.source_address),
   };
 }
 
@@ -468,6 +506,18 @@ function firstString(...values: unknown[]): string {
 
 function optionalString(...values: unknown[]): string | undefined {
   return firstString(...values) || undefined;
+}
+
+function firstDefined(...values: unknown[]): unknown {
+  return values.find((value) => value !== undefined);
+}
+
+function optionalBoolean(...values: unknown[]): boolean | undefined {
+  const value = firstDefined(...values);
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string" && /^(true|false)$/i.test(value))
+    return value.toLowerCase() === "true";
+  return undefined;
 }
 
 function firstNumber(...values: unknown[]): number {

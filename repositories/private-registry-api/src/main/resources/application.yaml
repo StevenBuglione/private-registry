@@ -71,6 +71,10 @@ registry:
     enabled: ${REGISTRY_INGESTION_ENABLED:false}
     governed-repositories: ${REGISTRY_GOVERNED_REPOSITORIES:iac-provider-release-local,iac-module-release-local,iac-catalog-release-local}
     catalog-repository: ${REGISTRY_CATALOG_REPOSITORY:iac-catalog-release-local}
+    maximum-manifest-bytes: ${REGISTRY_MAXIMUM_MANIFEST_BYTES:8388608}
+    maximum-artifact-bytes: ${REGISTRY_MAXIMUM_ARTIFACT_BYTES:536870912}
+    maximum-document-bytes: ${REGISTRY_MAXIMUM_DOCUMENT_BYTES:16777216}
+    document-ingestion-concurrency: ${REGISTRY_DOCUMENT_INGESTION_CONCURRENCY:24}
     incremental-reconciliation-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_DELAY:15m}
     full-reconciliation-cron: ${REGISTRY_FULL_RECONCILIATION_CRON:0 17 2 * * *}
     outbox-delay: ${REGISTRY_OUTBOX_DELAY:1s}

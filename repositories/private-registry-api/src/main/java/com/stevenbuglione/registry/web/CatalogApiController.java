@@ -84,9 +84,7 @@ public class CatalogApiController {
             case "versions" -> ResponseEntity.ok(catalog.getPackage(context, route.packageId(), route.version()).versions());
             case "governance" -> ResponseEntity.ok(catalog.getGovernance(context, route.packageId(), route.version()));
             case "documentation" -> {
-                var requestedPath = documentPath == null || documentPath.isBlank()
-                        ? route.defaultDocument()
-                        : documentPath.trim();
+                var requestedPath = safeDocumentPath(documentPath, route.defaultDocument());
                 var document = catalog.readDocument(context, route.packageId(), route.version(), requestedPath);
                 yield ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(document.contentType()))
@@ -94,6 +92,25 @@ public class CatalogApiController {
             }
             default -> throw new IllegalArgumentException("Unsupported catalog package resource");
         };
+    }
+
+    static String safeDocumentPath(String requestedPath, String defaultDocument) {
+        if (requestedPath == null || requestedPath.isBlank()) {
+            return defaultDocument;
+        }
+        var normalized = requestedPath.trim();
+        if (normalized.startsWith("/")
+                || normalized.contains("\\")
+                || normalized.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("Documentation path must be a safe relative path");
+        }
+        var segments = normalized.split("/", -1);
+        for (var segment : segments) {
+            if (segment.isBlank() || ".".equals(segment) || "..".equals(segment)) {
+                throw new IllegalArgumentException("Documentation path must be a safe relative path");
+            }
+        }
+        return normalized;
     }
 
     @GetMapping(path = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

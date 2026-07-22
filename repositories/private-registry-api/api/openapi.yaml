@@ -548,8 +548,11 @@ components:
     DocumentPath:
       name: path
       in: query
-      description: Documentation path within the selected package version.
-      schema: {type: string, minLength: 1}
+      description: Safe relative documentation path within the selected package version. Defaults to README.md for modules and index.md for providers.
+      schema:
+        type: string
+        minLength: 1
+        pattern: '^(?!/)(?!.*(?:^|/)\.\.?(?:/|$))(?!.*\\).+$'
     CsrfToken:
       name: X-XSRF-TOKEN
       in: header
@@ -727,12 +730,18 @@ components:
       additionalProperties: false
     Symbol:
       type: object
-      required: [kind, name, path]
+      required: [kind, name, required, sensitive]
       properties:
-        kind: {type: string}
+        kind: {type: string, enum: [input, output, resource, data-source, function, guide, dependency]}
         name: {type: string}
         description: {type: [string, 'null']}
-        path: {type: string}
+        path: {type: [string, 'null']}
+        type: {type: [string, 'null'], description: Raw Terraform type expression when declared.}
+        default_value:
+          type: [string, 'null']
+          description: Raw HCL default expression. Registry returns but never evaluates this value.
+        required: {type: boolean}
+        sensitive: {type: boolean}
       additionalProperties: false
     Governance:
       type: object

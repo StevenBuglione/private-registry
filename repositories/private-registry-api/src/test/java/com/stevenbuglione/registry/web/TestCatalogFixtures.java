@@ -3,6 +3,7 @@ package com.stevenbuglione.registry.web;
 import com.stevenbuglione.registry.model.CatalogPackage;
 import com.stevenbuglione.registry.model.PackageKind;
 import com.stevenbuglione.registry.model.PackageVersion;
+import com.stevenbuglione.registry.model.Symbol;
 import java.time.Instant;
 import java.util.List;
 
@@ -21,7 +22,13 @@ final class TestCatalogFixtures {
                 "AWS VPC", "Approved VPC module", "2.4.1", List.of("cloud-network-engineering"),
                 "supported", "approved", "enterprise-verified", "medium",
                 "artifacts.example.invalid/iac-modules-virtual__cloud-platform/vpc/aws",
-                published, List.of(version), List.of());
+                published, List.of(version), List.of(
+                        new Symbol(
+                                "input", "region", "AWS region.", "variables.tf", "string",
+                                "\"us-east-1\"", false, false),
+                        new Symbol(
+                                "output", "endpoint", "Service endpoint.", "outputs.tf", "string",
+                                null, false, true)));
     }
 
     static CatalogPackage provider() {
@@ -36,6 +43,14 @@ final class TestCatalogFixtures {
                 "Platform Cloud", "Approved cloud provider", "3.8.0", List.of("platform-engineering"),
                 "supported", "approved", "enterprise-verified", "low",
                 "artifacts.example.invalid/iac-providers-virtual/platform/cloud",
-                published, List.of(version), List.of());
+                published, List.of(version), List.of(
+                        new Symbol("resource", "cloud_project", "Manages a project.",
+                                "resources/project.md", "cloud_project", null, false, false),
+                        new Symbol("data-source", "cloud_identity", "Reads the current identity.",
+                                "data-sources/identity.md", "cloud_identity", null, false, false),
+                        new Symbol("function", "cloud_normalize", "Normalizes a project name.",
+                                "functions/normalize.md", "cloud_normalize", null, false, false),
+                        new Symbol("guide", "authentication", "Authentication guide.",
+                                "guides/authentication.md", null, null, false, false)));
     }
 }

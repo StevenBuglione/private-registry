@@ -15,6 +15,9 @@
 - Clipboard inspection proved the copied provider instructions contain the governed JFrog repository URL and SHA-256 verification command.
 - Browser console warning/error scan returned zero entries.
 - Runtime catalog showed truthful 12-provider/30-module counts from the real JFrog seed.
+- Module detail browser verification showed 234 real inputs, 119 outputs, one provider dependency, and 84 declared resources/data sources for `terraform-aws-modules/vpc/aws` 6.0.1; every tab rendered populated source-derived content.
+- Provider documentation browser verification showed 8 guides, 1,520 resources, 605 data sources, and 3 functions for `hashicorp/aws` 5.100.0. Filtering for `vpc` exposed 84 resources and 30 data sources, and the selected `aws_vpc` page rendered its real examples, arguments, attributes, and import documentation.
+- Latest captures: `.codex-artifacts/local-module-inputs-final.png` and `.codex-artifacts/local-provider-vpc-resource-final.png`.
 
 **Comparison history and fixes**
 

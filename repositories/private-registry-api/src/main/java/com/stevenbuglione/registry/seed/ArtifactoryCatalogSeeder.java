@@ -38,6 +38,10 @@ import tools.jackson.databind.ObjectMapper;
 public class ArtifactoryCatalogSeeder implements ApplicationRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ArtifactoryCatalogSeeder.class);
+    private static final java.util.regex.Pattern CATALOG_METADATA_PATH = java.util.regex.Pattern.compile(
+            "^v1/(?:providers/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+"
+                    + "|modules/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+)"
+                    + "/(?:README\\.md|catalog-manifest\\.json|docs/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.md)$");
 
     private final ArtifactoryGateway artifactory;
     private final ArtifactoryProperties artifactoryProperties;
@@ -178,6 +182,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
         var repository = entry.provider() ? properties.providerRepository() : properties.moduleRepository();
         String primaryPath = null;
         String primaryDigest = null;
+        Path primaryContent = null;
         for (var source : artifacts) {
             var content = downloadToCache(source.url());
             var digest = digest(content, "SHA-256", "sha256:");
@@ -196,9 +201,18 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
             if (primaryPath == null) {
                 primaryPath = path;
                 primaryDigest = digest;
+                primaryContent = content;
             }
         }
-        publishDocumentationAndManifest(entry, version, publishedAt, repository, primaryPath, primaryDigest);
+        var sourceArchive = entry.provider()
+                ? downloadToCache(sourceArchive(entry, version))
+                : primaryContent;
+        if (sourceArchive == null) {
+            throw new IllegalStateException("No upstream source archive was resolved for " + packageId(entry));
+        }
+        var metadata = TerraformMetadataExtractor.extract(sourceArchive, entry.provider());
+        publishDocumentationAndManifest(
+                entry, version, publishedAt, repository, primaryPath, primaryDigest, metadata);
     }
 
     private void publishDocumentationAndManifest(
@@ -207,17 +221,32 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
             Instant publishedAt,
             String artifactRepository,
             String primaryPath,
-            String primaryDigest) {
+            String primaryDigest,
+            TerraformMetadataExtractor.Extraction metadata) {
         var basePath = catalogBasePath(entry, version);
-        var documentationPath = basePath + "/README.md";
-        var documentation = documentation(entry, version);
-        var documentationDigest = S3DocumentStore.sha256(documentation);
-        var documentationProperties = new java.util.LinkedHashMap<String, Object>(
-                artifactProperties(entry, version, "documentation"));
-        documentationProperties.put("registry.sha256", documentationDigest);
-        uploadImmutable(properties.catalogRepository(), documentationPath, documentation, documentationProperties);
+        var manifestDocuments = uploadDocuments(entry, version, basePath, metadata.documents());
+        var readme = manifestDocuments.stream()
+                .filter(document -> document.path().equals("README.md"))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Extracted upstream metadata does not contain README.md"));
+        var documentationPath = readme.artifactPath();
+        var documentationDigest = readme.digest();
+        if (documentationPath == null || documentationDigest == null) {
+            throw new IllegalStateException("Extracted upstream metadata does not contain README.md");
+        }
 
         var sourceUrl = sourceRepository(entry);
+        var symbols = metadata.symbols().stream()
+                .map(symbol -> new CatalogManifestV1.Symbol(
+                        symbol.kind(),
+                        symbol.name(),
+                        symbol.description(),
+                        symbol.path(),
+                        symbol.type(),
+                        symbol.defaultValue(),
+                        symbol.required(),
+                        symbol.sensitive()))
+                .toList();
         var manifest = new CatalogManifestV1(
                 1,
                 entry.kind(),
@@ -240,7 +269,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                         primaryPath,
                         null),
                 new CatalogManifestV1.Compatibility(">= 1.8, < 2.0"),
-                new CatalogManifestV1.Source(sourceUrl, "seed-" + version, "v" + version),
+                new CatalogManifestV1.Source(sourceUrl, metadata.archiveDigest(), "v" + version),
                 new CatalogManifestV1.Release(
                         publishedAt,
                         primaryDigest,
@@ -253,13 +282,8 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                         false,
                         false),
                 new CatalogManifestV1.Access(entry.apmIds()),
-                List.of(new CatalogManifestV1.Document(
-                        "README.md",
-                        entry.title(),
-                        "text/markdown",
-                        documentationPath,
-                        documentationDigest,
-                        documentation.length)));
+                List.copyOf(manifestDocuments),
+                symbols);
         manifest.validate();
         var manifestPath = basePath + "/catalog-manifest.json";
         try {
@@ -268,19 +292,77 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                     artifactProperties(entry, version, "manifest"));
             completionProperties.put("registry.catalog.ready", "true");
             completionProperties.put("registry.sha256", S3DocumentStore.sha256(bytes));
-            uploadManifestImmutable(manifestPath, bytes, manifest, completionProperties);
+            uploadManifestMetadata(manifestPath, bytes, manifest, completionProperties);
         } catch (JacksonException exception) {
             throw new IllegalStateException("Unable to serialize catalog manifest", exception);
         }
     }
 
-    private ArtifactoryGateway.ArtifactMetadata uploadManifestImmutable(
+    private List<CatalogManifestV1.Document> uploadDocuments(
+            CuratedSeedCatalog.SeedEntry entry,
+            String version,
+            String basePath,
+            List<TerraformMetadataExtractor.ExtractedDocument> documents) {
+        var threadFactory = Thread.ofVirtual().name("catalog-document-upload-", 0).factory();
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8, threadFactory)) {
+            var tasks = documents.stream()
+                    .<java.util.concurrent.Callable<CatalogManifestV1.Document>>map(document ->
+                            () -> uploadDocument(entry, version, basePath, document))
+                    .toList();
+            var futures = executor.invokeAll(tasks);
+            var result = new ArrayList<CatalogManifestV1.Document>(futures.size());
+            for (var future : futures) {
+                try {
+                    result.add(future.get());
+                } catch (java.util.concurrent.ExecutionException exception) {
+                    var cause = exception.getCause();
+                    if (cause instanceof RuntimeException runtimeException) {
+                        throw runtimeException;
+                    }
+                    throw new IllegalStateException("Catalog document upload failed", cause);
+                }
+            }
+            return List.copyOf(result);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while uploading catalog documents", exception);
+        }
+    }
+
+    private CatalogManifestV1.Document uploadDocument(
+            CuratedSeedCatalog.SeedEntry entry,
+            String version,
+            String basePath,
+            TerraformMetadataExtractor.ExtractedDocument document) {
+        var artifactPath = document.path().equals("README.md")
+                ? basePath + "/README.md"
+                : basePath + "/docs/" + document.path();
+        var digest = S3DocumentStore.sha256(document.content());
+        var documentationProperties = new java.util.LinkedHashMap<String, Object>(
+                artifactProperties(entry, version, "documentation"));
+        documentationProperties.put("registry.sha256", digest);
+        documentationProperties.put("registry.document.path", document.path());
+        uploadCatalogMetadata(artifactPath, document.content(), documentationProperties);
+        return new CatalogManifestV1.Document(
+                document.path(),
+                document.title(),
+                document.contentType(),
+                artifactPath,
+                digest,
+                document.content().length);
+    }
+
+    private ArtifactoryGateway.ArtifactMetadata uploadManifestMetadata(
             String path,
             byte[] content,
             CatalogManifestV1 expectedManifest,
             Map<String, ?> artifactProperties) {
+        var digest = S3DocumentStore.sha256(content);
         try {
-            return uploadImmutable(properties.catalogRepository(), path, content, artifactProperties);
+            var existing = existingArtifact(properties.catalogRepository(), path, digest);
+            if (existing != null) {
+                return existing;
+            }
         } catch (ImmutableSeedConflictException conflict) {
             var existingMetadata = artifactory.metadata(properties.catalogRepository(), path);
             var existingBytes = artifactory.download(
@@ -288,23 +370,22 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
             try {
                 var existingManifest = objectMapper.readValue(existingBytes, CatalogManifestV1.class);
                 existingManifest.validate();
-                if (equivalentImmutableRelease(existingManifest, expectedManifest)
+                if (equivalentGovernedRelease(existingManifest, expectedManifest)
                         && existingMetadata.properties()
                                 .getOrDefault("registry.catalog.ready", List.of())
                                 .contains("true")) {
-                    LOGGER.info(
-                            "Skipping semantically equivalent immutable catalog manifest {}",
-                            properties.catalogRepository() + "/" + path);
-                    return existingMetadata;
+                    LOGGER.info("Repairing catalog manifest metadata {}", properties.catalogRepository() + "/" + path);
+                    return replaceCatalogMetadata(path, content, digest, artifactProperties);
                 }
             } catch (JacksonException exception) {
                 conflict.addSuppressed(exception);
             }
             throw conflict;
         }
+        return replaceCatalogMetadata(path, content, digest, artifactProperties);
     }
 
-    private static boolean equivalentImmutableRelease(
+    static boolean equivalentGovernedRelease(
             CatalogManifestV1 existing, CatalogManifestV1 expected) {
         return existing.schemaVersion() == expected.schemaVersion()
                 && existing.publicId().equals(expected.publicId())
@@ -312,19 +393,8 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                 && existing.registry().repository().equals(expected.registry().repository())
                 && existing.registry().artifactPath().equals(expected.registry().artifactPath())
                 && existing.release().packageDigest().equals(expected.release().packageDigest())
-                && existing.release().documentationDigest().equals(expected.release().documentationDigest())
                 && new java.util.HashSet<>(existing.access().apmIds())
-                        .equals(new java.util.HashSet<>(expected.access().apmIds()))
-                && immutableDocuments(existing.documents()).equals(immutableDocuments(expected.documents()));
-    }
-
-    private static java.util.Set<String> immutableDocuments(List<CatalogManifestV1.Document> documents) {
-        if (documents == null) {
-            return java.util.Set.of();
-        }
-        return documents.stream()
-                .map(document -> document.path() + ":" + document.artifactPath() + ":" + document.digest())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                        .equals(new java.util.HashSet<>(expected.access().apmIds()));
     }
 
     private byte[] download(URI uri) {
@@ -462,6 +532,10 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
             return "https://github.com/hashicorp/terraform-provider-" + entry.name();
         }
         throw new IllegalStateException("Unable to derive an upstream repository for " + packageId(entry));
+    }
+
+    static URI sourceArchive(CuratedSeedCatalog.SeedEntry entry, String version) {
+        return URI.create(sourceRepository(entry) + "/archive/refs/tags/v" + version + ".zip");
     }
 
     private static String artifactPath(
@@ -617,6 +691,79 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
         throw new IllegalStateException(
                 "Unable to upload " + repository + "/" + path + " after " + properties.uploadAttempts() + " attempts",
                 lastFailure);
+    }
+
+    private ArtifactoryGateway.ArtifactMetadata uploadCatalogMetadata(
+            String path, byte[] content, Map<String, ?> artifactProperties) {
+        validateCatalogMetadataPath(path);
+        var digest = S3DocumentStore.sha256(content);
+        try {
+            var existing = existingArtifact(properties.catalogRepository(), path, digest);
+            if (existing != null) {
+                if (!containsProperties(existing, artifactProperties)) {
+                    artifactory.setProperties(properties.catalogRepository(), path, artifactProperties);
+                    return artifactory.metadata(properties.catalogRepository(), path);
+                }
+                return existing;
+            }
+        } catch (ImmutableSeedConflictException conflict) {
+            LOGGER.info("Repairing governed catalog metadata {}", properties.catalogRepository() + "/" + path);
+        }
+        return replaceCatalogMetadata(path, content, digest, artifactProperties);
+    }
+
+    private static boolean containsProperties(
+            ArtifactoryGateway.ArtifactMetadata metadata, Map<String, ?> expected) {
+        for (var entry : expected.entrySet()) {
+            var actual = metadata.properties().getOrDefault(entry.getKey(), List.of());
+            if (entry.getValue() instanceof Iterable<?> iterable) {
+                for (var value : iterable) {
+                    if (!actual.contains(String.valueOf(value))) {
+                        return false;
+                    }
+                }
+            } else if (!actual.contains(String.valueOf(entry.getValue()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private ArtifactoryGateway.ArtifactMetadata replaceCatalogMetadata(
+            String path, byte[] content, String digest, Map<String, ?> artifactProperties) {
+        validateCatalogMetadataPath(path);
+        RuntimeException lastFailure = null;
+        for (var attempt = 1; attempt <= properties.uploadAttempts(); attempt++) {
+            try {
+                artifactory.upload(properties.catalogRepository(), path, content, artifactProperties);
+                var verified = existingArtifact(properties.catalogRepository(), path, digest);
+                if (verified == null) {
+                    throw new IllegalStateException("Artifactory did not expose repaired catalog metadata");
+                }
+                return verified;
+            } catch (RuntimeException exception) {
+                lastFailure = exception;
+                if (attempt < properties.uploadAttempts()) {
+                    var delay = properties.uploadRetryBackoff().multipliedBy(attempt);
+                    LOGGER.warn(
+                            "Catalog metadata repair attempt {}/{} failed for {}; retrying in {}",
+                            attempt,
+                            properties.uploadAttempts(),
+                            properties.catalogRepository() + "/" + path,
+                            delay);
+                    sleep(delay);
+                }
+            }
+        }
+        throw new IllegalStateException(
+                "Unable to repair catalog metadata " + properties.catalogRepository() + "/" + path,
+                lastFailure);
+    }
+
+    static void validateCatalogMetadataPath(String path) {
+        if (path == null || path.contains("..") || !CATALOG_METADATA_PATH.matcher(path).matches()) {
+            throw new IllegalArgumentException("Catalog metadata repair path is not allowed");
+        }
     }
 
     private ArtifactoryGateway.ArtifactMetadata existingArtifact(

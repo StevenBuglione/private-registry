@@ -288,7 +288,8 @@ public class JdbcCatalogService implements CatalogService {
 
     private List<Symbol> symbolsForVersion(UUID packageId, String version) {
         return jdbc.sql("""
-                        SELECT s.kind, s.name, s.description, s.document_path
+                        SELECT s.kind, s.name, s.description, s.document_path,
+                               s.symbol_type, s.default_value, s.is_required, s.sensitive
                           FROM symbols s
                           JOIN package_versions pv ON pv.id = s.package_version_id
                          WHERE pv.package_id = :packageId
@@ -303,7 +304,11 @@ public class JdbcCatalogService implements CatalogService {
                         resultSet.getString("kind"),
                         resultSet.getString("name"),
                         resultSet.getString("description"),
-                        resultSet.getString("document_path")))
+                        resultSet.getString("document_path"),
+                        resultSet.getString("symbol_type"),
+                        resultSet.getString("default_value"),
+                        resultSet.getBoolean("is_required"),
+                        resultSet.getBoolean("sensitive")))
                 .list();
     }
 
@@ -530,32 +535,6 @@ public class JdbcCatalogService implements CatalogService {
                 .list()
                 .forEach(row -> versions.computeIfAbsent(row.packageId(), ignored -> new ArrayList<>()).add(row.version()));
 
-        var symbols = new LinkedHashMap<UUID, List<Symbol>>();
-        jdbc.sql("""
-                        SELECT p.id AS package_id, s.kind, s.name, s.description, s.document_path
-                          FROM packages p
-                          JOIN LATERAL (
-                                SELECT pv.id
-                                  FROM package_versions pv
-                                 WHERE pv.package_id = p.id AND pv.active AND NOT pv.revoked
-                                 ORDER BY pv.published_at DESC
-                                 LIMIT 1
-                          ) latest ON true
-                          JOIN symbols s ON s.package_version_id = latest.id
-                         WHERE p.id IN (:packageIds)
-                         ORDER BY p.id, s.kind, s.name
-                        """)
-                .param("packageIds", ids)
-                .query((resultSet, rowNumber) -> new SymbolRow(
-                        resultSet.getObject("package_id", UUID.class),
-                        new Symbol(
-                                resultSet.getString("kind"),
-                                resultSet.getString("name"),
-                                resultSet.getString("description"),
-                                resultSet.getString("document_path"))))
-                .list()
-                .forEach(row -> symbols.computeIfAbsent(row.packageId(), ignored -> new ArrayList<>()).add(row.symbol()));
-
         return rows.stream().map(row -> {
             var item = row.item();
             return new CatalogPackage(
@@ -575,7 +554,7 @@ public class JdbcCatalogService implements CatalogService {
                     item.sourceAddress(),
                     item.updatedAt(),
                     List.copyOf(versions.getOrDefault(row.databaseId(), List.of())),
-                    List.copyOf(symbols.getOrDefault(row.databaseId(), List.of())));
+                    List.of());
         }).toList();
     }
 
@@ -640,5 +619,4 @@ public class JdbcCatalogService implements CatalogService {
 
     private record VersionRow(UUID packageId, PackageVersion version) {}
 
-    private record SymbolRow(UUID packageId, Symbol symbol) {}
 }

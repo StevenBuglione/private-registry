@@ -22,7 +22,8 @@ JFrog webhook -> EventBridge -> SQS -> Java indexer
 - Delegated Microsoft Graph `checkMemberGroups` authorization with fail-closed APM filtering.
 - The official JFrog Artifactory Java Client for repository bootstrap, seeding, reconciliation, and artifact reads.
 - EventBridge, SQS, DLQ, S3, webhook intake, idempotent ingestion, quarantine, outbox recovery, reconciliation, and authorized SSE invalidation.
-- A curated catalog manifest for 12 providers and 30 multi-cloud modules.
+- A curated catalog manifest for 12 providers and 30 multi-cloud modules, with module inputs, outputs, dependencies, and declared resources extracted from upstream Terraform source.
+- Provider guides, resources, data sources, and functions extracted from the mirrored provider source and served through the authorized documentation API.
 
 ## Local prerequisites
 
@@ -63,6 +64,8 @@ Seed the governed JFrog repositories and curated catalog with the dedicated, res
 ```powershell
 docker compose --profile seed run --rm seeder
 ```
+
+The seeder preserves immutable release archives, verifies upstream checksums, and refreshes only the governed catalog manifests and documentation when their extracted metadata changes.
 
 Then restart the indexer to request immediate reconciliation:
 

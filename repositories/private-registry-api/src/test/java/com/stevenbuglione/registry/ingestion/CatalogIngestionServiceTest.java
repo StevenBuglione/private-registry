@@ -34,6 +34,10 @@ class CatalogIngestionServiceTest {
     private static final String ARTIFACT_PATH = "hashicorp/null/3.2.4/provider.zip";
     private static final byte[] PACKAGE_BYTES = packageBytes();
     private static final String PACKAGE_DIGEST = S3DocumentStore.sha256(PACKAGE_BYTES);
+    private static final byte[] DOCUMENT_BYTES = "# Resource\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    private static final String DOCUMENT_DIGEST = S3DocumentStore.sha256(DOCUMENT_BYTES);
+    private static final String DOCUMENT_ARTIFACT_PATH =
+            "v1/providers/hashicorp/null/3.2.4/docs/resources/example.md";
 
     @Mock
     private ArtifactoryGateway artifactory;
@@ -63,7 +67,8 @@ class CatalogIngestionServiceTest {
                 536_870_912,
                 16_777_216,
                 25,
-                10);
+                10,
+                16);
         service = new CatalogIngestionService(
                 artifactory, objectMapper, events, documents, catalog, properties);
     }
@@ -171,6 +176,115 @@ class CatalogIngestionServiceTest {
     }
 
     @Test
+    void documentationStorageKeyContainsTheDeclaredContentDigest() {
+        var event = event("event-document-key", Instant.parse("2026-07-21T13:00:00Z"));
+        var manifestBytes = manifestBytes();
+        var manifest = currentManifestWithDocument();
+        when(events.claim(event)).thenReturn(true);
+        when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        CATALOG_REPOSITORY,
+                        MANIFEST_PATH,
+                        manifestBytes.length,
+                        S3DocumentStore.sha256(manifestBytes),
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of(
+                                "registry.catalog.ready", List.of("true"),
+                                "apm.id", List.of("APM0000001"))));
+        when(artifactory.download(CATALOG_REPOSITORY, MANIFEST_PATH, 1_048_576L))
+                .thenReturn(manifestBytes);
+        when(objectMapper.readValue(any(byte[].class), eq(CatalogManifestV1.class))).thenReturn(manifest);
+        when(artifactory.metadata(PROVIDER_REPOSITORY, ARTIFACT_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        PROVIDER_REPOSITORY,
+                        ARTIFACT_PATH,
+                        PACKAGE_BYTES.length,
+                        PACKAGE_DIGEST,
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of()));
+        when(artifactory.download(PROVIDER_REPOSITORY, ARTIFACT_PATH, 536_870_912L))
+                .thenReturn(PACKAGE_BYTES);
+        when(artifactory.metadata(CATALOG_REPOSITORY, DOCUMENT_ARTIFACT_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        CATALOG_REPOSITORY,
+                        DOCUMENT_ARTIFACT_PATH,
+                        DOCUMENT_BYTES.length,
+                        DOCUMENT_DIGEST,
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of()));
+        when(artifactory.download(CATALOG_REPOSITORY, DOCUMENT_ARTIFACT_PATH, 16_777_216L))
+                .thenReturn(DOCUMENT_BYTES);
+        when(documents.putImmutable(any(), eq(DOCUMENT_BYTES), eq("text/markdown"), eq(DOCUMENT_DIGEST)))
+                .thenAnswer(invocation -> new DocumentStore.StoredDocument(
+                        invocation.getArgument(0), DOCUMENT_DIGEST, DOCUMENT_BYTES.length, "text/markdown"));
+
+        assertThat(service.accept(event)).isEqualTo(CatalogIngestionService.Outcome.COMPLETED);
+
+        var key = ArgumentCaptor.forClass(String.class);
+        verify(documents).putImmutable(key.capture(), eq(DOCUMENT_BYTES), eq("text/markdown"), eq(DOCUMENT_DIGEST));
+        assertThat(key.getValue()).isEqualTo(
+                "v1/provider/hashicorp/null/3.2.4/"
+                        + DOCUMENT_DIGEST.substring("sha256:".length())
+                        + "/resources/example.md");
+    }
+
+    @Test
+    void unchangedDocumentationIsValidatedWithoutDownloadingItsContentAgain() {
+        var event = event("event-document-existing", Instant.parse("2026-07-21T13:00:00Z"));
+        var manifestBytes = manifestBytes();
+        var manifest = currentManifestWithDocument();
+        var existing = new DocumentStore.StoredDocument(
+                "v1/provider/hashicorp/null/3.2.4/"
+                        + DOCUMENT_DIGEST.substring("sha256:".length())
+                        + "/resources/example.md",
+                DOCUMENT_DIGEST,
+                DOCUMENT_BYTES.length,
+                "text/markdown");
+        when(events.claim(event)).thenReturn(true);
+        when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        CATALOG_REPOSITORY,
+                        MANIFEST_PATH,
+                        manifestBytes.length,
+                        S3DocumentStore.sha256(manifestBytes),
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of(
+                                "registry.catalog.ready", List.of("true"),
+                                "apm.id", List.of("APM0000001"))));
+        when(artifactory.download(CATALOG_REPOSITORY, MANIFEST_PATH, 1_048_576L))
+                .thenReturn(manifestBytes);
+        when(objectMapper.readValue(any(byte[].class), eq(CatalogManifestV1.class))).thenReturn(manifest);
+        when(artifactory.metadata(PROVIDER_REPOSITORY, ARTIFACT_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        PROVIDER_REPOSITORY,
+                        ARTIFACT_PATH,
+                        PACKAGE_BYTES.length,
+                        PACKAGE_DIGEST,
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of()));
+        when(artifactory.download(PROVIDER_REPOSITORY, ARTIFACT_PATH, 536_870_912L))
+                .thenReturn(PACKAGE_BYTES);
+        when(artifactory.metadata(CATALOG_REPOSITORY, DOCUMENT_ARTIFACT_PATH))
+                .thenReturn(new ArtifactoryGateway.ArtifactMetadata(
+                        CATALOG_REPOSITORY,
+                        DOCUMENT_ARTIFACT_PATH,
+                        DOCUMENT_BYTES.length,
+                        DOCUMENT_DIGEST,
+                        Instant.parse("2026-07-21T13:00:00Z"),
+                        Map.of()));
+        when(documents.existingImmutable(any(), eq(DOCUMENT_DIGEST), eq((long) DOCUMENT_BYTES.length), eq("text/markdown")))
+                .thenReturn(existing);
+
+        assertThat(service.accept(event)).isEqualTo(CatalogIngestionService.Outcome.COMPLETED);
+
+        verify(artifactory).metadata(CATALOG_REPOSITORY, DOCUMENT_ARTIFACT_PATH);
+        verify(artifactory, never()).download(CATALOG_REPOSITORY, DOCUMENT_ARTIFACT_PATH, 16_777_216L);
+        verify(documents, never()).putImmutable(any(), any(), any(), any());
+        verify(catalog).stage(manifest, List.of(new CatalogWriteRepository.StoredManifestDocument(
+                "resources/example.md", "Example", existing)));
+    }
+
+    @Test
     void unsafeArchivePathIsDurablyQuarantined() {
         var event = event("event-unsafe-archive", Instant.parse("2026-07-21T13:00:00Z"));
         var manifest = manifestBytes();
@@ -273,6 +387,26 @@ class CatalogIngestionServiceTest {
     }
 
     private static CatalogManifestV1 currentManifestWithDigest(String packageDigest) {
+        return currentManifest(packageDigest, "sha256:" + "b".repeat(64), List.of());
+    }
+
+    private static CatalogManifestV1 currentManifestWithDocument() {
+        return currentManifest(
+                PACKAGE_DIGEST,
+                DOCUMENT_DIGEST,
+                List.of(new CatalogManifestV1.Document(
+                        "resources/example.md",
+                        "Example",
+                        "text/markdown",
+                        DOCUMENT_ARTIFACT_PATH,
+                        DOCUMENT_DIGEST,
+                        DOCUMENT_BYTES.length)));
+    }
+
+    private static CatalogManifestV1 currentManifest(
+            String packageDigest,
+            String documentationDigest,
+            List<CatalogManifestV1.Document> manifestDocuments) {
         return new CatalogManifestV1(
                 1,
                 "provider",
@@ -297,7 +431,7 @@ class CatalogIngestionServiceTest {
                         Instant.parse("2026-07-21T12:00:00Z"),
                         packageDigest,
                         null,
-                        "sha256:" + "b".repeat(64),
+                        documentationDigest,
                         null,
                         null,
                         null,
@@ -305,6 +439,6 @@ class CatalogIngestionServiceTest {
                         false,
                         false),
                 new CatalogManifestV1.Access(List.of("APM0000001")),
-                List.of());
+                manifestDocuments);
     }
 }

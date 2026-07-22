@@ -103,9 +103,9 @@ final class RegistryCompatibilityMapper {
         var result = new LinkedHashMap<String, Object>();
         result.put("index", Map.of("title", item.title(), "name", "index", "description", item.description()));
         result.put("resources", providerDocItems(item.symbols(), "resource"));
-        result.put("datasources", providerDocItems(item.symbols(), "datasource"));
+        result.put("datasources", providerDocItems(item.symbols(), "data-source"));
         result.put("functions", providerDocItems(item.symbols(), "function"));
-        result.put("guides", List.of());
+        result.put("guides", providerDocItems(item.symbols(), "guide"));
         return result;
     }
 
@@ -123,11 +123,11 @@ final class RegistryCompatibilityMapper {
         var result = new LinkedHashMap<String, Object>();
         symbols.stream().filter(symbol -> "input".equals(symbol.kind())).forEach(symbol -> {
             var input = new LinkedHashMap<String, Object>();
-            input.put("default", null);
+            input.put("default", symbol.defaultValue());
             input.put("description", symbol.description() == null ? "" : symbol.description());
-            input.put("required", true);
-            input.put("sensitive", false);
-            input.put("type", "string");
+            input.put("required", symbol.required());
+            input.put("sensitive", symbol.sensitive());
+            input.put("type", symbol.type());
             result.put(symbol.name(), input);
         });
         return result;
@@ -139,15 +139,20 @@ final class RegistryCompatibilityMapper {
                 symbol.name(),
                 Map.of(
                         "description", symbol.description() == null ? "" : symbol.description(),
-                        "sensitive", false)));
+                        "sensitive", symbol.sensitive())));
         return result;
     }
 
     private static List<Map<String, Object>> resourceSymbols(List<Symbol> symbols) {
         return symbols.stream()
                 .filter(symbol -> "resource".equals(symbol.kind()))
-                .map(symbol -> Map.<String, Object>of(
-                        "address", symbol.name(), "name", symbol.name(), "type", symbol.name()))
+                .map(symbol -> {
+                    var resource = new LinkedHashMap<String, Object>();
+                    resource.put("address", symbol.name());
+                    resource.put("name", symbol.name());
+                    resource.put("type", symbol.type() == null ? symbol.name() : symbol.type());
+                    return Map.copyOf(resource);
+                })
                 .toList();
     }
 

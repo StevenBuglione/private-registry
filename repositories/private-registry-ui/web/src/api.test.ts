@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getPackage,
+  getPackageDocumentation,
   getPackageGovernance,
   getSession,
   logout,
@@ -100,7 +101,18 @@ describe("OpenAPI response normalization", () => {
           source_address: "registry.example/hashicorp/aws",
           updated_at: "2026-07-22T12:00:00Z",
           versions: [{ version: "6.8.0" }, { version: "6.7.0" }],
-          symbols: [],
+          symbols: [
+            {
+              kind: "input",
+              name: "region",
+              description: "Deployment region.",
+              path: "#inputs",
+              type: "string",
+              default_value: "us-east-1",
+              required: false,
+              sensitive: false,
+            },
+          ],
         },
       ],
       next_cursor: "next-page",
@@ -145,7 +157,18 @@ describe("OpenAPI response normalization", () => {
               package_digest: `sha256:${"a".repeat(64)}`,
             },
           ],
-          symbols: [],
+          symbols: [
+            {
+              kind: "input",
+              name: "region",
+              description: "Deployment region.",
+              path: "#inputs",
+              type: "string",
+              default_value: "us-east-1",
+              required: false,
+              sensitive: false,
+            },
+          ],
         }),
       )
       .mockResolvedValueOnce(
@@ -174,6 +197,17 @@ describe("OpenAPI response normalization", () => {
       artifactRepository: "iac-provider-release-local",
       artifactPath:
         "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
+      symbols: [
+        {
+          kind: "input",
+          name: "region",
+          path: "#inputs",
+          type: "string",
+          defaultValue: "us-east-1",
+          required: false,
+          sensitive: false,
+        },
+      ],
     });
     await expect(
       getPackageGovernance("provider", "hashicorp", "aws"),
@@ -185,5 +219,33 @@ describe("OpenAPI response normalization", () => {
       sourceRepository: "https://example.test/source",
       artifactRepository: "registry.example/hashicorp/aws",
     });
+  });
+
+  it("requests an authorized selected documentation path", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("# aws_vpc Resource", {
+        status: 200,
+        headers: { "content-type": "text/markdown" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      getPackageDocumentation(
+        "provider",
+        "hashicorp",
+        "aws",
+        undefined,
+        "6.8.0",
+        "APM0000001",
+        "resources/aws_vpc.md",
+      ),
+    ).resolves.toBe("# aws_vpc Resource");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /documentation\?apm_id=APM0000001&path=resources%2Faws_vpc\.md$/,
+      ),
+      expect.any(Object),
+    );
   });
 });

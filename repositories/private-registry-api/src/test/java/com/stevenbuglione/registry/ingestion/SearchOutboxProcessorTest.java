@@ -39,7 +39,7 @@ class SearchOutboxProcessorTest {
                 .when(searchIndex)
                 .index(item.indexName(), item.documentId(), item.payload());
         var processor = new SearchOutboxProcessor(
-                outbox, searchIndex, new IngestionProperties(true, List.of(), null, null, 0, 0, 0, 25, 10));
+                outbox, searchIndex, new IngestionProperties(true, List.of(), null, null, 0, 0, 0, 25, 10, 16));
 
         processor.publishPendingDocuments();
         processor.publishPendingDocuments();
@@ -52,7 +52,7 @@ class SearchOutboxProcessorTest {
     @Test
     void delegatesStaleClaimRecovery() {
         var processor = new SearchOutboxProcessor(
-                outbox, searchIndex, new IngestionProperties(true, List.of(), null, null, 0, 0, 0, 25, 10));
+                outbox, searchIndex, new IngestionProperties(true, List.of(), null, null, 0, 0, 0, 25, 10, 16));
 
         processor.recoverStaleClaims();
 

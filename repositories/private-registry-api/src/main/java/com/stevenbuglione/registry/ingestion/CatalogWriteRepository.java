@@ -30,6 +30,7 @@ public class CatalogWriteRepository {
         }
         var versionId = upsertVersion(packageId, manifest);
         replaceDocuments(versionId, documents);
+        replaceSymbols(versionId, manifest.symbols());
         replaceApproval(versionId, manifest);
         enqueueSearchDocument(packageId, versionId, manifest);
         return new StagedVersion(packageId, versionId, manifest.publicId(), manifest.identity().version());
@@ -233,6 +234,34 @@ public class CatalogWriteRepository {
                 .param("s3Key", document.stored().key())
                 .param("digest", document.stored().digest())
                 .param("sizeBytes", document.stored().sizeBytes())
+                .update());
+    }
+
+    private void replaceSymbols(UUID versionId, List<CatalogManifestV1.Symbol> symbols) {
+        jdbc.sql("DELETE FROM symbols WHERE package_version_id = :versionId")
+                .param("versionId", versionId)
+                .update();
+        if (symbols == null) {
+            return;
+        }
+        symbols.forEach(symbol -> jdbc.sql("""
+                        INSERT INTO symbols (
+                            package_version_id, kind, name, description, document_path,
+                            symbol_type, default_value, is_required, sensitive
+                        ) VALUES (
+                            :versionId, :kind, :name, :description, :path,
+                            :type, :defaultValue, :required, :sensitive
+                        )
+                        """)
+                .param("versionId", versionId)
+                .param("kind", symbol.kind())
+                .param("name", symbol.name())
+                .param("description", symbol.description())
+                .param("path", symbol.path())
+                .param("type", symbol.type())
+                .param("defaultValue", symbol.defaultValue())
+                .param("required", symbol.required())
+                .param("sensitive", symbol.sensitive())
                 .update());
     }
 

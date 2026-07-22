@@ -78,9 +78,10 @@ export function usePackage(identity: PackageIdentity) {
 export function usePackageDocumentation(
   identity: PackageIdentity,
   initial?: string,
+  documentPath?: string,
 ) {
   return useQuery({
-    queryKey: ["package-documentation", identity],
+    queryKey: ["package-documentation", identity, documentPath],
     queryFn: () =>
       getPackageDocumentation(
         identity.kind,
@@ -89,8 +90,9 @@ export function usePackageDocumentation(
         identity.target,
         identity.version,
         identity.apmId,
+        documentPath,
       ),
-    initialData: initial,
+    initialData: documentPath ? undefined : initial,
     retry: queryRetry,
   });
 }

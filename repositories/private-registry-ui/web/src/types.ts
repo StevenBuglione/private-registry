@@ -59,12 +59,26 @@ export interface GovernanceRecord {
 
 export interface PackageDetail extends PackageSummary {
   versions: string[];
+  symbols: PackageSymbol[];
   documentation?: string;
   governance?: GovernanceRecord;
   installSource?: string;
   artifactRepository?: string;
   artifactPath?: string;
   packageDigest?: string;
+}
+
+export interface PackageSymbol {
+  kind: string;
+  name: string;
+  description?: string;
+  path: string;
+  type?: string;
+  defaultValue?: unknown;
+  required?: boolean;
+  sensitive?: boolean;
+  provider?: string;
+  source?: string;
 }
 
 export interface CatalogPage {

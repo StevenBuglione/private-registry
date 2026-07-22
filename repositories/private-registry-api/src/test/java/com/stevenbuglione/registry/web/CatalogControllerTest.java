@@ -81,7 +81,10 @@ class CatalogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("2.4.1"))
                 .andExpect(jsonPath("$.readme").value(true))
-                .andExpect(jsonPath("$.variables").isMap());
+                .andExpect(jsonPath("$.variables.region.type").value("string"))
+                .andExpect(jsonPath("$.variables.region.default").value("\"us-east-1\""))
+                .andExpect(jsonPath("$.variables.region.required").value(false))
+                .andExpect(jsonPath("$.outputs.endpoint.sensitive").value(true));
     }
 
     @Test
@@ -94,6 +97,19 @@ class CatalogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_MARKDOWN))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("AWS VPC")));
+    }
+
+    @Test
+    void returnsEveryProviderDocumentationGroup() throws Exception {
+        var provider = TestCatalogFixtures.provider();
+        when(catalog.getPackage(accessContext, provider.id())).thenReturn(provider);
+
+        mvc.perform(get("/registry/docs/providers/platform/cloud/3.8.0/index.json"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.docs.resources[0].name").value("cloud_project"))
+                .andExpect(jsonPath("$.docs.datasources[0].name").value("cloud_identity"))
+                .andExpect(jsonPath("$.docs.functions[0].name").value("cloud_normalize"))
+                .andExpect(jsonPath("$.docs.guides[0].name").value("authentication"));
     }
 
     @Test

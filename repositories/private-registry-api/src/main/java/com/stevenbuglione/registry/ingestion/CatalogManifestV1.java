@@ -1,9 +1,12 @@
 package com.stevenbuglione.registry.ingestion;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.stevenbuglione.registry.model.PackageKind;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import tools.jackson.databind.PropertyNamingStrategies;
 import tools.jackson.databind.annotation.JsonNaming;
 
@@ -19,7 +22,36 @@ public record CatalogManifestV1(
         Source source,
         Release release,
         Access access,
-        List<Document> documents) {
+        List<Document> documents,
+        List<Symbol> symbols) {
+
+    private static final Set<String> SYMBOL_KINDS = Set.of(
+            "input", "output", "resource", "data-source", "function", "guide", "dependency");
+
+    public CatalogManifestV1(
+            int schemaVersion,
+            String kind,
+            Identity identity,
+            Display display,
+            RegistryLocation registry,
+            Compatibility compatibility,
+            Source source,
+            Release release,
+            Access access,
+            List<Document> documents) {
+        this(
+                schemaVersion,
+                kind,
+                identity,
+                display,
+                registry,
+                compatibility,
+                source,
+                release,
+                access,
+                documents,
+                List.of());
+    }
 
     public void validate() {
         if (schemaVersion != 1) {
@@ -69,6 +101,23 @@ public record CatalogManifestV1(
                 requireDigest(document.digest(), "documents.digest");
             });
         }
+        if (symbols != null) {
+            var identities = new HashSet<String>();
+            symbols.forEach(symbol -> {
+                requireText(symbol.kind(), "symbols.kind");
+                requireText(symbol.name(), "symbols.name");
+                if (!SYMBOL_KINDS.contains(symbol.kind())) {
+                    throw new QuarantineException(
+                            "invalid_symbol_kind", "Symbol kind is not part of the Registry vocabulary");
+                }
+                requireOptionalSafePath(symbol.path(), "symbols.path");
+                requireOptionalText(symbol.type(), "symbols.type");
+                if (!identities.add(symbol.kind() + "\u0000" + symbol.name())) {
+                    throw new QuarantineException(
+                            "duplicate_symbol", "Symbol kind and name must be unique within a package version");
+                }
+            });
+        }
     }
 
     public PackageKind packageKind() {
@@ -109,6 +158,18 @@ public record CatalogManifestV1(
         requireText(value, field);
         if (value.startsWith("/") || value.contains("..") || value.contains("\\")) {
             throw new QuarantineException("unsafe_artifact_path", field + " is unsafe");
+        }
+    }
+
+    private static void requireOptionalSafePath(String value, String field) {
+        if (value != null) {
+            requireSafePath(value, field);
+        }
+    }
+
+    private static void requireOptionalText(String value, String field) {
+        if (value != null && value.isBlank()) {
+            throw new QuarantineException("invalid_manifest", field + " cannot be blank");
         }
     }
 
@@ -180,4 +241,16 @@ public record CatalogManifestV1(
             String artifactPath,
             String digest,
             long sizeBytes) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
+    public record Symbol(
+            String kind,
+            String name,
+            String description,
+            String path,
+            String type,
+            @JsonProperty("default_value") String defaultValue,
+            boolean required,
+            boolean sensitive) {}
 }
