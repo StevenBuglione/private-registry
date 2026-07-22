@@ -1,0 +1,16 @@
+aws_region       = "us-east-1"
+state_bucket_name = "replace-private-registry-terraform-state"
+log_bucket_name   = "replace-private-registry-terraform-state-logs"
+
+state_key_administrator_arns = [
+  "arn:aws:iam::111111111111:role/security-key-administrator"
+]
+state_reader_writer_arns = [
+  "arn:aws:iam::111111111111:role/private-registry-terraform-apply"
+]
+
+tags = {
+  Environment = "shared"
+  Product     = "private-registry"
+  Owner       = "platform-team"
+}

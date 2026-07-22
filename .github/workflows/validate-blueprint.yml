@@ -1,0 +1,67 @@
+name: Validate blueprint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: validate-blueprint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install validation libraries
+        run: python -m pip install --disable-pip-version-check pyyaml jsonschema python-hcl2
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: '1.15.8'
+      - name: Create non-secret CI Compose environment
+        working-directory: repositories/private-registry-api
+        run: |
+          cat > .env.identity-test <<'EOF'
+          ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
+          ENTRA_CLIENT_ID=00000000-0000-0000-0000-000000000000
+          ENTRA_CLIENT_SECRET=ci-profile-disabled
+          EOF
+          cat > .env.artifactory <<'EOF'
+          REGISTRY_JFROG_HOSTNAME=artifacts.example.invalid
+          JFROG_ACCESS_TOKEN=ci-profile-disabled
+          EOF
+          cat > .env.eventing <<'EOF'
+          REGISTRY_WEBHOOK_SECRET=ci-local-smoke-only
+          REGISTRY_WEBHOOK_ORIGIN=https://artifacts.example.invalid
+          REGISTRY_WEBHOOK_SUBSCRIPTION_ID=ci-local-smoke
+          EOF
+      - name: Validate
+        env:
+          SKIP_JAVA_VALIDATION: 'true'
+        run: ./scripts/validate-blueprint.sh
+      - name: Start and smoke-test the complete Compose stack
+        id: compose
+        working-directory: repositories/private-registry-api
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml up --build --wait
+          curl --fail --silent --show-error http://localhost:8080/health/ready
+          curl --fail --silent --show-error http://localhost:3000/config/runtime.json
+          curl --fail --silent --show-error 'http://localhost:3000/registry/docs/search?q=vpc'
+      - name: Capture Compose diagnostics
+        if: failure() && steps.compose.outcome == 'failure'
+        working-directory: repositories/private-registry-api
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml ps --all
+          docker compose -f compose.yaml -f compose.ci.yaml logs --no-color --tail 300
+      - name: Stop Compose stack
+        if: always() && steps.compose.outcome != 'skipped'
+        working-directory: repositories/private-registry-api
+        run: docker compose -f compose.yaml -f compose.ci.yaml down --volumes

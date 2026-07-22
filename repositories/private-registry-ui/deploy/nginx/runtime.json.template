@@ -1,0 +1,6 @@
+{
+  "apiBaseUrl": "${REGISTRY_API_BASE_URL}",
+  "jfrogHostname": "${REGISTRY_JFROG_HOSTNAME}",
+  "environment": "${REGISTRY_ENVIRONMENT}",
+  "supportUrl": "${REGISTRY_SUPPORT_URL}"
+}

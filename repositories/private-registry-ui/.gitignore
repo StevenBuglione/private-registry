@@ -1,0 +1,15 @@
+app/node_modules/
+app/dist/
+app/coverage/
+app/playwright-report/
+app/test-results/
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store

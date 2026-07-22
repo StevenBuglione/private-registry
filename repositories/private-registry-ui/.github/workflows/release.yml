@@ -1,0 +1,58 @@
+name: Build UI image
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        required: true
+        options: [dev, prod, dr]
+      aws_region:
+        required: true
+      ecr_repository:
+        required: true
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: ui-image-${{ inputs.environment }}
+  cancel-in-progress: false
+jobs:
+  build:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push immutable image
+        id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: ${{ inputs.ecr_repository }}
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/$REPOSITORY:$TAG"
+          docker build --build-arg VITE_BUILD_SHA="$TAG" -t "$image" .
+          docker push "$image"
+          digest=$(aws ecr describe-images \
+            --repository-name "$REPOSITORY" \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Deployment handoff
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## UI image published
+
+          - Image: ${{ steps.image.outputs.image }}
+          - Digest: ${{ steps.image.outputs.digest }}
+
+          Deploy by updating `ui_image_tag` in the API repository Terraform environment and running the protected Terraform apply workflow. The image workflow deliberately does not mutate ECS outside Terraform.
+          EOF

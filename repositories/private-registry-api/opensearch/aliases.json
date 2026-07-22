@@ -1,0 +1,10 @@
+{
+  "actions": [
+    {"add": {"index": "private-registry-packages-v1-000001", "alias": "private-registry-packages-read"}},
+    {"add": {"index": "private-registry-packages-v1-000001", "alias": "private-registry-packages-write", "is_write_index": true}},
+    {"add": {"index": "private-registry-documents-v1-000001", "alias": "private-registry-documents-read"}},
+    {"add": {"index": "private-registry-documents-v1-000001", "alias": "private-registry-documents-write", "is_write_index": true}},
+    {"add": {"index": "private-registry-symbols-v1-000001", "alias": "private-registry-symbols-read"}},
+    {"add": {"index": "private-registry-symbols-v1-000001", "alias": "private-registry-symbols-write", "is_write_index": true}}
+  ]
+}

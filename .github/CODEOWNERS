@@ -1,0 +1,9 @@
+* @StevenBuglione
+
+/.github/ @StevenBuglione
+/repositories/private-registry-api/.github/ @StevenBuglione
+/repositories/private-registry-api/build.gradle.kts @StevenBuglione
+/repositories/private-registry-api/config/ @StevenBuglione
+/repositories/private-registry-api/gradle/ @StevenBuglione
+/repositories/private-registry-api/src/main/java/ @StevenBuglione
+/repositories/private-registry-api/src/test/java/com/stevenbuglione/registry/architecture/ @StevenBuglione

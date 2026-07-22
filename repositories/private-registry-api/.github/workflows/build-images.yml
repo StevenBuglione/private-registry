@@ -1,0 +1,84 @@
+name: Build service images
+on:
+  workflow_dispatch:
+    inputs:
+      environment: {type: choice, required: true, options: [dev, prod, dr]}
+      aws_region: {required: true}
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  build:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build image
+        id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: private-registry-${{ inputs.environment }}-api
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          image="$REGISTRY/$REPOSITORY:$TAG"
+          docker build -t "$image" .
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Generate release image SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ${{ steps.image.outputs.image }}
+          format: cyclonedx-json
+          output-file: api-release-image.cdx.json
+          upload-artifact: false
+      - name: Scan release image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.image }}
+          format: sarif
+          output: trivy-api-release-image.sarif
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+      - name: Upload release security evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-release-security-${{ github.sha }}
+          path: |
+            api-release-image.cdx.json
+            trivy-api-release-image.sarif
+          if-no-files-found: error
+          retention-days: 90
+      - name: Push verified image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: docker push "$IMAGE"
+      - name: Record immutable image digest
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          REPOSITORY: private-registry-${{ inputs.environment }}-api
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          digest=$(aws ecr describe-images \
+            --repository-name "$REPOSITORY" \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+          {
+            echo "### API image"
+            echo
+            echo "- Image: $IMAGE"
+            echo "- Digest: $digest"
+            echo
+            echo "Deploy by updating the matching Terraform image tag and running the protected apply workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

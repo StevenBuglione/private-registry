@@ -1,0 +1,78 @@
+name: API security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: api-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    name: Container security and SBOM
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build API image
+        run: docker build --tag private-registry-api:security-scan .
+      - name: Generate CycloneDX image SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: private-registry-api:security-scan
+          format: cyclonedx-json
+          output-file: api-image.cdx.json
+          upload-artifact: false
+      - name: Scan image for high-severity vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: private-registry-api:security-scan
+          format: sarif
+          output: trivy-api-image.sarif
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+      - name: Upload Trivy findings to code scanning
+        if: >-
+          ${{ always() &&
+              (github.event_name != 'pull_request' ||
+               github.event.pull_request.head.repo.fork == false) }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-api-image.sarif
+          category: trivy-api-image
+      - name: Upload security evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-container-security-${{ github.run_id }}
+          path: |
+            api-image.cdx.json
+            trivy-api-image.sarif
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,7 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/local
+
+logging:
+  level:
+    com.stevenbuglione.registry: INFO

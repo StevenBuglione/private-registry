@@ -1,0 +1,209 @@
+name: private-registry
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: registry
+      POSTGRES_PASSWORD: registry
+      POSTGRES_DB: registry
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry -d registry"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    environment:
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  localstack:
+    # 4.14 is the last pre-consolidation Community line and does not require
+    # a LocalStack account token for the services used by this starter.
+    image: localstack/localstack:4.14.0
+    environment:
+      SERVICES: events,sqs,s3
+      AWS_DEFAULT_REGION: us-east-1
+      REGISTRY_EVENT_BUS_NAME: registry-catalog
+      REGISTRY_EVENT_QUEUE_NAME: registry-catalog-events
+      REGISTRY_EVENT_DLQ_NAME: registry-catalog-events-dlq
+      REGISTRY_DOCUMENT_BUCKET: registry-documents
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./deploy/localstack/init-registry.sh:/etc/localstack/init/ready.d/init-registry.sh:ro
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3api head-bucket --bucket registry-documents >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+    env_file:
+      - path: .env.identity-test
+        required: true
+      - path: .env.artifactory
+        required: true
+      - path: .env.eventing
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: local,entra
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_DATASOURCE_USERNAME: registry
+      SPRING_DATASOURCE_PASSWORD: registry
+      REGISTRY_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      REGISTRY_SECURITY_PERMIT_ALL: "false"
+      REGISTRY_EVENTING_ENABLED: "true"
+      REGISTRY_EVENTING_ENDPOINT: http://localstack:4566
+      REGISTRY_EVENT_BUS_NAME: registry-catalog
+      REGISTRY_EVENT_QUEUE_URL: http://localstack:4566/000000000000/registry-catalog-events
+      REGISTRY_EVENT_DLQ_URL: http://localstack:4566/000000000000/registry-catalog-events-dlq
+      REGISTRY_DOCUMENT_BUCKET: registry-documents
+      REGISTRY_WEBHOOK_ENABLED: "true"
+      REGISTRY_INGESTION_ENABLED: "false"
+      REGISTRY_POST_LOGOUT_REDIRECT_URI: /
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  indexer:
+    build:
+      context: .
+    env_file:
+      - path: .env.identity-test
+        required: true
+      - path: .env.artifactory
+        required: true
+      - path: .env.eventing
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_DATASOURCE_USERNAME: registry
+      SPRING_DATASOURCE_PASSWORD: registry
+      REGISTRY_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      REGISTRY_SECURITY_PERMIT_ALL: "true"
+      REGISTRY_EVENTING_ENABLED: "true"
+      REGISTRY_EVENTING_ENDPOINT: http://localstack:4566
+      REGISTRY_EVENT_BUS_NAME: registry-catalog
+      REGISTRY_EVENT_QUEUE_URL: http://localstack:4566/000000000000/registry-catalog-events
+      REGISTRY_EVENT_DLQ_URL: http://localstack:4566/000000000000/registry-catalog-events-dlq
+      REGISTRY_DOCUMENT_BUCKET: registry-documents
+      REGISTRY_WEBHOOK_ENABLED: "false"
+      REGISTRY_INGESTION_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health/worker"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  seeder:
+    profiles: ["seed"]
+    build:
+      context: .
+    env_file:
+      - path: .env.artifactory
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_DATASOURCE_USERNAME: registry
+      SPRING_DATASOURCE_PASSWORD: registry
+      REGISTRY_OPENSEARCH_ENDPOINT: http://opensearch:9200
+      REGISTRY_SECURITY_PERMIT_ALL: "true"
+      REGISTRY_EVENTING_ENABLED: "false"
+      REGISTRY_INGESTION_ENABLED: "false"
+      REGISTRY_WEBHOOK_ENABLED: "false"
+      REGISTRY_SEED_ENABLED: "true"
+      REGISTRY_SEED_EXIT_AFTER_COMPLETION: "true"
+      REGISTRY_SEED_CACHE_DIRECTORY: /var/cache/registry-seed
+      REGISTRY_SEED_UPLOAD_ATTEMPTS: ${REGISTRY_SEED_UPLOAD_ATTEMPTS:-4}
+      REGISTRY_SEED_UPLOAD_RETRY_BACKOFF: ${REGISTRY_SEED_UPLOAD_RETRY_BACKOFF:-30s}
+      REGISTRY_SEED_PACKAGES: ${REGISTRY_SEED_PACKAGES:-}
+      REGISTRY_SEED_VERSIONS: ${REGISTRY_SEED_VERSIONS:-}
+      REGISTRY_SEED_ALLOW_UNPINNED_DIGESTS: ${REGISTRY_SEED_ALLOW_UNPINNED_DIGESTS:-false}
+      REGISTRY_ARTIFACTORY_CONNECTION_TIMEOUT: ${REGISTRY_ARTIFACTORY_CONNECTION_TIMEOUT:-30s}
+      REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:-15m}
+    command: ["--spring.main.web-application-type=none"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - registry-seed-cache:/var/cache/registry-seed
+    restart: "no"
+
+  ui:
+    build:
+      context: ../private-registry-ui
+      args:
+        VITE_BUILD_SHA: local-compose
+    environment:
+      REGISTRY_API_BASE_URL: /api/v1
+      REGISTRY_JFROG_HOSTNAME: ${REGISTRY_JFROG_HOSTNAME:-trialwbgt07.jfrog.io}
+      REGISTRY_ENVIRONMENT: local
+      REGISTRY_SUPPORT_URL: https://support.example.invalid/private-registry
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${REGISTRY_UI_PORT:-3000}:8080"
+    volumes:
+      - ../private-registry-ui/deploy/nginx/local.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  opensearch-data:
+  localstack-data:
+  registry-seed-cache:

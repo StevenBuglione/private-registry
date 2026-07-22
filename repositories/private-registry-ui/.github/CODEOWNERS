@@ -1,0 +1,5 @@
+* @platform-team
+/web/ @frontend-platform-team
+/public/assets/ @frontend-platform-team
+/deploy/ @platform-team @security-team
+/NOTICE.md @open-source-reviewers

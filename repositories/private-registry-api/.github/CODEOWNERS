@@ -1,0 +1,9 @@
+* @platform-team
+/cmd/ @backend-platform-team
+/internal/ @backend-platform-team
+/api/ @backend-platform-team @frontend-platform-team
+/contracts/ @platform-team @security-team
+/migrations/ @database-platform-team @backend-platform-team
+/opensearch/ @search-platform-team @backend-platform-team
+/infrastructure/ @cloud-platform-team @security-team
+/.github/workflows/ @platform-team @security-team

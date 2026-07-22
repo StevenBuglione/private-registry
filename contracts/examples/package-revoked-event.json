@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "eventType": "PackageRevoked",
+  "eventId": "33333333-3333-4333-8333-333333333333",
+  "occurredAt": "2026-07-21T14:15:00Z",
+  "correlationId": "release-run-123456",
+  "producer": "governed-release-workflow",
+  "detail": {
+    "kind": "provider",
+    "namespace": "platform",
+    "name": "internal-cloud",
+    "version": "3.2.0",
+    "repository": "iac-providers-virtual",
+    "artifactPath": "platform/internal-cloud/3.2.0/",
+    "packageDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "manifestPath": "v1/providers/platform/internal-cloud/3.2.0/manifest.json",
+    "manifestDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "documentationPath": "v1/providers/platform/internal-cloud/3.2.0/documentation.tar.gz",
+    "sourceCommit": "9d08f7f7c44d01a38b3d1f2f4752d7dcdd3947ee",
+    "approvalRecordId": "approval-2026-000123",
+    "reason": "Critical security issue in the provider release.",
+    "incidentReference": "SEC-2026-0042",
+    "effectiveAt": "2026-07-21T15:00:00Z"
+  }
+}

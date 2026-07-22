@@ -1,0 +1,7 @@
+
+bucket       = "replace-private-registry-terraform-state"
+key          = "private-registry/prod/terraform.tfstate"
+region       = "us-east-1"
+kms_key_id   = "arn:aws:kms:us-east-1:111111111111:key/replace"
+use_lockfile = true
+encrypt      = true

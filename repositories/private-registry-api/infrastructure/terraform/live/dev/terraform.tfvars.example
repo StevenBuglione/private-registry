@@ -1,0 +1,78 @@
+aws_region  = "us-east-1"
+environment = "dev"
+vpc_cidr    = "10.40.0.0/16"
+
+corporate_ingress_cidrs = ["10.0.0.0/8"]
+corporate_route_cidrs   = ["10.0.0.0/8"]
+transit_gateway_id      = null
+create_nat_gateways     = true
+single_nat_gateway      = true
+
+registry_dns_name = "iac-registry-dev.corp.example.invalid"
+route53_zone_id   = "ZREPLACE"
+certificate_arn   = "arn:aws:acm:us-east-1:111111111111:certificate/replace"
+
+oidc_client_id              = "replace"
+# Set oidc_client_secret with TF_VAR_oidc_client_secret in the protected CI environment.
+oidc_issuer                 = "https://identity.example.invalid"
+oidc_authorization_endpoint = "https://identity.example.invalid/oauth2/authorize"
+oidc_token_endpoint         = "https://identity.example.invalid/oauth2/token"
+oidc_user_info_endpoint     = "https://identity.example.invalid/oauth2/userinfo"
+
+jfrog_hostname                  = "artifacts.example.invalid"
+jfrog_vpc_endpoint_service_name = null
+jfrog_private_dns_enabled       = false
+jfrog_private_dns_zone_id       = null
+jfrog_secret_kms_key_arn        = null
+jfrog_token_secret_arn          = "arn:aws:secretsmanager:us-east-1:111111111111:secret:private-registry-jfrog-replace"
+authorization_secret_kms_key_arn = null
+database_secret_kms_key_arn      = null
+authorization_config_secret_arn = "arn:aws:secretsmanager:us-east-1:111111111111:secret:private-registry-authz-replace"
+support_url                     = "https://support.example.invalid/iac-registry"
+
+deploy_application_services = false
+ui_image_tag                = "replace-commit-sha"
+api_image_tag               = "replace-commit-sha"
+indexer_image_tag           = "replace-commit-sha"
+reconciler_image_tag        = "replace-commit-sha"
+migrations_image_tag        = "replace-commit-sha"
+
+ui_desired_count      = 1
+api_desired_count     = 1
+indexer_desired_count = 1
+ui_min_count          = 1
+api_min_count         = 1
+indexer_min_count     = 1
+
+aurora_instance_class            = "db.r7g.large"
+aurora_instance_count            = 2
+database_deletion_protection     = false
+database_skip_final_snapshot     = true
+enable_aurora_global_database    = false
+aurora_global_cluster_identifier = null
+is_dr_region                     = false
+primary_region                   = null
+database_proxy_secret_arn        = null
+
+opensearch_data_instance_count  = 3
+opensearch_ebs_volume_size      = 50
+audit_object_lock_enabled       = false
+force_destroy_buckets           = true
+load_balancer_deletion_protection = false
+
+create_github_oidc_provider = false
+github_oidc_provider_arn    = "arn:aws:iam::111111111111:oidc-provider/token.actions.githubusercontent.com"
+github_owner                = "replace-owner"
+github_allowed_refs         = ["ref:refs/heads/main", "environment:dev"]
+
+# Supply organization-managed least-privilege policy ARNs.
+github_terraform_plan_policy_arns  = []
+github_terraform_apply_policy_arns = []
+github_image_policy_arns           = []
+github_migration_policy_arns       = []
+
+tags = {
+  Owner          = "platform-team"
+  DataClass      = "internal"
+  CostCenter     = "replace"
+}

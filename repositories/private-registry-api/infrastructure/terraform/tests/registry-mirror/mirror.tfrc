@@ -1,0 +1,10 @@
+provider_installation {
+  network_mirror {
+    url     = "https://trialwbgt07.jfrog.io/artifactory/api/terraform/iac-providers-public-remote/providers/"
+    include = ["registry.terraform.io/hashicorp/null"]
+  }
+
+  direct {
+    exclude = ["registry.terraform.io/hashicorp/null"]
+  }
+}
