@@ -12,8 +12,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - name: Install validation libraries
@@ -26,7 +26,7 @@ jobs:
           cache-dependency-path: |
             repositories/private-registry-api/*.gradle*
             repositories/private-registry-api/gradle/wrapper/gradle-wrapper.properties
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.8'
       - name: Make Gradle wrapper executable
