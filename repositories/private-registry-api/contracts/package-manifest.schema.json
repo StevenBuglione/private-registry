@@ -362,23 +362,10 @@
     "symbol": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "name",
-        "required",
-        "sensitive"
-      ],
+      "required": ["kind", "name", "required", "sensitive"],
       "properties": {
         "kind": {
-          "enum": [
-            "input",
-            "output",
-            "resource",
-            "data-source",
-            "function",
-            "guide",
-            "dependency"
-          ]
+          "enum": ["input", "output", "resource", "data-source", "function", "guide", "dependency"]
         },
         "name": {
           "type": "string",

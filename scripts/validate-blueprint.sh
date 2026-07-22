@@ -86,8 +86,8 @@ done < <(find "${ROOT}" -type f -name '*.sh' \
 
 echo 'shell: syntax checks passed'
 
-"${ROOT}/repositories/private-registry-ui/scripts/test-patch-upstream.sh"
-echo 'ui:    deterministic patch smoke test passed'
+python3 "${ROOT}/repositories/private-registry-ui/scripts/check-runtime-template.py"
+echo 'ui:    runtime configuration template passed'
 
 docker compose -f "${ROOT}/repositories/private-registry-api/compose.yaml" config --quiet
 echo 'compose: configuration is valid'

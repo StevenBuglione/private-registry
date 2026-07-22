@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      REGISTRY_SECURITY_PERMIT_ALL: "true"
