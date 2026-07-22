@@ -68,11 +68,16 @@ Use `docker compose down --volumes` only when you intentionally want to erase th
 ## Build and test
 
 ```bash
-./gradlew check
+bash scripts/quality.sh local
+bash scripts/quality.sh pr
 ./gradlew bootJar
 ```
 
-The Gradle build uses a Java 25 toolchain. No system Gradle installation is required after the wrapper is committed.
+PowerShell users can run `./scripts/quality.ps1 local` or
+`./scripts/quality.ps1 pr`. The Gradle build uses a Java 25 toolchain. No system
+Gradle installation is required after the wrapper is committed. See
+[`docs/code-quality.md`](docs/code-quality.md) for the analyzer matrix,
+suppression policy, CI gates, SonarQube setup, and branch-protection checklist.
 
 ## Infrastructure deployment
 

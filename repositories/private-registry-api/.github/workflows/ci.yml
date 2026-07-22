@@ -1,39 +1,93 @@
-name: API CI
+name: API quality gate
+
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: api-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+
 jobs:
-  test:
+  quality:
+    name: Gradle PR quality
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - uses: gradle/actions/wrapper-validation@v6
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
-          cache: gradle
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.13'}
-      - run: python -m pip install --disable-pip-version-check jsonschema
-      - run: python3 scripts/validate-contracts.py
-      - run: chmod +x gradlew
-      - run: ./gradlew --no-daemon check
-      - run: docker compose config --quiet
-      - run: docker build -t private-registry-api:${GITHUB_SHA} .
-  terraform:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with: {terraform_version: '1.15.8'}
-      - run: terraform fmt -check -recursive infrastructure/terraform
-      - name: Validate every Terraform root
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Restore Dependency-Check data
+        uses: actions/cache@v6
+        with:
+          path: ~/.gradle/dependency-check-data
+          key: dependency-check-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Validate API contracts
         run: |
-          set -euo pipefail
-          for root in bootstrap global modules/platform live/dev live/prod live/dr; do
-            terraform -chdir="infrastructure/terraform/$root" init -backend=false -input=false
-            terraform -chdir="infrastructure/terraform/$root" validate
-          done
+          python -m pip install --disable-pip-version-check jsonschema
+          python scripts/validate-contracts.py
+      - name: Run quality gates
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: bash scripts/quality.sh pr
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-quality-reports-${{ github.run_id }}
+          path: |
+            build/reports/**
+            build/test-results/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  sonarqube:
+    name: SonarQube new-code gate
+    needs: quality
+    if: >-
+      ${{ vars.SONAR_ENABLED == 'true' &&
+          vars.SONAR_HOST_URL != '' &&
+          vars.SONAR_PROJECT_KEY != '' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.fork == false) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: gradle/actions/wrapper-validation@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+      - name: Produce SonarQube inputs
+        run: bash scripts/quality.sh sonar-input
+      - name: Analyze with SonarQube
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true

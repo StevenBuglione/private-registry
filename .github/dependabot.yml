@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /repositories/private-registry-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      java-quality-tools:
+        patterns:
+          - '*errorprone*'
+          - '*nullaway*'
+          - '*spotbugs*'
+          - '*findsecbugs*'
+          - '*pmd*'
+          - '*checkstyle*'
+          - '*pitest*'
+          - '*jacoco*'
+          - '*archunit*'
+          - '*modulith*'
+
+  - package-ecosystem: docker
+    directory: /repositories/private-registry-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10

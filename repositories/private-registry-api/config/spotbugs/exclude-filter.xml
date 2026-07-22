@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Add only documented, reviewed false positives. Do not baseline whole packages. -->
+</FindBugsFilter>

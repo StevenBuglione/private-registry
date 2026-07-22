@@ -9,11 +9,12 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
 @ConfigurationPropertiesScan
 public class PrivateRegistryApplication {
 
-    public static void main(String[] args) {
-        var application = SpringApplication.run(PrivateRegistryApplication.class, args);
-        if (application.getEnvironment()
-                .getProperty("registry.seed.exit-after-completion", Boolean.class, false)) {
-            System.exit(SpringApplication.exit(application, () -> 0));
-        }
+  public static void main(String[] args) {
+    var application = SpringApplication.run(PrivateRegistryApplication.class, args);
+    if (application
+        .getEnvironment()
+        .getProperty("registry.seed.exit-after-completion", Boolean.class, false)) {
+      System.exit(SpringApplication.exit(application, () -> 0));
     }
+  }
 }

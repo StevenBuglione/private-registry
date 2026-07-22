@@ -5,7 +5,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 public interface CatalogChangeNotifier {
 
-    SseEmitter subscribe(AccessContext accessContext);
+  SseEmitter subscribe(AccessContext accessContext);
 
-    void publish(CatalogChangeEvent event);
+  void publish(CatalogChangeEvent event);
 }

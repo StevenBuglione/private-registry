@@ -9,33 +9,33 @@ import org.springframework.stereotype.Service;
 @Service
 public class DependencyHealthService {
 
-    private final JdbcClient jdbc;
-    private final OpenSearchClient openSearch;
+  private final JdbcClient jdbc;
+  private final OpenSearchClient openSearch;
 
-    public DependencyHealthService(JdbcClient jdbc, OpenSearchClient openSearch) {
-        this.jdbc = jdbc;
-        this.openSearch = openSearch;
+  public DependencyHealthService(JdbcClient jdbc, OpenSearchClient openSearch) {
+    this.jdbc = jdbc;
+    this.openSearch = openSearch;
+  }
+
+  public HealthReport check() {
+    var dependencies = new LinkedHashMap<String, String>();
+    try {
+      jdbc.sql("SELECT 1").query(Integer.class).single();
+      dependencies.put("postgresql", "up");
+    } catch (RuntimeException exception) {
+      dependencies.put("postgresql", "down");
     }
 
-    public HealthReport check() {
-        var dependencies = new LinkedHashMap<String, String>();
-        try {
-            jdbc.sql("SELECT 1").query(Integer.class).single();
-            dependencies.put("postgresql", "up");
-        } catch (RuntimeException exception) {
-            dependencies.put("postgresql", "down");
-        }
-
-        try {
-            var health = openSearch.cluster().health();
-            dependencies.put("opensearch", health.status().jsonValue());
-        } catch (Exception exception) {
-            dependencies.put("opensearch", "down");
-        }
-
-        var ready = dependencies.values().stream().noneMatch("down"::equals);
-        return new HealthReport(ready, Map.copyOf(dependencies));
+    try {
+      var health = openSearch.cluster().health();
+      dependencies.put("opensearch", health.status().jsonValue());
+    } catch (Exception exception) {
+      dependencies.put("opensearch", "down");
     }
 
-    public record HealthReport(boolean ready, Map<String, String> dependencies) {}
+    var ready = dependencies.values().stream().noneMatch("down"::equals);
+    return new HealthReport(ready, Map.copyOf(dependencies));
+  }
+
+  public record HealthReport(boolean ready, Map<String, String> dependencies) {}
 }

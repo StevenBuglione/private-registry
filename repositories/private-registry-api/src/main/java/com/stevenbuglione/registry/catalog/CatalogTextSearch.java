@@ -5,5 +5,5 @@ import java.util.List;
 
 public interface CatalogTextSearch {
 
-    List<String> findPackageIds(AccessContext accessContext, CatalogQuery query, int maximumResults);
+  List<String> findPackageIds(AccessContext accessContext, CatalogQuery query, int maximumResults);
 }

@@ -1,0 +1,62 @@
+name: API nightly quality
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: api-nightly-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: Full quality and mutation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: repositories/private-registry-api
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Restore Dependency-Check data
+        uses: actions/cache@v6
+        with:
+          path: ~/.gradle/dependency-check-data
+          key: dependency-check-nightly-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-nightly-${{ runner.os }}-
+            dependency-check-${{ runner.os }}-
+
+      - name: Run full quality and PITest gate
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: bash scripts/quality.sh nightly
+
+      - name: Upload nightly reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: api-nightly-reports-${{ github.run_id }}
+          path: |
+            repositories/private-registry-api/build/reports/**
+            repositories/private-registry-api/build/test-results/**
+          if-no-files-found: warn
+          retention-days: 30

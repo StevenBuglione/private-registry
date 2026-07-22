@@ -1,13 +1,22 @@
 SHELL := /usr/bin/env bash
 GRADLE := ./gradlew
 
-.PHONY: test build check run compose-up compose-down compose-logs contracts clean
+.PHONY: format test build check quality-pr quality-nightly run compose-up compose-down compose-logs contracts clean
+
+format:
+	bash scripts/quality.sh format
 
 test:
 	$(GRADLE) test
 
 check:
-	$(GRADLE) check
+	bash scripts/quality.sh local
+
+quality-pr:
+	bash scripts/quality.sh pr
+
+quality-nightly:
+	bash scripts/quality.sh nightly
 
 build:
 	$(GRADLE) bootJar

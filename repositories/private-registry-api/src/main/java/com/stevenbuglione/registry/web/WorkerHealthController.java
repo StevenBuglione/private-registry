@@ -11,20 +11,21 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnBean(WorkerDependencyHealthService.class)
 public class WorkerHealthController {
 
-    private final WorkerDependencyHealthService health;
+  private final WorkerDependencyHealthService health;
 
-    public WorkerHealthController(WorkerDependencyHealthService health) {
-        this.health = health;
-    }
+  public WorkerHealthController(WorkerDependencyHealthService health) {
+    this.health = health;
+  }
 
-    @GetMapping("/health/worker")
-    public ResponseEntity<Map<String, Object>> worker() {
-        var report = health.check();
-        var body = Map.<String, Object>of(
-                "status", report.ready() ? "ready" : "not_ready",
-                "dependencies", report.dependencies());
-        return report.ready()
-                ? ResponseEntity.ok(body)
-                : ResponseEntity.status(503).body(body);
-    }
+  @GetMapping("/health/worker")
+  public ResponseEntity<Map<String, Object>> worker() {
+    var report = health.check();
+    var body =
+        Map.<String, Object>of(
+            "status",
+            report.ready() ? "ready" : "not_ready",
+            "dependencies",
+            report.dependencies());
+    return report.ready() ? ResponseEntity.ok(body) : ResponseEntity.status(503).body(body);
+  }
 }

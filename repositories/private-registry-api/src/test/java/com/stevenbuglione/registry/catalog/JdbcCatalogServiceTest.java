@@ -6,11 +6,11 @@ import org.junit.jupiter.api.Test;
 
 class JdbcCatalogServiceTest {
 
-    @Test
-    void supportsBothProviderDocumentationConventions() {
-        assertThat(JdbcCatalogService.documentationPathCandidates("index.md"))
-                .containsExactly("index.md", "README.md");
-        assertThat(JdbcCatalogService.documentationPathCandidates("README.md"))
-                .containsExactly("README.md", "index.md");
-    }
+  @Test
+  void supportsBothProviderDocumentationConventions() {
+    assertThat(JdbcCatalogService.documentationPathCandidates("index.md"))
+        .containsExactly("index.md", "README.md");
+    assertThat(JdbcCatalogService.documentationPathCandidates("README.md"))
+        .containsExactly("README.md", "index.md");
+  }
 }

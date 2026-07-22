@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!-- Every suppression must identify a reviewed advisory and have an expiry date. -->
+    <suppress until="2026-10-31Z">
+        <notes><![CDATA[
+            Reviewed 2026-07-22. NVD identifies org.apache.httpcomponents.core5:httpcore5
+            through 5.4.2 as affected. Dependency-Check incorrectly maps the separate legacy
+            org.apache.httpcomponents:httpcore 4.4.16 artifact to the HttpCore 5 CPE. Re-review
+            this narrowly scoped suppression before it expires.
+            https://nvd.nist.gov/vuln/detail/CVE-2026-54399
+            https://nvd.nist.gov/vuln/detail/CVE-2026-54428
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.httpcomponents/httpcore@4\.4\.16$</packageUrl>
+        <cve>CVE-2026-54399</cve>
+        <cve>CVE-2026-54428</cve>
+    </suppress>
+</suppressions>

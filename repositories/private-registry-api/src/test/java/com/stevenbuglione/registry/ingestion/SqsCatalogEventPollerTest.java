@@ -27,95 +27,94 @@ import tools.jackson.databind.ObjectMapper;
 @ExtendWith(MockitoExtension.class)
 class SqsCatalogEventPollerTest {
 
-    @Mock
-    private SqsClient sqs;
+  @Mock private SqsClient sqs;
 
-    @Mock
-    private CatalogIngestionService ingestion;
+  @Mock private CatalogIngestionService ingestion;
 
-    @Test
-    void movesExhaustedFailuresToTheDlqBeforeDeletingTheSourceMessage() {
-        var message = Message.builder()
-                .messageId("message-1")
-                .receiptHandle("receipt-1")
-                .body(validEventJson())
-                .attributes(java.util.Map.of(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT, "3"))
-                .build();
-        when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
-                .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
-        when(ingestion.accept(any(CatalogArtifactChanged.class)))
-                .thenThrow(new IllegalStateException("transient database failure"));
-        var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
+  @Test
+  void movesExhaustedFailuresToTheDlqBeforeDeletingTheSourceMessage() {
+    var message =
+        Message.builder()
+            .messageId("message-1")
+            .receiptHandle("receipt-1")
+            .body(validEventJson())
+            .attributes(java.util.Map.of(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT, "3"))
+            .build();
+    when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
+        .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
+    when(ingestion.accept(any(CatalogArtifactChanged.class)))
+        .thenThrow(new IllegalStateException("transient database failure"));
+    var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
 
-        poller.poll();
+    poller.poll();
 
-        var deadLetter = ArgumentCaptor.forClass(SendMessageRequest.class);
-        verify(sqs).sendMessage(deadLetter.capture());
-        assertThat(deadLetter.getValue().queueUrl()).isEqualTo("http://localstack/queue/registry-dlq");
-        assertThat(deadLetter.getValue().messageBody()).isEqualTo(message.body());
-        assertThat(deadLetter.getValue().messageAttributes()).containsKey("registryFailure");
-        verify(sqs).deleteMessage(DeleteMessageRequest.builder()
+    var deadLetter = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sqs).sendMessage(deadLetter.capture());
+    assertThat(deadLetter.getValue().queueUrl()).isEqualTo("http://localstack/queue/registry-dlq");
+    assertThat(deadLetter.getValue().messageBody()).isEqualTo(message.body());
+    assertThat(deadLetter.getValue().messageAttributes()).containsKey("registryFailure");
+    verify(sqs)
+        .deleteMessage(
+            DeleteMessageRequest.builder()
                 .queueUrl("http://localstack/queue/registry-events")
                 .receiptHandle("receipt-1")
                 .build());
-    }
+  }
 
-    @Test
-    void leavesTransientFailuresOnTheSourceQueueUntilAttemptsAreExhausted() {
-        var message = Message.builder()
-                .receiptHandle("receipt-2")
-                .body(validEventJson())
-                .attributes(java.util.Map.of(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT, "2"))
-                .build();
-        when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
-                .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
-        when(ingestion.accept(any(CatalogArtifactChanged.class)))
-                .thenThrow(new IllegalStateException("transient Artifactory failure"));
-        var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
+  @Test
+  void leavesTransientFailuresOnTheSourceQueueUntilAttemptsAreExhausted() {
+    var message =
+        Message.builder()
+            .receiptHandle("receipt-2")
+            .body(validEventJson())
+            .attributes(java.util.Map.of(MessageSystemAttributeName.APPROXIMATE_RECEIVE_COUNT, "2"))
+            .build();
+    when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
+        .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
+    when(ingestion.accept(any(CatalogArtifactChanged.class)))
+        .thenThrow(new IllegalStateException("transient Artifactory failure"));
+    var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
 
-        poller.poll();
+    poller.poll();
 
-        verify(sqs, never()).sendMessage(any(SendMessageRequest.class));
-        verify(sqs, never()).deleteMessage(any(DeleteMessageRequest.class));
-    }
+    verify(sqs, never()).sendMessage(any(SendMessageRequest.class));
+    verify(sqs, never()).deleteMessage(any(DeleteMessageRequest.class));
+  }
 
-    @Test
-    void deadLettersMalformedEventsBeforeDeletingThem() {
-        var message = Message.builder()
-                .receiptHandle("receipt-invalid")
-                .body("not-json")
-                .build();
-        when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
-                .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
-        var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
+  @Test
+  void deadLettersMalformedEventsBeforeDeletingThem() {
+    var message = Message.builder().receiptHandle("receipt-invalid").body("not-json").build();
+    when(sqs.receiveMessage(any(ReceiveMessageRequest.class)))
+        .thenReturn(ReceiveMessageResponse.builder().messages(message).build());
+    var poller = new SqsCatalogEventPoller(sqs, new ObjectMapper(), eventing(3), ingestion);
 
-        poller.poll();
+    poller.poll();
 
-        verify(sqs).deleteMessage(any(DeleteMessageRequest.class));
-        var deadLetter = ArgumentCaptor.forClass(SendMessageRequest.class);
-        verify(sqs).sendMessage(deadLetter.capture());
-        assertThat(deadLetter.getValue().queueUrl()).isEqualTo("http://localstack/queue/registry-dlq");
-        assertThat(deadLetter.getValue().messageBody()).isEqualTo("not-json");
-        assertThat(deadLetter.getValue().messageAttributes()).containsKey("registryFailure");
-        verify(ingestion, never()).accept(any());
-    }
+    verify(sqs).deleteMessage(any(DeleteMessageRequest.class));
+    var deadLetter = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sqs).sendMessage(deadLetter.capture());
+    assertThat(deadLetter.getValue().queueUrl()).isEqualTo("http://localstack/queue/registry-dlq");
+    assertThat(deadLetter.getValue().messageBody()).isEqualTo("not-json");
+    assertThat(deadLetter.getValue().messageAttributes()).containsKey("registryFailure");
+    verify(ingestion, never()).accept(any());
+  }
 
-    private static EventingProperties eventing(int maximumAttempts) {
-        return new EventingProperties(
-                true,
-                "us-east-1",
-                URI.create("http://localstack:4566"),
-                "registry-catalog",
-                "http://localstack/queue/registry-events",
-                "http://localstack/queue/registry-dlq",
-                "registry-documents",
-                Duration.ofSeconds(1),
-                10,
-                maximumAttempts);
-    }
+  private static EventingProperties eventing(int maximumAttempts) {
+    return new EventingProperties(
+        true,
+        "us-east-1",
+        URI.create("http://localstack:4566"),
+        "registry-catalog",
+        "http://localstack/queue/registry-events",
+        "http://localstack/queue/registry-dlq",
+        "registry-documents",
+        Duration.ofSeconds(1),
+        10,
+        maximumAttempts);
+  }
 
-    private static String validEventJson() {
-        return """
+  private static String validEventJson() {
+    return """
                 {
                   "schemaVersion": 1,
                   "eventId": "event-1",
@@ -129,5 +128,5 @@ class SqsCatalogEventPollerTest {
                   "properties": {}
                 }
                 """;
-    }
+  }
 }

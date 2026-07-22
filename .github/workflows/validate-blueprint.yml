@@ -5,12 +5,17 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: validate-blueprint-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -18,20 +23,12 @@ jobs:
           python-version: '3.13'
       - name: Install validation libraries
         run: python -m pip install --disable-pip-version-check pyyaml jsonschema python-hcl2
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: gradle
-          cache-dependency-path: |
-            repositories/private-registry-api/*.gradle*
-            repositories/private-registry-api/gradle/wrapper/gradle-wrapper.properties
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.8'
-      - name: Make Gradle wrapper executable
-        run: chmod +x repositories/private-registry-api/gradlew
       - name: Validate
+        env:
+          SKIP_JAVA_VALIDATION: 'true'
         run: ./scripts/validate-blueprint.sh
       - name: Start and smoke-test the complete Compose stack
         working-directory: repositories/private-registry-api

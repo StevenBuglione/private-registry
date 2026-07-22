@@ -1138,6 +1138,10 @@ h2 {
   gap: 30px;
   align-items: start;
 }
+.package-overview-grid > main,
+.package-overview-grid > aside {
+  min-width: 0;
+}
 .package-overview-grid main > p {
   color: var(--muted);
   font-size: 13px;
@@ -1797,9 +1801,14 @@ h2 {
   margin-bottom: 21px;
 }
 .documentation a {
+  overflow-wrap: anywhere;
   color: var(--blue);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+.documentation li {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .documentation code {
   padding: 2px 5px;
@@ -1810,13 +1819,17 @@ h2 {
     monospace;
 }
 .documentation pre {
+  max-width: 100%;
   overflow: auto;
+  box-sizing: border-box;
   padding: 16px;
   border-radius: 5px;
   background: #15161a;
   color: #f2f3f5;
 }
 .markdown-code-block {
+  min-width: 0;
+  max-width: 100%;
   position: relative;
   margin: 16px 0;
 }
@@ -2362,7 +2375,7 @@ h2 {
     flex: none;
   }
   .package-overview-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .provider-overview-grid {
     grid-template-columns: 1fr;

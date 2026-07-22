@@ -15,7 +15,7 @@ jobs:
     environment: ${{ inputs.environment }}-migrations
     runs-on: ubuntu-latest
     steps:
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_MIGRATION_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}

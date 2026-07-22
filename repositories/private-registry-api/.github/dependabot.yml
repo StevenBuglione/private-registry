@@ -3,6 +3,19 @@ updates:
   - package-ecosystem: gradle
     directory: /
     schedule: {interval: weekly}
+    groups:
+      java-quality-tools:
+        patterns:
+          - '*errorprone*'
+          - '*nullaway*'
+          - '*spotbugs*'
+          - '*findsecbugs*'
+          - '*pmd*'
+          - '*checkstyle*'
+          - '*pitest*'
+          - '*jacoco*'
+          - '*archunit*'
+          - '*modulith*'
   - package-ecosystem: docker
     directory: /
     schedule: {interval: weekly}

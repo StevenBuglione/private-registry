@@ -7,16 +7,16 @@ import org.junit.jupiter.api.Test;
 
 class PackageKindTest {
 
-    @Test
-    void parsesApiValues() {
-        assertThat(PackageKind.from("module")).isEqualTo(PackageKind.MODULE);
-        assertThat(PackageKind.from("PROVIDER")).isEqualTo(PackageKind.PROVIDER);
-        assertThat(PackageKind.from(null)).isNull();
-    }
+  @Test
+  void parsesApiValues() {
+    assertThat(PackageKind.from("module")).isEqualTo(PackageKind.MODULE);
+    assertThat(PackageKind.from("PROVIDER")).isEqualTo(PackageKind.PROVIDER);
+    assertThat(PackageKind.from(null)).isNull();
+  }
 
-    @Test
-    void rejectsUnknownValues() {
-        assertThatThrownBy(() -> PackageKind.from("unknown"))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
+  @Test
+  void rejectsUnknownValues() {
+    assertThatThrownBy(() -> PackageKind.from("unknown"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }

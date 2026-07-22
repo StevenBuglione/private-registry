@@ -11,18 +11,18 @@ import org.springframework.stereotype.Service;
 @ConditionalOnProperty(prefix = "registry.ingestion", name = "enabled", havingValue = "true")
 public class OpenSearchCatalogSearchIndex implements CatalogSearchIndex {
 
-    private final OpenSearchClient client;
+  private final OpenSearchClient client;
 
-    public OpenSearchCatalogSearchIndex(OpenSearchClient client) {
-        this.client = client;
-    }
+  public OpenSearchCatalogSearchIndex(OpenSearchClient client) {
+    this.client = client;
+  }
 
-    @Override
-    public void index(String indexName, String documentId, Map<String, Object> document) {
-        try {
-            client.index(request -> request.index(indexName).id(documentId).document(document));
-        } catch (IOException exception) {
-            throw new UncheckedIOException("Unable to index catalog document " + documentId, exception);
-        }
+  @Override
+  public void index(String indexName, String documentId, Map<String, Object> document) {
+    try {
+      client.index(request -> request.index(indexName).id(documentId).document(document));
+    } catch (IOException exception) {
+      throw new UncheckedIOException("Unable to index catalog document " + documentId, exception);
     }
+  }
 }

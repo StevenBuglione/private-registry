@@ -6,11 +6,13 @@ COPY gradle gradle
 COPY gradlew gradlew.bat build.gradle.kts settings.gradle.kts gradle.properties ./
 RUN chmod +x gradlew
 
+COPY config config
 COPY src src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre-alpine
-RUN addgroup -S registry \
+RUN apk upgrade --no-cache \
+    && addgroup -S registry \
     && adduser -S -G registry registry \
     && mkdir -p /var/cache/registry-seed \
     && chown registry:registry /var/cache/registry-seed

@@ -96,7 +96,9 @@ java_major=""
 if command -v java >/dev/null 2>&1; then
   java_major="$(java -version 2>&1 | sed -nE '1s/.*version "([0-9]+).*/\1/p')"
 fi
-if [[ -x "${ROOT}/repositories/private-registry-api/gradlew" && "${java_major}" == "25" ]]; then
+if [[ "${SKIP_JAVA_VALIDATION:-false}" == "true" ]]; then
+  echo 'java:  skipped here (enforced by the dedicated API quality workflow)'
+elif [[ -x "${ROOT}/repositories/private-registry-api/gradlew" && "${java_major}" == "25" ]]; then
   (
     cd "${ROOT}/repositories/private-registry-api"
     ./gradlew --no-daemon check bootJar

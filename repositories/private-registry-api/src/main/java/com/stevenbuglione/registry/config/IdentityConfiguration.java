@@ -10,11 +10,11 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(IdentityProperties.class)
 public class IdentityConfiguration {
 
-    @Bean
-    HttpClient identityHttpClient(IdentityProperties properties) {
-        return HttpClient.newBuilder()
-                .connectTimeout(properties.graphTimeout())
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-    }
+  @Bean
+  HttpClient identityHttpClient(IdentityProperties properties) {
+    return HttpClient.newBuilder()
+        .connectTimeout(properties.graphTimeout())
+        .followRedirects(HttpClient.Redirect.NEVER)
+        .build();
+  }
 }
