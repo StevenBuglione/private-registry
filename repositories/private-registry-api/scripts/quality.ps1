@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ApiRoot = Split-Path -Parent $PSScriptRoot
-$Tasks = switch ($Mode) {
+[string[]] $GradleTasks = switch ($Mode) {
     'format' { @('spotlessApply') }
     'local' { @('qualityLocal') }
     'pr' { @('qualityPr') }
@@ -16,7 +16,7 @@ $Tasks = switch ($Mode) {
 
 Push-Location -LiteralPath $ApiRoot
 try {
-    & .\gradlew.bat --no-daemon --stacktrace @Tasks
+    & .\gradlew.bat --no-daemon --stacktrace @GradleTasks
     if ($LASTEXITCODE -ne 0) {
         throw "Gradle quality gate failed with exit code $LASTEXITCODE."
     }

@@ -27,4 +27,4 @@ case "${MODE}" in
 esac
 
 cd "${ROOT}"
-exec ./gradlew --no-daemon --stacktrace "${TASKS[@]}"
+exec bash ./gradlew --no-daemon --stacktrace "${TASKS[@]}"

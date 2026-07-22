@@ -17,7 +17,7 @@ jobs:
   quality:
     name: Gradle PR quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
       - uses: gradle/actions/wrapper-validation@v6
@@ -28,13 +28,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Restore Dependency-Check data
-        uses: actions/cache@v6
-        with:
-          path: ~/.gradle/dependency-check-data
-          key: dependency-check-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-${{ runner.os }}-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
@@ -43,13 +36,11 @@ jobs:
           python -m pip install --disable-pip-version-check jsonschema
           python scripts/validate-contracts.py
       - name: Run quality gates
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: bash scripts/quality.sh pr
       - name: Validate Compose
         run: docker compose config --quiet
       - name: Upload quality reports
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: api-quality-reports-${{ github.run_id }}

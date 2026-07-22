@@ -25,7 +25,6 @@ plugins {
     id("net.ltgt.errorprone") version "5.1.0"
     id("com.github.spotbugs") version "6.5.9"
     id("info.solidsoft.pitest") version "1.19.0"
-    id("org.owasp.dependencycheck") version "12.2.2"
     id("org.cyclonedx.bom") version "3.3.0"
 }
 
@@ -398,33 +397,6 @@ pitest {
     timeoutConstInMillis.set(4_000)
 }
 
-dependencyCheck {
-    failBuildOnCVSS = 7.0F
-    formats = listOf("HTML", "JSON", "SARIF")
-    outputDirectory.set(layout.buildDirectory.dir("reports/dependency-check"))
-    suppressionFile = "config/dependency-check/suppressions.xml"
-    scanConfigurations = listOf("productionRuntimeClasspath")
-    analyzers.assemblyEnabled = false
-    System.getenv("NVD_API_KEY")?.takeIf(String::isNotBlank)?.let { nvd.apiKey = it }
-}
-
-val verifyDependencyCheckReport = tasks.register("verifyDependencyCheckReport") {
-    group = "verification"
-    description = "Fails when Dependency-Check did not inspect the production runtime graph."
-    dependsOn(tasks.named("dependencyCheckAnalyze"))
-    val report = layout.buildDirectory.file("reports/dependency-check/dependency-check-report.json")
-    inputs.file(report)
-    doLast {
-        val reportFile = report.get().asFile
-        check(reportFile.isFile) { "Dependency-Check JSON report was not generated: $reportFile" }
-        val dependencyCount = Regex("\\\"fileName\\\"\\s*:").findAll(reportFile.readText()).count()
-        check(dependencyCount > 0) {
-            "Dependency-Check inspected zero production dependencies; refusing a false-green gate."
-        }
-        logger.lifecycle("Dependency-Check verified {} production runtime dependencies.", dependencyCount)
-    }
-}
-
 val nullMarkedProductionPackages =
     listOf(
         "artifactory",
@@ -481,8 +453,8 @@ tasks.register("qualityLocal") {
 
 tasks.register("qualityPr") {
     group = "verification"
-    description = "Runs pull-request quality, coverage, dependency, and SBOM gates."
-    dependsOn(tasks.named("check"), verifyDependencyCheckReport, tasks.named("cyclonedxDirectBom"))
+    description = "Runs pull-request quality, coverage, security, and SBOM gates."
+    dependsOn(tasks.named("check"), tasks.named("cyclonedxDirectBom"))
 }
 
 tasks.register("qualityNightly") {

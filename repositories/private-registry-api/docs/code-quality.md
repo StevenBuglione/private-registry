@@ -21,8 +21,8 @@ execute the same checks.
 
 `qualityLocal` runs Spotless, Java compilation with `-Xlint`/Error Prone/NullAway,
 the unit tests, ArchUnit rules, and Spring Modulith verification. `qualityPr` adds
-Checkstyle, PMD, SpotBugs with FindSecBugs, JaCoCo verification, OWASP
-Dependency-Check, and a CycloneDX SBOM. `qualityNightly` adds PITest.
+Checkstyle, PMD, SpotBugs with FindSecBugs, JaCoCo verification, and a CycloneDX
+SBOM. `qualityNightly` adds PITest.
 
 | Tool | Failure mode covered | Gate behavior |
 | --- | --- | --- |
@@ -33,8 +33,8 @@ Dependency-Check, and a CycloneDX SBOM. `qualityNightly` adds PITest.
 | PMD | Complexity, design, performance, and maintainability smells | Narrow project rules and an explicit legacy baseline fail new violations |
 | Checkstyle | Naming, imports, modifiers, and project conventions | Narrow rules avoid duplicating the formatter |
 | JaCoCo | Regressions in aggregate verified line and branch coverage | A reviewed legacy-floor ratchet fails pull requests on any decrease |
-| OWASP Dependency-Check | Published runtime-dependency vulnerabilities | CVSS 7.0 or greater fails pull requests |
 | CycloneDX | Missing dependency inventory | Machine-readable direct-dependency SBOM on every pull request |
+| GitHub dependency review | Newly introduced vulnerable dependencies | GitHub blocks vulnerable dependency changes on pull requests |
 | CodeQL | Interprocedural security and unsafe data flows | GitHub code-scanning gate on every pull request |
 | SonarQube | Central new-code debt and security visibility | Conditional server quality gate; never emulated locally |
 | PITest | Tests that execute code without proving behavior | Full mutation threshold runs nightly |
@@ -44,7 +44,7 @@ Dependency-Check, and a CycloneDX SBOM. `qualityNightly` adds PITest.
 | Tier | Gradle task | Enforcement |
 | --- | --- | --- |
 | Developer | `qualityLocal` | Formatting, correctness, nullness, tests, architecture |
-| Pull request | `qualityPr` | Developer tier plus maintainability, bytecode/security findings, coverage, dependency CVEs, SBOM |
+| Pull request | `qualityPr` | Developer tier plus maintainability, bytecode/security findings, coverage, and SBOM |
 | Nightly | `qualityNightly` | Pull-request tier plus mutation score |
 
 The verified full-codebase PITest baseline is 41% mutation coverage (601 of
@@ -69,13 +69,17 @@ on new code. That target is not an aggregate-coverage claim.
 
 The root GitHub workflows add CodeQL data-flow analysis, dependency-diff review,
 Gitleaks history scanning, an image CycloneDX SBOM, and Trivy container scanning.
+The pull-request Gradle job has a 20-minute hard timeout and does not download a
+remote vulnerability database. Published dependency risk is enforced by GitHub's
+dependency review and security updates, while the deterministic Gradle gate
+retains FindSecBugs, static analysis, tests, coverage, and SBOM generation.
+
 Generated Gradle, SBOM, and Trivy reports are retained as workflow artifacts even
 when a gate fails. The primary report locations are:
 
 - JaCoCo: `build/reports/jacoco/test/`
 - PMD: `build/reports/pmd/`
 - SpotBugs/FindSecBugs: `build/reports/spotbugs/`
-- OWASP Dependency-Check: `build/reports/dependency-check/dependency-check-report.*`
 - CycloneDX: `build/reports/cyclonedx-direct/bom.{json,xml}`
 - PITest: `build/reports/pitest/`
 
@@ -96,10 +100,6 @@ Configure the server gate against new code: no blocker/critical issues or
 unreviewed security hotspots, less than 3% duplication, at least 80% coverage,
 and A reliability, security, and maintainability ratings.
 
-An optional `NVD_API_KEY` repository secret makes OWASP Dependency-Check feeds
-faster and less susceptible to public rate limiting. The scan remains enabled
-without it.
-
 ## Suppression policy
 
 Suppressions are exceptional design decisions, not a way to make CI green.
@@ -110,7 +110,7 @@ Suppressions are exceptional design decisions, not a way to make CI green.
 3. Add a written reason and a tracking issue with an owner and review date.
 4. Never suppress a whole package for NullAway, Error Prone, FindSecBugs, CodeQL,
    or architecture rules.
-5. Dependency vulnerability suppressions must identify the exact advisory and
+5. Dependency vulnerability exceptions must identify the exact advisory and
    include evidence that the vulnerable path is unreachable or otherwise
    mitigated.
 6. Generated and third-party sources must be excluded explicitly, not silently

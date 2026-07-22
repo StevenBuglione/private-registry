@@ -36,22 +36,11 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Restore Dependency-Check data
-        uses: actions/cache@v6
-        with:
-          path: ~/.gradle/dependency-check-data
-          key: dependency-check-nightly-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-nightly-${{ runner.os }}-
-            dependency-check-${{ runner.os }}-
-
       - name: Run full quality and PITest gate
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: bash scripts/quality.sh nightly
 
       - name: Upload nightly reports
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: api-nightly-reports-${{ github.run_id }}

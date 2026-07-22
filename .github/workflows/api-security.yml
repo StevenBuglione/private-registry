@@ -76,7 +76,7 @@ jobs:
           category: trivy-api-image
 
       - name: Upload security evidence
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: api-container-security-${{ github.run_id }}

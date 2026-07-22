@@ -17,7 +17,7 @@ jobs:
   quality:
     name: Gradle PR quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: repositories/private-registry-api
@@ -39,21 +39,11 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Restore Dependency-Check data
-        uses: actions/cache@v6
-        with:
-          path: ~/.gradle/dependency-check-data
-          key: dependency-check-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-${{ runner.os }}-
-
-      - name: Run formatting, correctness, architecture, test, coverage, and dependency gates
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      - name: Run formatting, correctness, architecture, test, coverage, and security gates
         run: bash scripts/quality.sh pr
 
       - name: Upload quality reports
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: api-quality-reports-${{ github.run_id }}
