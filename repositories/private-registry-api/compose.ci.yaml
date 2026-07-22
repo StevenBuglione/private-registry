@@ -3,3 +3,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: local
       REGISTRY_SECURITY_PERMIT_ALL: "true"
+  indexer:
+    environment:
+      REGISTRY_INGESTION_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health/ready"]
