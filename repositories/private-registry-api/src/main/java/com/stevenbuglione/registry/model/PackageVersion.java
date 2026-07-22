@@ -8,6 +8,8 @@ public record PackageVersion(
         String packageDigest,
         String documentationDigest,
         String documentationRoot,
+        String artifactRepository,
+        String artifactPath,
         String sourceCommit,
         boolean prerelease,
         boolean deprecated,

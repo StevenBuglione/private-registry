@@ -10,7 +10,7 @@
 | `05-data-search.md` | Aurora, S3, and OpenSearch data model |
 | `06-events-ingestion.md` | Events, SQS, idempotency, indexing, and reconciliation |
 | `07-jfrog.md` | JFrog topology, package identity, publishing, and promotion |
-| `08-ui.md` | OpenTofu UI fork and enterprise UI changes |
+| `08-ui.md` | First-party Registry UI behavior and verification |
 | `09-api.md` | Compatibility API, enterprise API, workers, and security |
 | `10-terraform.md` | Terraform structure and two-pass deployment |
 | `11-cicd.md` | GitHub Actions and release/deployment workflows |

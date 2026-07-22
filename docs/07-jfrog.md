@@ -2,7 +2,7 @@
 
 ## Required Artifactory capability
 
-Use an Artifactory release that supports the Terraform/OpenTofu repository types required by the design. Provider origin-registry protocol support is available from Artifactory 7.125 and requires GPG-based signing for providers hosted under the private hostname. Confirm exact repository combinations against the deployed version and edition before automation.
+Use an Artifactory release that supports the Terraform repository types required by the design. Provider origin-registry protocol support is available from Artifactory 7.125 and requires GPG-based signing for providers hosted under the private hostname. Confirm exact repository combinations against the deployed version and edition before automation.
 
 ## Repository topology
 
@@ -77,7 +77,7 @@ and configure approved clients to use JFrog as a network mirror.
 source tag
  -> candidate publish
  -> Xray/license/malware/policy scan
- -> Terraform/OpenTofu installation test
+ -> Terraform installation test
  -> approval decision
  -> server-side promotion/copy to release
  -> immutability enforcement

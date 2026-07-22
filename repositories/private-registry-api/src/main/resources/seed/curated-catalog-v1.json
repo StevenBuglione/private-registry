@@ -1,0 +1,1003 @@
+{
+  "schema_version": 1,
+  "provider_platforms": [
+    "linux_amd64",
+    "linux_arm64",
+    "windows_amd64",
+    "darwin_arm64"
+  ],
+  "entries": [
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "aws",
+      "title": "AWS Provider",
+      "description": "Manage Amazon Web Services resources.",
+      "owner": "cloud-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "5.100.0",
+        "5.99.1"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-aws/{version}/terraform-provider-aws_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "5.100.0:linux_amd64": "1589a2266af699cbd5d80737a0fe02e54ec9cf2ca54e7e00ac51c7359056f274",
+        "5.100.0:linux_arm64": "6330766f1d85f01ae6ea90d1b214b8b74cc8c1badc4696b165b36ddd4cc15f7b",
+        "5.100.0:windows_amd64": "9f8b909d3ec50ade83c8062290378b1ec553edef6a447c56dadc01a99f4eaa93",
+        "5.100.0:darwin_arm64": "bb64e8aff37becab373a1a0cc1080990785304141af42ed6aa3dd4913b000421",
+        "5.99.1:linux_amd64": "c3dd496c5014427599d6b6b1c14c7ebb09a15df78918ae0be935e7bfa83b894c",
+        "5.99.1:linux_arm64": "901d170c457c2bff244a2282d9de595bdb3ebecc33a2034c5ce8aafbcff66db9",
+        "5.99.1:windows_amd64": "e49c92cb29c53b4573ed4d9c946486e6bcfc1b63f1aee0c79cc7626f3d9add03",
+        "5.99.1:darwin_arm64": "afda848da7993a07d29018ec25ab6feda652e01d4b22721da570ce4fcc005292"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "azurerm",
+      "title": "AzureRM Provider",
+      "description": "Manage Microsoft Azure resources.",
+      "owner": "azure-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "4.37.0",
+        "4.36.0"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-azurerm/{version}/terraform-provider-azurerm_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "4.37.0:linux_amd64": "10acb818823a0319215beb796af1a7a97820be5d40ec1779deb8c2bdb1cac6d0",
+        "4.37.0:linux_arm64": "32048bf10eec89819f73de86a478aced0101be9d480badad8dec31f65b65590a",
+        "4.37.0:windows_amd64": "438cff6ac72117016975d47fadfdbccb33218274c6c74fd4ff4f1eea2ec18b6a",
+        "4.37.0:darwin_arm64": "799eca3363eda85a6f6678d47bf01cb48dcb9296ecd6165814eb696a9d9e2c7d",
+        "4.36.0:linux_amd64": "31c570a4a9bfe76761a2ab7b1d69d448ee237e5b57162c1336dbdb1db8ccb7da",
+        "4.36.0:linux_arm64": "0c127e6337e0259657066320c78c2f41fa85f0c380a338fd73745bb347da8339",
+        "4.36.0:windows_amd64": "cab2122fa27eef4819708f0dc780566aabedda9dffcbcdd1f3cc2427e89a526f",
+        "4.36.0:darwin_arm64": "6217c010ff6aebfcc367df3fc4b89c666a07ff1db27a9524147a032f5a0b479e"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "azuread",
+      "title": "AzureAD Provider",
+      "description": "Manage Microsoft Entra directory resources.",
+      "owner": "identity-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "3.5.0",
+        "3.4.0"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-azuread/{version}/terraform-provider-azuread_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "3.5.0:linux_amd64": "3c2436989467839a3183a62338af0f191ed701f4feaacff5a4b9f216b7f73bd5",
+        "3.5.0:linux_arm64": "1e5b766bab10c45f09dab18d51ff984016b4ad39cd45a214ec7d62943bbe812a",
+        "3.5.0:windows_amd64": "529b46d0d7fcb40d876e2d501c456a11afb9d6172b2def3e61a08471250b42e5",
+        "3.5.0:darwin_arm64": "4550b15ec03bd6be78a99743a9ffb527c3651a66083bc6eee8ca39f3e991416b",
+        "3.4.0:linux_amd64": "e30e9fe8e04271431cb730a1a888b6da5afeae385e2e53ff7b4114066c1250db",
+        "3.4.0:linux_arm64": "11f86935174d8223699cae00b3a705ded1d75a4efb6d4723d3788f5446e1eaa5",
+        "3.4.0:windows_amd64": "16d52b5bf8eefa98cd2793122be0c5a7b41767caedbd8a08786aeefb3d0c6856",
+        "3.4.0:darwin_arm64": "37bb91dff5b751f0c86a02a12980bdb5935d2ca6cdd249d9eef7eca619f628c0"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "google",
+      "title": "Google Cloud Provider",
+      "description": "Manage Google Cloud Platform resources.",
+      "owner": "cloud-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "6.50.0",
+        "6.49.2"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-google/{version}/terraform-provider-google_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "6.50.0:linux_amd64": "e13a86bca299ba8a118e80d5f84fbdd708fe600ecdceea1a13d4919c068379fe",
+        "6.50.0:linux_arm64": "81e5d78bdec7778e6d67b5c3544777505db40a826b6eb5abe9b86d4ba396866b",
+        "6.50.0:windows_amd64": "93e112559655ab95a523193158f4a4ac0f2bfed7eeaa712010b85ebb551d5071",
+        "6.50.0:darwin_arm64": "7bb9e41c568df15ccf1a8946037355eefb4dfb4e35e3b190808bb7c4abae547d",
+        "6.49.2:linux_amd64": "4adc8c706652b6c170c520bd3815abba7e145aeec26a2abdfa8a98ae85fbfc0d",
+        "6.49.2:linux_arm64": "3a68292e88e6612ed014e22d53a693859071337fcc49a244936094ae8f2b82d8",
+        "6.49.2:windows_amd64": "9d2f0f93f4506dc0002c2dec1b2117626b6376c214653b71629a933ce77e3523",
+        "6.49.2:darwin_arm64": "37478f37b696e214049a7c1e397a6ebcf6b10e3652a6275c5e99ef972a0cd17f"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "kubernetes",
+      "title": "Kubernetes Provider",
+      "description": "Manage Kubernetes API resources.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "2.38.0",
+        "2.37.1"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-kubernetes/{version}/terraform-provider-kubernetes_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "2.38.0:linux_amd64": "d39861aa21077f1bc899bc53e7233262e530ba8a3a2d737449b100daeb303e4d",
+        "2.38.0:linux_arm64": "63fab47349852d7802fb032e4f2b6a101ee1ce34b62557a9ad0f0f0f5b6ecfdc",
+        "2.38.0:windows_amd64": "faf23e45f0090eef8ba28a8aac7ec5d4fdf11a36c40a8d286304567d71c1e7db",
+        "2.38.0:darwin_arm64": "1be998e67206f7cfc4ffe77c01a09ac91ce725de0abaec9030b22c0a832af44f",
+        "2.37.1:linux_amd64": "c55fd85b7e8acaac17e30670ac3574b88b3530820dd004bcd2a5daa8624a46e9",
+        "2.37.1:linux_arm64": "17dcf4a685a00d2d048671124e8a1a8e836b58ecd2ef628a1c666fe0ced2e598",
+        "2.37.1:windows_amd64": "44fc0ac3bc39e289b67f9dde7ee9fef29eb8192197e5e68fee69098573021722",
+        "2.37.1:darwin_arm64": "c93cc71c64b838d89522ac5fb60f68e0e1e7f2fc39db6b0ead7afd78795e79ed"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "helm",
+      "title": "Helm Provider",
+      "description": "Install and manage Helm releases.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "3.0.2",
+        "3.0.1"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-helm/{version}/terraform-provider-helm_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "3.0.2:linux_amd64": "3b4c436a41e4fbae5f152852a9bd5c97db4460af384e26977477a40adf036690",
+        "3.0.2:linux_arm64": "ca4bf3f94dedb5c5b1a73568f2dad7daf0ef3f85e688bc8bc2d0e915ec148366",
+        "3.0.2:windows_amd64": "baeb26a00ffbcf3d507cdd940b2a2887eee723af5d3319a53eec69048d5e341e",
+        "3.0.2:darwin_arm64": "8b4cf5f81d10214e5e1857d96cff60a382a22b9caded7f5d7a92e5537fc166c1",
+        "3.0.1:linux_amd64": "01b57bb979f1a0da28b17bd8439a3c992656047e65858d92d546e71097184be3",
+        "3.0.1:linux_arm64": "6810bdb8e0a7743af33a329878714347dfc86e4b14a63c2c742d315b610c4765",
+        "3.0.1:windows_amd64": "cdb9a306d51a705af51408fcca120d6746c9d11b020edbb16d77f0fcaf95bac2",
+        "3.0.1:darwin_arm64": "429841d5c9aca90560aadcd2e15a5bfb690433004649711b4c8d7690529b8aa3"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "random",
+      "title": "Random Provider",
+      "description": "Generate constrained random values.",
+      "owner": "developer-platform",
+      "risk_tier": "low",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "3.7.2",
+        "3.7.1"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-random/{version}/terraform-provider-random_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "3.7.2:linux_amd64": "7b8434212eef0f8c83f5a90c6d76feaf850f6502b61b53c329e85b3b281cba34",
+        "3.7.2:linux_arm64": "dc76e4326aec2490c1600d6871a95e78f9050f9ce427c71707ea412a2f2f1a62",
+        "3.7.2:windows_amd64": "b516ca74431f3df4c6cf90ddcdb4042c626e026317a33c53f0b445a3d93b720d",
+        "3.7.2:darwin_arm64": "1e86bcd7ebec85ba336b423ba1db046aeaa3c0e5f921039b3f1a6fc2f978feab",
+        "3.7.1:linux_amd64": "3218320de4be943e5812ed3de995946056db86eb8d03aa3f074e0c7316599bef",
+        "3.7.1:linux_arm64": "4df9bd9d839b8fc11a3b8098a604b9b46e2235eb65ef15f4432bde0e175f9ca6",
+        "3.7.1:windows_amd64": "fa985cd0b11e6d651f47cff3055f0a9fd085ec190b6dbe99bf5448174434cdea",
+        "3.7.1:darwin_arm64": "63c6548a06de1231c8ee5570e42ca09c4b3db336578ded39b938f2156f06dd2e"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "null",
+      "title": "Null Provider",
+      "description": "Provide no-op resources for orchestration.",
+      "owner": "developer-platform",
+      "risk_tier": "medium",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "3.2.4",
+        "3.2.3"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-null/{version}/terraform-provider-null_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "3.2.4:linux_amd64": "9d32ac3619cfc93eb3c4f423492a8e0f79db05fec58e449dee9b2d5873d5f69f",
+        "3.2.4:linux_arm64": "85e33ab43e0e1726e5f97a874b8e24820b6565ff8076523cc2922ba671492991",
+        "3.2.4:windows_amd64": "ed0fe2acdb61330b01841fa790be00ec6beaac91d41f311fb8254f74eb6a711f",
+        "3.2.4:darwin_arm64": "c43723e8cc65bcdf5e0c92581dcbbdcbdcf18b8d2037406a5f2033b1e22de442",
+        "3.2.3:linux_amd64": "b5a65a789cff4ada58a5baffc76cb9767dc26ec6b45c00d2ec8b1b027f6db4ed",
+        "3.2.3:linux_arm64": "55c9e8a9ac25a7652df8c51a8a9a422bd67d784061b1de2dc9fe6c3cb4e77f2f",
+        "3.2.3:windows_amd64": "756586535d11698a216291c06b9ed8a5cc6a4ec43eee1ee09ecd5c6a9e297ac1",
+        "3.2.3:darwin_arm64": "db5ab669cf11d0e9f81dc380a6fdfcac437aea3d69109c7aef1a5426639d2d65"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "tls",
+      "title": "TLS Provider",
+      "description": "Create and manage TLS keys and certificates.",
+      "owner": "security-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "4.1.0",
+        "4.0.6"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-tls/{version}/terraform-provider-tls_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "4.1.0:linux_amd64": "2fb9fe7a8b5afdbd3e903acb6776ef1be3f2e587fb236a8c60f11a9fa165faa8",
+        "4.1.0:linux_arm64": "35b5dc95bc75f0b3b9c5ce54d4d7600c1ebc96fbb8dfca174536e8bf103c8cdc",
+        "4.1.0:windows_amd64": "fb07f708e3316615f6d218cec198504984c0ce7000b9f1eebff7516e384f4b54",
+        "4.1.0:darwin_arm64": "51fb247e3a2e88f0047cb97bb9df7c228254a3b3021c5534e4563b4007e6f882",
+        "4.0.6:linux_amd64": "6c475491d1250050765a91a493ef330adc24689e8837a0f07da5a0e1269e11c1",
+        "4.0.6:linux_arm64": "abdce260840b7b050c4e401d4f75c7a199fafe58a8b213947a258f75ac18b3e8",
+        "4.0.6:windows_amd64": "d65eb3867e8f69aaf1b8bb53bd637c99c6b649ba3db16ded50fa9a01076d1a27",
+        "4.0.6:darwin_arm64": "81bde94d53cdababa5b376bbc6947668be4c45ab655de7aa2e8e4736dfd52509"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "hashicorp",
+      "name": "time",
+      "title": "Time Provider",
+      "description": "Manage time-based lifecycle resources.",
+      "owner": "developer-platform",
+      "risk_tier": "low",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "0.13.1",
+        "0.13.0"
+      ],
+      "download_template": "https://releases.hashicorp.com/terraform-provider-time/{version}/terraform-provider-time_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "0.13.1:linux_amd64": "26f8e51bb7c275c404ba6028c1b530312066009194db721a8427a7bc5cdbc83a",
+        "0.13.1:linux_arm64": "898db5d2b6bd6ca5457dccb52eedbc7c5b1a71e4a4658381bcbb38cedbbda328",
+        "0.13.1:windows_amd64": "02cb9aab1002f0f2a94a4f85acec8893297dc75915f7404c165983f720a54b74",
+        "0.13.1:darwin_arm64": "772ff8dbdbef968651ab3ae76d04afd355c32f8a868d03244db3f8496e462690",
+        "0.13.0:linux_amd64": "69dc375845bcfc451426480119f2941ee28b9ef01273d228bb66918180863b3a",
+        "0.13.0:linux_arm64": "93c24b7c87b5db9721f60782ac784152599aa78b30fdea2fc9c594d46d92767c",
+        "0.13.0:windows_amd64": "bc76a5161e9bcf74cadd76b3d4a51de508aa0c62e7f7ae536a87cd7595d81ebf",
+        "0.13.0:darwin_arm64": "a294103aeed868c58987e131357a3ec259316c937c909e8a726b862d5a227b82"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "datadog",
+      "name": "datadog",
+      "title": "Datadog Provider",
+      "description": "Manage Datadog monitoring resources.",
+      "owner": "observability-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "4.15.0",
+        "4.14.0"
+      ],
+      "download_template": "https://github.com/DataDog/terraform-provider-datadog/releases/download/v{version}/terraform-provider-datadog_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "4.15.0:linux_amd64": "905b3a373b33253d93ae4cb720edc4882a835c1207600387f857b70bb8ea1ea2",
+        "4.15.0:linux_arm64": "51d9dbd36963e804bc0f5b74baf6338db2a4ea025460da0fd18f65cfd008ede2",
+        "4.15.0:windows_amd64": "034cc499dfb5b354b85181f163169f629797b7e0bee369317c8ec95011fd8c06",
+        "4.15.0:darwin_arm64": "25b421e167855d2a0599309650c2a86425757f79dadda14742dfbcbe0c35798d",
+        "4.14.0:linux_amd64": "ecf31b4fd145fb2fa32e5f49f4b1fd1b00b3e0f2cb7daf32bb645c1db84b1d70",
+        "4.14.0:linux_arm64": "4bad238eca814ca1e3e15b1f872f0a92dfe07e67e18305eda8cb544b65e4c4a1",
+        "4.14.0:windows_amd64": "858ca9bdc23ab3e886ad8f26e9076ec606c1145ea276ae4ff927a7f06b4ca5c6",
+        "4.14.0:darwin_arm64": "ae8a7a2d8362f4a51bd96225002f7f0678fa594288a85cdd24ccb053f44334e3"
+      }
+    },
+    {
+      "kind": "provider",
+      "namespace": "grafana",
+      "name": "grafana",
+      "title": "Grafana Provider",
+      "description": "Manage Grafana observability resources.",
+      "owner": "observability-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "4.10.0",
+        "4.9.0"
+      ],
+      "download_template": "https://github.com/grafana/terraform-provider-grafana/releases/download/v{version}/terraform-provider-grafana_{version}_{os}_{arch}.zip",
+      "expected_sha256": {
+        "4.10.0:linux_amd64": "90d921161493acca41574442325ba94a073c8176a1b31f8bb239f69b52a93911",
+        "4.10.0:linux_arm64": "00bed6db164e8900cb7e73e74f9531a23ac5d3dcdc98cdc14d6c2cf5c3a1913e",
+        "4.10.0:windows_amd64": "33ccfc7a1b7d5a42e452df97dddd751dcd4dfaafda812be741bca2bd3586f286",
+        "4.10.0:darwin_arm64": "aec08f4924d67b777670f823e646281084af7443b8c52f6db0657375e7d6c7f4",
+        "4.9.0:linux_amd64": "92b47ec1406e248219df61dd9a0d6bf3f4790a87f4cdd5f847597ceb9d9c3c0f",
+        "4.9.0:linux_arm64": "e3a1169c9e3bbeb98a1064a5fd7d936dfc952ba58813f7a37872837e436116ca",
+        "4.9.0:windows_amd64": "1ebb7ac36b5424eb287f01b8d4ca91b811e40d31e6cf7b63c742bec02b9afbe4",
+        "4.9.0:darwin_arm64": "4485971beeae15ecb107039bdda1e1534595cc9b3e67747b17d3ba24e3284d65"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "vpc",
+      "target": "aws",
+      "title": "AWS VPC",
+      "description": "Production-ready AWS VPC networking.",
+      "owner": "cloud-network",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "6.0.1",
+        "5.21.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-vpc/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "6.0.1:archive": "41e31bcfe6397850ca734565c9e636d249ff3abd2b67d38f8b0adb2222a2485a",
+        "5.21.0:archive": "f052b9cc4938664cd310ebfab5817a315b60354653f6aea80cbb5ed6ff66791b"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "eks",
+      "target": "aws",
+      "title": "AWS EKS",
+      "description": "Managed Kubernetes clusters on AWS.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "21.0.0",
+        "20.37.2"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-eks/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "21.0.0:archive": "346765261b91aa1eb7e1ab22567d77b2a7030e1b155fb3550ed983d86882c19d",
+        "20.37.2:archive": "ad529fe3ab93516830f70c321b0045658ca2480ea24ecdf1e63030baee42a014"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "rds",
+      "target": "aws",
+      "title": "AWS RDS",
+      "description": "Managed relational databases on AWS.",
+      "owner": "database-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "6.12.0",
+        "6.11.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-rds/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "6.12.0:archive": "89ad2d913d33469051cbc6345dc4b334f21048eae93c7014db37d11f0d6dce51",
+        "6.11.0:archive": "37c50720f3afb19cbc6eb8d628f52471d19edd0fc54a1c758d01f094f94f8d7a"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "s3-bucket",
+      "target": "aws",
+      "title": "AWS S3 Bucket",
+      "description": "Governed S3 object storage buckets.",
+      "owner": "cloud-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "5.2.0",
+        "5.1.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-s3-bucket/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "5.2.0:archive": "9dd89936d640c6a661887ad758ce5782899e4adc70a4a85157eee7ed5d2aaf4b",
+        "5.1.0:archive": "dd584c859cd4cb2164c28cbcfa2b7ea73dc9bc752685c039b296776b6a6d3d76"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "iam",
+      "target": "aws",
+      "title": "AWS IAM",
+      "description": "AWS identity and access management patterns.",
+      "owner": "security-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "6.2.1",
+        "6.2.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-iam/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "6.2.1:archive": "49840dcecb7c28acc5fe7193f4a1fd3ce9a36e38ef0ddaa91e6666f95e061379",
+        "6.2.0:archive": "4499687416c8017549c884d79598d0ce7df18e1325e1aa562a5219bd4f6b2ff5"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "alb",
+      "target": "aws",
+      "title": "AWS ALB",
+      "description": "Application load balancers on AWS.",
+      "owner": "cloud-network",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "9.17.0",
+        "9.16.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-alb/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "9.17.0:archive": "1052da6890725cc89ebf37845482262d59b3d04f34995a87139e91c2b75e8fa3",
+        "9.16.0:archive": "d619a7f893821d231c32f2b00127f79bf2f069035a0fbe43ab105ba047f1afd8"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "autoscaling",
+      "target": "aws",
+      "title": "AWS Auto Scaling",
+      "description": "Elastic Compute Auto Scaling groups.",
+      "owner": "cloud-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "9.0.0",
+        "8.3.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-autoscaling/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "9.0.0:archive": "2dbd43cb8067cba69867e89604a6f22a7090038c5e000571e9c45a282a342134",
+        "8.3.0:archive": "71f6401b729204d009312810e325b08ed5d4f485ec1db36b08f32071e245ef4f"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-aws-modules",
+      "name": "lambda",
+      "target": "aws",
+      "title": "AWS Lambda",
+      "description": "Governed serverless functions on AWS.",
+      "owner": "developer-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "8.0.1",
+        "8.0.0"
+      ],
+      "download_template": "https://github.com/terraform-aws-modules/terraform-aws-lambda/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "8.0.1:archive": "1c871f446a1260d5318d73e1fb21025a8c7644a3d2ed4ebde0d733d28e53db77",
+        "8.0.0:archive": "003d8ace2551ecc05ebe647d719a5c6d7cb19905e3ca705e4ae43aa802b9a2f3"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "vnet",
+      "target": "azurerm",
+      "title": "Azure Virtual Network",
+      "description": "Azure virtual networks and subnets.",
+      "owner": "azure-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "5.0.1",
+        "5.0.0"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-vnet/archive/refs/tags/{version}.zip",
+      "expected_sha256": {
+        "5.0.1:archive": "7118387bbe306728779ec6fb33669ae5b303f2a4735fa4a0b05984c03c781c80",
+        "5.0.0:archive": "57c673f6789c81d289f4418adb2c753109dc68e6469f4e3cfbe27ba1550f16cc"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "aks",
+      "target": "azurerm",
+      "title": "Azure Kubernetes Service",
+      "description": "Managed Kubernetes clusters on Azure.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "10.2.0",
+        "10.1.0"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-aks/archive/refs/tags/{version}.zip",
+      "expected_sha256": {
+        "10.2.0:archive": "95595da2f358b3993e01b3d8343661c7f83964472c289ef327d6057b94d8bf94",
+        "10.1.0:archive": "25702238f41b7a1b05a29fd95246687ae9268fbb09c2b910be104e581c796b34"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "avm-res-network-virtualnetwork",
+      "target": "azurerm",
+      "title": "Azure Verified Virtual Network",
+      "description": "Azure Verified Module for virtual networks.",
+      "owner": "azure-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.8.1",
+        "0.8.0"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-network-virtualnetwork/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.8.1:archive": "b6bcda0fb34904839af20cd35a9bab8c38758b0c94b9b866a69b6c92f639c279",
+        "0.8.0:archive": "6e9f1faea34a3182ac56b7f766705153fce08feb273834463c8c30affa10f938"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "avm-res-compute-virtualmachine",
+      "target": "azurerm",
+      "title": "Azure Verified Virtual Machine",
+      "description": "Azure Verified Module for virtual machines.",
+      "owner": "azure-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.19.0",
+        "0.18.0"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-compute-virtualmachine/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.19.0:archive": "698e6286de732df0f9e60d6e9ad1058afd12070dfaf6ba7c7b117c705ebf154c",
+        "0.18.0:archive": "2b32a8c3f916b1cbd6a763b1453e79ac39106368b615e24d8a5bf54770cfb608"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "avm-res-storage-storageaccount",
+      "target": "azurerm",
+      "title": "Azure Verified Storage Account",
+      "description": "Azure Verified Module for storage accounts.",
+      "owner": "azure-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.6.3",
+        "0.6.2"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-storage-storageaccount/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.6.3:archive": "8acc4339792e47501abc64cf1f6941147a8703cef23e19dc633d377732c4dc07",
+        "0.6.2:archive": "31edcfdb8e36086ab044cfb14830d73647652319e9398e983ae83ddfde8f2f8f"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "avm-res-keyvault-vault",
+      "target": "azurerm",
+      "title": "Azure Verified Key Vault",
+      "description": "Azure Verified Module for Key Vault.",
+      "owner": "security-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.10.0",
+        "0.9.1"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-keyvault-vault/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.10.0:archive": "65f14b4c4bc025c04c5c73002de45e24122c5532bb3f6abc425fc161c1bce540",
+        "0.9.1:archive": "5f644e28ddfbcc9db0a959d0ceefab0ca2d7e6ad020d3f6676fe2c4e6a4af8a2"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "Azure",
+      "name": "avm-res-web-site",
+      "target": "azurerm",
+      "title": "Azure Verified App Service",
+      "description": "Azure Verified Module for App Service sites.",
+      "owner": "developer-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.16.0",
+        "0.15.0"
+      ],
+      "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-web-site/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.16.0:archive": "1f356740b45117b7d3fd5b2c96c573bb3675522358919cc930cfddbdb39f5ab5",
+        "0.15.0:archive": "f7ccdfc7455dc98c8858610a3d7fa8be5cebf3c1d3968bd48386dd5aec4ec1b9"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-google-modules",
+      "name": "network",
+      "target": "google",
+      "title": "Google Cloud Network",
+      "description": "Shared VPC networking on Google Cloud.",
+      "owner": "cloud-network",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "10.0.0",
+        "9.3.0"
+      ],
+      "download_template": "https://github.com/terraform-google-modules/terraform-google-network/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "10.0.0:archive": "ec675562937e8de85e0d7b7a4ced45bd53367088e27e9e219b049e66aa8a997d",
+        "9.3.0:archive": "8054b84d01ead0e2dea08daee22f583c72cbbba2edbab55e4913aef527e0e79d"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-google-modules",
+      "name": "kubernetes-engine",
+      "target": "google",
+      "title": "Google Kubernetes Engine",
+      "description": "Managed Kubernetes clusters on Google Cloud.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "38.0.0",
+        "37.0.0"
+      ],
+      "download_template": "https://github.com/terraform-google-modules/terraform-google-kubernetes-engine/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "38.0.0:archive": "fe9675e4984b0d7cd06e6e53e343b6db2d7eb4df7855e9e24e2c47e9ebf37ebb",
+        "37.0.0:archive": "a91077eb8a1523d6bb7d80400b75967a6e9de8d93102cb2a6833c828a7a4fd7d"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-google-modules",
+      "name": "cloud-storage",
+      "target": "google",
+      "title": "Google Cloud Storage",
+      "description": "Governed Google Cloud Storage buckets.",
+      "owner": "cloud-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "9.0.0",
+        "8.0.1"
+      ],
+      "download_template": "https://github.com/terraform-google-modules/terraform-google-cloud-storage/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "9.0.0:archive": "8e3723ece82d2378309ba0b3adbaa0da5ed2222445f12016828584960f0c1b04",
+        "8.0.1:archive": "7041103cd6afa250d15fc1e735d2a6c7bb005c0321982979572cdc419c27aa45"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-google-modules",
+      "name": "cloud-sql-db",
+      "target": "google",
+      "title": "Google Cloud SQL",
+      "description": "Managed relational databases on Google Cloud.",
+      "owner": "database-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "26.2.1",
+        "26.2.0"
+      ],
+      "download_template": "https://github.com/terraform-google-modules/terraform-google-sql-db/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "26.2.1:archive": "12668afe96dce7dc821ce78d88ce3b1cbc677405b00470acc16ac44f3ae83dce",
+        "26.2.0:archive": "1977f4badf7bb3e278b676ba2a7a4a5621d9c4d3622a1e141ed8497fa3d59003"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-google-modules",
+      "name": "project-factory",
+      "target": "google",
+      "title": "Google Project Factory",
+      "description": "Governed Google Cloud project creation.",
+      "owner": "cloud-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "18.0.0",
+        "17.0.0"
+      ],
+      "download_template": "https://github.com/terraform-google-modules/terraform-google-project-factory/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "18.0.0:archive": "bc49dff8690711d746c35682df873c80d3693f8ec8799c35aab8642280bb5ae5",
+        "17.0.0:archive": "44ca0a43a909b7bbdbcd012f0cd231ca4d74467ddb969920e57dc4a19f20edd4"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "gruntwork-io",
+      "name": "namespace",
+      "target": "kubernetes",
+      "title": "Kubernetes Namespace",
+      "description": "Governed Kubernetes namespaces and quotas.",
+      "owner": "container-platform",
+      "risk_tier": "medium",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "0.5.1",
+        "0.5.0"
+      ],
+      "download_template": "https://github.com/gruntwork-io/terraform-kubernetes-namespace/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.5.1:archive": "11a174739495ccdc916418f9dd24172481b00bfacd3a6292acfad859387d6043",
+        "0.5.0:archive": "baebb3388425ef9abd583b412a6c7126fc8a49e0f74f1676f0c5bd282cefbcbd"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "particuleio",
+      "name": "platform-addons",
+      "target": "kubernetes",
+      "title": "Kubernetes Platform Baseline",
+      "description": "Common platform services for Kubernetes clusters.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "20.2.0",
+        "20.1.0"
+      ],
+      "download_template": "https://github.com/particuleio/terraform-kubernetes-addons/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "20.2.0:archive": "64ab0f04d87a7b0a13be04fb34642555a4d59ea2251773630d042e62d5bf4acd",
+        "20.1.0:archive": "9d29728c259a8c0a75e4c7acc001010d7f70290d29a6b5f1b531de3d2408e0cb"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "terraform-module",
+      "name": "release",
+      "target": "helm",
+      "title": "Governed Helm Release",
+      "description": "Policy-aware Helm release management.",
+      "owner": "container-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "2.9.1",
+        "2.9.0"
+      ],
+      "download_template": "https://github.com/terraform-module/terraform-helm-release/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "2.9.1:archive": "54fd346aa24d02b93cdb081f793a6f5f9f20050ebf5126d68732a6b1e930e4c5",
+        "2.9.0:archive": "5025d55c110c3b15a67cf4abd0855dfa99c705d85d8b1cbfcfefd0022ef42169"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "cloudposse",
+      "name": "iam-role",
+      "target": "aws",
+      "title": "AWS IAM Role",
+      "description": "Composable AWS IAM roles.",
+      "owner": "security-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "1.0.0",
+        "0.23.0"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-aws-iam-role/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "1.0.0:archive": "8cd423dcae7bbd9b640fdd9748be978106af2b7aa3e3789dfda3725a7fde7001",
+        "0.23.0:archive": "a199289d0b138b3fd849ce1cecbadbeafa53f3e4f5bda781370f0363bd6c6bcd"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "cloudposse",
+      "name": "security-group",
+      "target": "aws",
+      "title": "AWS Security Group",
+      "description": "Composable AWS security groups.",
+      "owner": "security-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000001"
+      ],
+      "versions": [
+        "2.2.0",
+        "2.1.0"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-aws-security-group/archive/refs/tags/{version}.zip",
+      "expected_sha256": {
+        "2.2.0:archive": "056d68dd43a252604b9a8df616b8fb5a906c9abe25039a56d77a60e182932dc3",
+        "2.1.0:archive": "565174bb8d46e9f55d49ea4440e0b110337759c8b767c3c6ad54ba140930e55e"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "cloudposse",
+      "name": "datadog-integration",
+      "target": "aws",
+      "title": "Datadog AWS Integration",
+      "description": "Connect AWS accounts to Datadog.",
+      "owner": "observability-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "2.1.1",
+        "2.1.0"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-aws-datadog-integration/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "2.1.1:archive": "0c57dafae49e7b4053af6d69a733938bd1694d43d6f09452bca890ec9bc650bc",
+        "2.1.0:archive": "36707b29245722c2a8d3995a71fdf442e0180a16066e80e5baab5371ac5145d1"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "philips-labs",
+      "name": "cloud-stack",
+      "target": "grafana",
+      "title": "Grafana Cloud Stack",
+      "description": "Provision a governed Grafana monitoring stack.",
+      "owner": "observability-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "10.2.2",
+        "10.1.1"
+      ],
+      "download_template": "https://github.com/philips-labs/terraform-cloudfoundry-grafana/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "10.2.2:archive": "bc7fee2c90cf0ea0135a022580d1e16bc66a61b59604db34eff86f593a8d8ebe",
+        "10.1.1:archive": "a73f397ac1e3c8afd08af98b43070bb40a54b6baad8ef6964a5e45c50761d0ad"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "registry",
+      "name": "policy-baseline",
+      "target": "security",
+      "title": "Policy Baseline",
+      "description": "Common infrastructure policy and tagging controls.",
+      "owner": "security-platform",
+      "risk_tier": "critical",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "0.25.0",
+        "0.24.1"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-null-label/archive/refs/tags/{version}.zip",
+      "expected_sha256": {
+        "0.25.0:archive": "903b2f81c705ae90be063a8e93b522c730b5b026b5ddc041aa71d13166c9ac04",
+        "0.24.1:archive": "ff2a2f32760a34cb9cfc7d1866e03f33170e2eb1c7afe81fdc3b70bd0a409fd9"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "registry",
+      "name": "observability-baseline",
+      "target": "monitoring",
+      "title": "Observability Baseline",
+      "description": "Common monitoring, dashboards, and alerting controls.",
+      "owner": "observability-platform",
+      "risk_tier": "high",
+      "apm_ids": [
+        "APM0000002"
+      ],
+      "versions": [
+        "0.6.9",
+        "0.6.8"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-aws-cloudwatch-logs/archive/refs/tags/v{version}.zip",
+      "expected_sha256": {
+        "0.6.9:archive": "6a111cc164612f255ebfd92347d641852a5ef204761689e334957fefe23bc641",
+        "0.6.8:archive": "607c8ba286a0406fb0086e86274ae607893f71e8a17c001abf1aca132e6ae61f"
+      }
+    },
+    {
+      "kind": "module",
+      "namespace": "registry",
+      "name": "resource-labels",
+      "target": "utility",
+      "title": "Resource Labels",
+      "description": "Standard names, labels, and ownership tags.",
+      "owner": "developer-platform",
+      "risk_tier": "low",
+      "apm_ids": [
+        "APM0000001",
+        "APM0000002"
+      ],
+      "versions": [
+        "0.25.0",
+        "0.24.1"
+      ],
+      "download_template": "https://github.com/cloudposse/terraform-null-label/archive/refs/tags/{version}.zip",
+      "expected_sha256": {
+        "0.25.0:archive": "903b2f81c705ae90be063a8e93b522c730b5b026b5ddc041aa71d13166c9ac04",
+        "0.24.1:archive": "ff2a2f32760a34cb9cfc7d1866e03f33170e2eb1c7afe81fdc3b70bd0a409fd9"
+      }
+    }
+  ]
+}

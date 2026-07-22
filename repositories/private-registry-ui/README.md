@@ -1,90 +1,48 @@
-# Private Registry UI
+# Registry UI
 
-Controlled enterprise-neutral frontend fork of the OpenTofu Registry UI. The application keeps the upstream registry-specific experience for modules, providers, versioned documentation, examples, resources, data sources, functions, and search, while replacing the public-registry backend with the private catalog API.
+First-party React application for browsing infrastructure providers and modules approved for a signed-in user’s APM groups.
 
-## Responsibility boundary
+## Responsibilities
 
-This repository owns only:
+The UI owns navigation, search and filter controls, package documentation, governance presentation, version selection, install snippets, access-context selection, and live catalog refresh. The API remains the authorization boundary: every response must already be filtered for the authenticated user and selected APM.
 
-- the controlled upstream frontend import;
-- branding and design-system integration;
-- runtime configuration;
-- standard registry pages and enterprise governance panels;
-- browser-side authentication context supplied by the internal ALB;
-- the Nginx container and UI ECS deployment workflow;
-- UI tests and upstream intake controls.
-
-It does **not** own JFrog, package downloads, the catalog database, search indexing, package governance decisions, AWS shared infrastructure, or API authorization.
-
-## Upstream baseline
-
-The reviewed upstream commit is stored in:
-
-```text
-.upstream/OPEN_TOFU_COMMIT
-```
-
-Import it into `app/`:
+## Local development
 
 ```bash
-./scripts/import-upstream.sh
-./scripts/apply-overlays.sh
-```
-
-Never build a production image from an unpinned branch. Preserve upstream license and notice files copied by the import process.
-
-## Local workflow
-
-```bash
-./scripts/import-upstream.sh
-./scripts/apply-overlays.sh
-cd app
+cd web
 corepack pnpm install --frozen-lockfile
+corepack pnpm dev
+```
+
+The Vite development server reads the catalog through same-origin `/api/v1` paths. In the Docker Compose environment, Nginx proxies API and OAuth routes to the Java service.
+
+## Verification
+
+```bash
+cd web
 corepack pnpm lint
-corepack pnpm run test --run
+corepack pnpm test
 corepack pnpm build
 cd ..
-docker build -t private-registry-ui:local .
+python scripts/check-runtime-template.py
+docker build -t registry-ui:local .
 ```
 
-The built container reads non-secret runtime configuration from environment variables and writes `/config/runtime.json` during Nginx startup. The same image is promoted across environments.
-
-## Required runtime values
+## Runtime values
 
 | Variable | Purpose |
 |---|---|
-| `REGISTRY_DATA_API_URL` | Same-origin OpenTofu compatibility API prefix, normally `/registry/docs/` |
-| `REGISTRY_ENTERPRISE_API_URL` | Enterprise extension base, normally `/api/v1/enterprise` |
-| `REGISTRY_JFROG_HOSTNAME` | Hostname used to display login/source guidance |
-| `REGISTRY_ENVIRONMENT` | `development`, `test`, `production`, or `dr` |
-| `REGISTRY_FEATURE_PROVIDERS` | Feature flag, `true`/`false` |
-| `REGISTRY_FEATURE_MODULES` | Feature flag, `true`/`false` |
-| `REGISTRY_FEATURE_SECURITY` | Security tab flag |
-| `REGISTRY_FEATURE_AUDIT` | Audit tab flag |
-| `REGISTRY_SUPPORT_URL` | Internal support URL |
+| `REGISTRY_API_BASE_URL` | Same-origin catalog API base, normally `/api/v1` |
+| `REGISTRY_JFROG_HOSTNAME` | Hostname displayed in approved source guidance |
+| `REGISTRY_ENVIRONMENT` | Environment label shown in the footer |
+| `REGISTRY_SUPPORT_URL` | Optional internal support destination |
 
-None of these values may contain credentials.
+Runtime configuration is public browser configuration. It must never contain credentials, tokens, client secrets, group membership data, or internal database values.
 
-## API routing
+## Security boundary
 
-The internal ALB routes:
-
-```text
-/                       -> registry-web ECS target group
-/api/*                  -> catalog-api ECS target group
-/registry/docs/*        -> catalog-api ECS target group
-/top/*                  -> catalog-api ECS target group
-```
-
-This keeps browser calls same-origin. The browser never calls JFrog directly.
-
-## Production gates
-
-- legal/open-source review completed;
-- upstream commit and patch inventory recorded;
-- corporate branding and accessibility review completed;
-- compatibility contract tests pass;
-- CSP and Markdown rendering security tests pass;
-- no secret or private endpoint is embedded at build time;
-- immutable ECR image is deployed by digest or commit SHA;
-- visual regression covers module, provider, search, deprecation, revocation, and error states.
+- The browser never calls Microsoft Graph or Artifactory directly.
+- Entra tokens remain server-side.
+- The API filters list, count, search, detail, documentation, governance, and SSE responses.
+- Unauthorized and nonexistent package routes receive the same not-found experience.
+- Markdown is sanitized before rendering.

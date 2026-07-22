@@ -33,8 +33,7 @@
     "consoleUrl": "https://artifacts.example.invalid/ui/repos/tree/General/iac-modules-release-local/cloud-platform/vpc/aws/2.4.1.zip"
   },
   "compatibility": {
-    "terraform": ">= 1.8, < 2.0",
-    "opentofu": ">= 1.8, < 2.0"
+    "terraform": ">= 1.8, < 2.0"
   },
   "source": {
     "repository": "https://github.example.invalid/cloud/vpc-module",

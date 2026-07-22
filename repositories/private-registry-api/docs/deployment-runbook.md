@@ -32,7 +32,7 @@ Build SHA-tagged API/indexer/reconciler/UI images. Set `deploy_application_servi
 - health and readiness;
 - package fixture event reaches search;
 - module/provider documentation renders;
-- copied source blocks pass `terraform init` and `tofu init` against JFrog;
+- copied source blocks pass `terraform init` and `terraform init` against JFrog;
 - unauthorized users cannot access restricted metadata;
 - DLQ/redrive and reconciliation dry run succeed;
 - rollback to previous task definition succeeds.

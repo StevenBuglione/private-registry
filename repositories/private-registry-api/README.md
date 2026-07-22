@@ -28,17 +28,29 @@ curl 'http://localhost:8080/registry/docs/search?q=vpc'
 ```
 
 Open <http://localhost:3000> for the complete UI. Compose starts PostgreSQL,
-OpenSearch, the Java API, and a pinned, deterministically patched OpenTofu Registry
-UI build. Nginx proxies UI data and governance requests to the API on the Compose
+OpenSearch, LocalStack, the Java API and indexer, and the first-party Registry UI.
+Nginx proxies UI data and governance requests to the API on the Compose
 network. Flyway applies the production schema and a separate local-only fixture
 migration. The local security setting permits requests so the full contract can be
 exercised without an identity provider.
 
-The readiness response includes Artifactory, PostgreSQL, and OpenSearch. The
-Artifactory system ping is anonymous on the configured JFrog instance. Set
-`JFROG_ACCESS_TOKEN` only in your shell before starting Compose when you also want
-`/api/v1/artifactory/status` to verify the configured repository metadata; the token
-is passed to the official Java client and is never stored in the repository.
+API readiness covers PostgreSQL and OpenSearch only, so a JFrog outage does not
+remove catalog reads. The indexer exposes `/health/worker`, which checks PostgreSQL,
+OpenSearch, Artifactory, SQS, and S3 with bounded probes.
+
+Seed the governed repositories through the official JFrog Java client:
+
+```bash
+docker compose --profile seed build seeder
+docker compose --profile seed run --rm seeder
+```
+
+The seeder persists upstream downloads in the `registry-seed-cache` volume, verifies
+provider checksums, uses Artifactory checksum deploy with a streamed-file fallback,
+and retries interrupted uploads. Re-running it is safe: matching artifacts and
+manifests are skipped. For a focused recovery run, set
+`REGISTRY_SEED_PACKAGES=provider/hashicorp/null` and optionally
+`REGISTRY_SEED_VERSIONS=3.2.4` before invoking Compose.
 
 To stop the services while preserving local data:
 

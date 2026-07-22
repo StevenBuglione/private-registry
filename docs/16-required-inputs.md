@@ -65,7 +65,7 @@ Claude or another implementation agent must not invent these values.
 - module/provider expected scale;
 - initial pilot packages;
 - expected traffic/publication rates;
-- Terraform/OpenTofu minimum supported versions.
+- Terraform minimum supported versions.
 
 ## GitHub/CI
 

@@ -1,11 +1,7 @@
 # Notices
 
-This repository contains original enterprise integration code and, after running the import script, a controlled copy of the OpenTofu Registry UI frontend. The imported source retains upstream copyright, license, and third-party notice files.
+The current Registry frontend is an original first-party implementation. It does not import, clone, execute, or bundle the OpenTofu Registry UI.
 
-Before distribution or production use:
+Earlier repository handoffs evaluated the OpenTofu Registry UI under its applicable license. Historical attribution and license evidence should be retained in release/legal records where required, even though that upstream source is not part of the current build.
 
-- preserve all applicable notices;
-- record the exact upstream commit;
-- complete open-source and trademark review;
-- publish modified source where required by applicable licenses;
-- generate and retain a software bill of materials.
+Third-party JavaScript, font, icon, Markdown, test, and container dependencies retain their respective licenses. Generate and retain a software bill of materials for distributed releases.

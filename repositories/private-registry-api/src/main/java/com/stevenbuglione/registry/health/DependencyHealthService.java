@@ -1,6 +1,5 @@
 package com.stevenbuglione.registry.health;
 
-import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.opensearch.client.opensearch.OpenSearchClient;
@@ -12,13 +11,10 @@ public class DependencyHealthService {
 
     private final JdbcClient jdbc;
     private final OpenSearchClient openSearch;
-    private final ArtifactoryGateway artifactory;
 
-    public DependencyHealthService(
-            JdbcClient jdbc, OpenSearchClient openSearch, ArtifactoryGateway artifactory) {
+    public DependencyHealthService(JdbcClient jdbc, OpenSearchClient openSearch) {
         this.jdbc = jdbc;
         this.openSearch = openSearch;
-        this.artifactory = artifactory;
     }
 
     public HealthReport check() {
@@ -35,12 +31,6 @@ public class DependencyHealthService {
             dependencies.put("opensearch", health.status().jsonValue());
         } catch (Exception exception) {
             dependencies.put("opensearch", "down");
-        }
-
-        try {
-            dependencies.put("artifactory", artifactory.ping() ? "up" : "down");
-        } catch (RuntimeException exception) {
-            dependencies.put("artifactory", "down");
         }
 
         var ready = dependencies.values().stream().noneMatch("down"::equals);

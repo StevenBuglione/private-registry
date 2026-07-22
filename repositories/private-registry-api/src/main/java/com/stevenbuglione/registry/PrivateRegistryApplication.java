@@ -10,6 +10,10 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
 public class PrivateRegistryApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(PrivateRegistryApplication.class, args);
+        var application = SpringApplication.run(PrivateRegistryApplication.class, args);
+        if (application.getEnvironment()
+                .getProperty("registry.seed.exit-after-completion", Boolean.class, false)) {
+            System.exit(SpringApplication.exit(application, () -> 0));
+        }
     }
 }

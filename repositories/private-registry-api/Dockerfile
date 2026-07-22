@@ -10,7 +10,10 @@ COPY src src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre-alpine
-RUN addgroup -S registry && adduser -S -G registry registry
+RUN addgroup -S registry \
+    && adduser -S -G registry registry \
+    && mkdir -p /var/cache/registry-seed \
+    && chown registry:registry /var/cache/registry-seed
 WORKDIR /app
 COPY --from=build --chown=registry:registry /workspace/build/libs/private-registry-api-*.jar app.jar
 USER registry:registry

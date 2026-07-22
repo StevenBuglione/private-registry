@@ -40,13 +40,52 @@ management:
 
 registry:
   artifactory:
-    url: ${REGISTRY_ARTIFACTORY_URL:https://trialwbgt07.jfrog.io/artifactory}
-    access-token: ${REGISTRY_ARTIFACTORY_ACCESS_TOKEN:}
+    url: ${REGISTRY_ARTIFACTORY_URL:https://${REGISTRY_JFROG_HOSTNAME:trialwbgt07.jfrog.io}/artifactory}
+    access-token: ${REGISTRY_ARTIFACTORY_ACCESS_TOKEN:${JFROG_ACCESS_TOKEN:}}
     connection-timeout: ${REGISTRY_ARTIFACTORY_CONNECTION_TIMEOUT:3s}
     socket-timeout: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:5s}
     module-repository: ${REGISTRY_ARTIFACTORY_MODULE_REPOSITORY:iac-modules-public-remote}
     provider-repository: ${REGISTRY_ARTIFACTORY_PROVIDER_REPOSITORY:iac-providers-public-remote}
   opensearch:
     endpoint: ${REGISTRY_OPENSEARCH_ENDPOINT:http://localhost:9200}
+  eventing:
+    enabled: ${REGISTRY_EVENTING_ENABLED:false}
+    region: ${AWS_REGION:us-east-1}
+    endpoint: ${REGISTRY_EVENTING_ENDPOINT:}
+    event-bus-name: ${REGISTRY_EVENT_BUS_NAME:registry-catalog}
+    queue-url: ${REGISTRY_EVENT_QUEUE_URL:}
+    dead-letter-queue-url: ${REGISTRY_EVENT_DLQ_URL:}
+    document-bucket: ${REGISTRY_DOCUMENT_BUCKET:registry-documents}
+    poll-interval: ${REGISTRY_EVENT_POLL_INTERVAL:1s}
+    poll-batch-size: ${REGISTRY_EVENT_POLL_BATCH_SIZE:10}
+    maximum-attempts: ${REGISTRY_EVENT_MAXIMUM_ATTEMPTS:5}
+    webhook:
+      enabled: ${REGISTRY_WEBHOOK_ENABLED:false}
+      secret: ${REGISTRY_WEBHOOK_SECRET:}
+      allowed-origins: ${REGISTRY_WEBHOOK_ORIGIN:}
+      subscription-id: ${REGISTRY_WEBHOOK_SUBSCRIPTION_ID:}
+      allowed-repositories: ${REGISTRY_WEBHOOK_ALLOWED_REPOSITORIES:iac-provider-release-local,iac-module-release-local,iac-catalog-release-local}
+      allowed-path-prefixes: ${REGISTRY_WEBHOOK_ALLOWED_PATH_PREFIXES:v1/,hashicorp/,datadog/,grafana/,terraform-aws-modules/,terraform-google-modules/,Azure/,gruntwork-io/,particuleio/,terraform-module/,cloudposse/,philips-labs/,registry/}
+      maximum-payload-bytes: ${REGISTRY_WEBHOOK_MAXIMUM_PAYLOAD_BYTES:262144}
+  ingestion:
+    enabled: ${REGISTRY_INGESTION_ENABLED:false}
+    governed-repositories: ${REGISTRY_GOVERNED_REPOSITORIES:iac-provider-release-local,iac-module-release-local,iac-catalog-release-local}
+    catalog-repository: ${REGISTRY_CATALOG_REPOSITORY:iac-catalog-release-local}
+    incremental-reconciliation-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_DELAY:15m}
+    full-reconciliation-cron: ${REGISTRY_FULL_RECONCILIATION_CRON:0 17 2 * * *}
+    outbox-delay: ${REGISTRY_OUTBOX_DELAY:1s}
+    claim-recovery-delay: ${REGISTRY_OUTBOX_RECOVERY_DELAY:1m}
+  seed:
+    enabled: ${REGISTRY_SEED_ENABLED:false}
   security:
     permit-all: ${REGISTRY_SECURITY_PERMIT_ALL:false}
+    allowed-alb-signer-arn: ${REGISTRY_ALLOWED_ALB_SIGNER_ARN:}
+    allowed-oidc-client-id: ${REGISTRY_ALLOWED_OIDC_CLIENT_ID:}
+    allowed-oidc-issuer: ${REGISTRY_ALLOWED_OIDC_ISSUER:}
+    alb-region: ${AWS_REGION:us-east-1}
+    graph-endpoint: ${REGISTRY_GRAPH_ENDPOINT:https://graph.microsoft.com/v1.0/me/checkMemberGroups}
+    graph-timeout: ${REGISTRY_GRAPH_TIMEOUT:5s}
+    membership-cache-ttl: ${REGISTRY_MEMBERSHIP_CACHE_TTL:60s}
+    post-logout-redirect-uri: ${REGISTRY_POST_LOGOUT_REDIRECT_URI:/}
+    apm-group-mappings: ${REGISTRY_ENTRA_APM_GROUPS:}
+    admin-group-id: ${REGISTRY_ENTRA_ADMIN_GROUP_ID:}

@@ -17,12 +17,12 @@
 | production-capable MVP in dev | 8–12 weeks | 25–40 engineer-weeks |
 | production + DR + evidence | 14–20 weeks | 45–75 engineer-weeks |
 
-The main variables are existing AWS/JFrog/network/identity foundations, provider-signing maturity, UI accessibility/branding scope, approval lead time, and DR objectives. Reusing the OpenTofu UI removes substantial registry-specific frontend design work, but does not remove the catalog data model, compatibility translation, governance, security, and operational work.
+The main variables are existing AWS/JFrog/network/identity foundations, provider-signing maturity, UI accessibility/branding scope, approval lead time, and DR objectives. Reusing the Registry UI removes substantial registry-specific frontend design work, but does not remove the catalog data model, compatibility translation, governance, security, and operational work.
 
 ## Critical path
 
 1. JFrog version/license/private connectivity decision.
-2. OpenTofu UI legal/fit approval and frozen compatibility contract.
+2. Registry UI legal/fit approval and frozen compatibility contract.
 3. AWS account/network/identity prerequisites.
 4. Aurora/S3/OpenSearch/JFrog adapters and event ingestion.
 5. signed provider release path.

@@ -87,5 +87,5 @@ Active/passive:
 7. run migrations if required;
 8. run full report-only reconciliation;
 9. switch portal DNS;
-10. run synthetic browser and Terraform/OpenTofu tests;
+10. run synthetic browser and Terraform tests;
 11. authorize repair and resume publication.

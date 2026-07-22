@@ -1,6 +1,7 @@
 package com.stevenbuglione.registry.web;
 
 import com.stevenbuglione.registry.catalog.NotFoundException;
+import com.stevenbuglione.registry.security.identity.IdentityProviderUnavailableException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ApiError> badRequest(IllegalArgumentException exception) {
         return error(HttpStatus.BAD_REQUEST, "bad_request", exception.getMessage());
+    }
+
+    @ExceptionHandler(IdentityProviderUnavailableException.class)
+    ResponseEntity<ApiError> identityProviderUnavailable(IdentityProviderUnavailableException exception) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, "identity_provider_unavailable", exception.getMessage());
     }
 
     private static ResponseEntity<ApiError> error(HttpStatus status, String code, String message) {

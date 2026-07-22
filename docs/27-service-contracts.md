@@ -4,7 +4,7 @@
 
 - long-running ECS service, port 8080;
 - ALB health: `GET /healthz`;
-- static OpenTofu UI assets served by Nginx;
+- static Registry UI assets served by Nginx;
 - startup writes non-secret `/config/runtime.json`;
 - no AWS/JFrog credentials and no runtime internet requirement;
 - read-only root filesystem with ephemeral mounts for Nginx cache/run/tmp/runtime config;

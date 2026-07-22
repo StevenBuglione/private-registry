@@ -1,6 +1,5 @@
 * @platform-team
-/app/ @frontend-platform-team
+/web/ @frontend-platform-team
+/public/assets/ @frontend-platform-team
 /deploy/ @platform-team @security-team
-/.upstream/ @platform-team @open-source-reviewers
-/UPSTREAM.md @open-source-reviewers
-/PATCHES.md @frontend-platform-team @open-source-reviewers
+/NOTICE.md @open-source-reviewers

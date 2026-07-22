@@ -24,7 +24,7 @@ The API validates the ALB-signed identity assertion and applies authorization. U
 ### CLI package flow
 
 ```text
-Terraform/OpenTofu CLI
+Terraform CLI
   -> JFrog hostname
   -> JFrog virtual repository
   -> approved release repository or approved remote cache
@@ -50,7 +50,7 @@ Source tag
 
 ### `registry-web`
 
-Stateless Nginx container serving the customized OpenTofu frontend. No service credentials. Runtime configuration contains non-secret API paths, environment, JFrog hostname, and feature flags.
+Stateless Nginx container serving the customized Registry frontend. No service credentials. Runtime configuration contains non-secret API paths, environment, JFrog hostname, and feature flags.
 
 ### `catalog-api`
 

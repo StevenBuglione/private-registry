@@ -1,89 +1,28 @@
-# Implementation Work Breakdown
+# Work breakdown
 
-Each epic should be implemented through reviewed pull requests with architecture, security, testing, rollback, and operational evidence.
+## UI
 
-## Epic 1 — Repository and governance foundation
+- Maintain the first-party React application and local assets.
+- Preserve authorized search, filters, package/version/docs navigation, APM selection, SSE refresh, and closed/error states.
+- Run component/accessibility tests and source-vs-local browser QA at required breakpoints.
 
-- export the UI/API repositories;
-- configure branch protection, CODEOWNERS, secret scanning, dependency review, code scanning, and protected environments;
-- configure GitHub OIDC without static AWS keys;
-- record architecture decisions and unresolved inputs;
-- complete open-source/trademark review for the UI fork.
+## Identity and catalog API
 
-**Exit:** both repositories build from clean clones and production changes require approved reviews/environments.
+- Verify ALB Entra assertions and local OAuth2 sessions.
+- Resolve configured group membership through delegated Graph checks.
+- Require `AccessContext` for every catalog surface and keep unauthorized routes indistinguishable from missing records.
+- Maintain deterministic cursor pagination and version-aware documentation/governance routes.
 
-## Epic 2 — OpenTofu UI controlled fork
+## JFrog and ingestion
 
-- import the pinned frontend and preserve provenance/notices;
-- apply deterministic runtime/API/package-panel hooks;
-- replace public branding, links, popularity, and submission assumptions;
-- integrate the selected design system;
-- generate TypeScript types from the compatibility contract;
-- implement enterprise search filters and governance/security/audit states;
-- add unit, contract, visual, accessibility, CSP, and end-to-end tests.
+- Use only the official JFrog Java client for Artifactory operations.
+- Bootstrap, seed, verify, and reconcile immutable provider/module versions and governance properties.
+- Validate signed webhook intake before EventBridge acceptance.
+- Prove duplicates, ordering, retries, quarantine, DLQ, outbox recovery, and reconciliation.
 
-**Exit:** all pinned UI routes render against compatibility fixtures and no browser request targets JFrog directly.
+## Delivery
 
-## Epic 3 — Compatibility and enterprise API
-
-- vendor/review the pinned upstream OpenAPI contract;
-- create compatibility DTOs separate from internal domain models;
-- implement list/package/version/document/search/top-provider routes;
-- implement enterprise governance/approval/security/ownership/usage/audit/JFrog routes;
-- implement pagination, errors, ETags/cache rules, request IDs, and authorization;
-- add generated contract tests and UI consumer tests.
-
-**Exit:** captured pinned-UI requests pass without response-shape exceptions.
-
-## Epic 4 — Catalog persistence and search
-
-- finalize Aurora schema and migrations;
-- implement RDS Proxy/TLS/IAM-authenticated repositories;
-- implement normalized versioned S3 keys and quarantine controls;
-- implement OpenSearch templates, aliases, ranking, filters, and blue/green rebuild;
-- add backup/restore, point-in-time recovery, and index-rebuild tests.
-
-**Exit:** Aurora/S3 can reconstruct the complete OpenSearch index.
-
-## Epic 5 — JFrog integration and release governance
-
-- create candidate/release/remote/virtual/catalog repositories;
-- configure permissions, immutability, retention, Xray/policy gates, and replication;
-- implement read-only catalog client and digest/signature checks;
-- implement reusable module/provider release workflows;
-- implement provider signing and approval evidence;
-- publish validated EventBridge events after promotion.
-
-**Exit:** one module and one signed provider promote and install through both clients.
-
-## Epic 6 — Event ingestion and reconciliation
-
-- implement SQS long-polling, heartbeat/visibility extension, retry classification, idempotency, and DLQ behavior;
-- normalize and sanitize documentation with archive limits/path protections;
-- commit authoritative data before derived indexing;
-- implement incremental/full reconciliation, dry-run reports, and separately authorized repair;
-- add duplicate, poison-message, partial-write, redrive, and event-loss tests.
-
-**Exit:** event loss and derived-index failure are repaired without duplicate package versions.
-
-## Epic 7 — AWS platform and ECS deployment
-
-- bootstrap remote state;
-- deploy networking/private endpoints/private JFrog path;
-- deploy internal ALB/OIDC/WAF and DNS;
-- deploy KMS, ECR, S3, Aurora/RDS Proxy, OpenSearch, EventBridge/SQS/Scheduler, IAM, CloudWatch, SNS, and Backup;
-- deploy ECS services/tasks, autoscaling, health checks, circuit breakers, and read-only filesystems;
-- implement two-pass Terraform and immutable image deployment.
-
-**Exit:** dev can be rebuilt from state/bootstrap instructions and rollback is tested.
-
-## Epic 8 — Security, operations, and recovery
-
-- complete threat model and authorization matrix;
-- integrate SIEM/security findings and incident management;
-- implement dashboards, SLOs, paging, runbooks, and audit retention;
-- perform penetration, accessibility, load, restore, and DR tests;
-- validate catalog outage isolation from JFrog package installation;
-- onboard pilot teams and transition to an owned service.
-
-**Exit:** all production acceptance criteria have retained evidence and named owners.
+- Keep Compose reproducible and all services healthy.
+- Keep credentials/state/caches out of Git.
+- Run full automated, runtime, secret, and branding checks.
+- Commit and push only when the completion audit has direct evidence for every requirement.

@@ -1,14 +1,16 @@
 package com.stevenbuglione.registry.web;
 
+import com.stevenbuglione.registry.catalog.CatalogQuery;
 import com.stevenbuglione.registry.catalog.CatalogService;
-import com.stevenbuglione.registry.model.CatalogPackage;
 import com.stevenbuglione.registry.model.PackageKind;
+import com.stevenbuglione.registry.security.identity.RegistryIdentityService;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,56 +20,68 @@ import org.springframework.web.bind.annotation.RestController;
 public class CatalogController {
 
     private final CatalogService catalog;
+    private final RegistryIdentityService identities;
 
-    public CatalogController(CatalogService catalog) {
+    public CatalogController(CatalogService catalog, RegistryIdentityService identities) {
         this.catalog = catalog;
+        this.identities = identities;
     }
 
     @GetMapping("/registry/docs/modules/index.json")
-    public Map<String, Object> listModules() {
-        return OpenTofuUiMapper.packageList(PackageKind.MODULE, catalog.listPackages(PackageKind.MODULE));
+    public Map<String, Object> listModules(Authentication authentication) {
+        var context = identities.accessContext(authentication);
+        var page = catalog.findPackages(context, query(null, PackageKind.MODULE, 100));
+        return RegistryCompatibilityMapper.packageList(PackageKind.MODULE, page.items());
     }
 
     @GetMapping("/registry/docs/providers/index.json")
-    public Map<String, Object> listProviders() {
-        return OpenTofuUiMapper.packageList(PackageKind.PROVIDER, catalog.listPackages(PackageKind.PROVIDER));
+    public Map<String, Object> listProviders(Authentication authentication) {
+        var context = identities.accessContext(authentication);
+        var page = catalog.findPackages(context, query(null, PackageKind.PROVIDER, 100));
+        return RegistryCompatibilityMapper.packageList(PackageKind.PROVIDER, page.items());
     }
 
     @GetMapping("/top/providers")
-    public List<Map<String, Object>> topProviders() {
-        return OpenTofuUiMapper.topProviders(catalog.listPackages(PackageKind.PROVIDER));
+    public List<Map<String, Object>> topProviders(Authentication authentication) {
+        var context = identities.accessContext(authentication);
+        return RegistryCompatibilityMapper.topProviders(
+                catalog.findPackages(context, query(null, PackageKind.PROVIDER, 100)).items());
     }
 
     @GetMapping("/registry/docs/search")
     public List<Map<String, Object>> search(
+            Authentication authentication,
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) String type,
             @RequestParam(defaultValue = "25") int limit) {
-        return OpenTofuUiMapper.searchResults(catalog.search(q, PackageKind.from(type), limit));
+        var context = identities.accessContext(authentication);
+        var page = catalog.findPackages(context, query(q, PackageKind.from(type), limit));
+        return RegistryCompatibilityMapper.searchResults(page.items());
     }
 
     @GetMapping("/registry/docs/modules/{*path}")
-    public ResponseEntity<?> moduleRoute(@PathVariable String path) {
+    public ResponseEntity<?> moduleRoute(Authentication authentication, @PathVariable String path) {
         var segments = splitPath(path);
         if (segments.size() < 3) {
             throw new IllegalArgumentException("A module route requires namespace, name, and target");
         }
         var id = "module/" + String.join("/", segments.subList(0, 3));
-        return packageRoute(id, segments.subList(3, segments.size()), "README.md");
+        return packageRoute(authentication, id, segments.subList(3, segments.size()), "README.md");
     }
 
     @GetMapping("/registry/docs/providers/{*path}")
-    public ResponseEntity<?> providerRoute(@PathVariable String path) {
+    public ResponseEntity<?> providerRoute(Authentication authentication, @PathVariable String path) {
         var segments = splitPath(path);
         if (segments.size() < 2) {
             throw new IllegalArgumentException("A provider route requires namespace and name");
         }
         var id = "provider/" + String.join("/", segments.subList(0, 2));
-        return packageRoute(id, segments.subList(2, segments.size()), "index.md");
+        return packageRoute(authentication, id, segments.subList(2, segments.size()), "index.md");
     }
 
     @GetMapping("/api/v1/enterprise/packages/{*path}")
-    public ResponseEntity<?> enterprisePackage(@PathVariable String path) {
+    public ResponseEntity<?> enterprisePackage(Authentication authentication, @PathVariable String path) {
+        var context = identities.accessContext(authentication);
         var normalizedPath = trimSlashes(path);
         var suffix = "";
         for (var candidate : List.of("/governance", "/approvals", "/security", "/owners", "/usage", "/audit", "/jfrog")) {
@@ -78,7 +92,7 @@ public class CatalogController {
             }
         }
 
-        var governance = catalog.getGovernance(normalizedPath);
+        var governance = catalog.getGovernance(context, normalizedPath);
         return switch (suffix) {
             case "", "/governance" -> ResponseEntity.ok(governance);
             case "/approvals" -> ResponseEntity.ok(Map.of(
@@ -99,13 +113,15 @@ public class CatalogController {
         };
     }
 
-    private ResponseEntity<?> packageRoute(String id, List<String> rest, String defaultDocument) {
-        var item = catalog.getPackage(id);
+    private ResponseEntity<?> packageRoute(
+            Authentication authentication, String id, List<String> rest, String defaultDocument) {
+        var context = identities.accessContext(authentication);
+        var item = catalog.getPackage(context, id);
         if (rest.isEmpty() || (rest.size() == 1 && "index.json".equals(rest.getFirst()))) {
-            return ResponseEntity.ok(OpenTofuUiMapper.packageSummary(item));
+            return ResponseEntity.ok(RegistryCompatibilityMapper.packageSummary(item));
         }
         if ("index.json".equals(rest.getLast())) {
-            return ResponseEntity.ok(OpenTofuUiMapper.packageVersion(item, rest.getFirst()));
+            return ResponseEntity.ok(RegistryCompatibilityMapper.packageVersion(item, rest.getFirst()));
         }
 
         var documentPath = defaultDocument;
@@ -115,13 +131,17 @@ public class CatalogController {
             var start = versionSegment ? 1 : 0;
             documentPath = String.join("/", rest.subList(start, rest.size()));
         }
-        var document = catalog.readDocument(id, documentPath);
+        var document = catalog.readDocument(context, id, documentPath);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(document.contentType()))
                 .body(document.content());
     }
 
-    private static List<String> splitPath(String path) {
+    private static CatalogQuery query(String q, PackageKind kind, int limit) {
+        return new CatalogQuery(q, kind, null, null, null, null, null, "updated", null, limit);
+    }
+
+    static List<String> splitPath(String path) {
         if (path == null || path.isBlank()) {
             return List.of();
         }
@@ -130,7 +150,7 @@ public class CatalogController {
                 .toList();
     }
 
-    private static String trimSlashes(String value) {
+    static String trimSlashes(String value) {
         return value == null ? "" : value.replaceAll("^/+|/+$", "");
     }
 

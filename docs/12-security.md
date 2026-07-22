@@ -32,7 +32,7 @@ Every package version records:
 - build identity and provenance;
 - approval decisions and policy version;
 - security scan result;
-- Terraform/OpenTofu compatibility;
+- Terraform compatibility;
 - release timestamp and lifecycle.
 
 ## Separation of duties

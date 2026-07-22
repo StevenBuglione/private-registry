@@ -80,7 +80,7 @@ Expected foundation resources:
 
 Create and secure the topology in `docs/07-jfrog.md`. Test one module and one signed provider manually before automating promotion.
 
-**Exit gate:** Terraform and OpenTofu install the test module/provider from approved JFrog endpoints, candidate repositories are not readable by normal users, and released versions cannot be overwritten.
+**Exit gate:** Terraform installs the test module/provider from approved JFrog endpoints, candidate repositories are not readable by normal users, and released versions cannot be overwritten.
 
 ## Stage 6 — Complete production adapters
 

@@ -28,7 +28,7 @@ git remote add origin <UI_REPOSITORY_URL>
 git push -u origin main
 ```
 
-Apply protections before running the release workflow. Then import the pinned upstream frontend on an intake branch; do not change the pin and source code in an unreviewed deployment commit.
+Apply protections before running the release workflow. The exported UI is already a complete first-party application; do not add source-import or patch machinery.
 
 ## Initialize API repository
 

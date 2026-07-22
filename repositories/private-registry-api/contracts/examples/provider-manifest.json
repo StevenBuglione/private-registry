@@ -32,8 +32,7 @@
     "consoleUrl": "https://artifacts.example.invalid/ui/repos/tree/General/iac-providers-release-local/platform/internal-cloud/3.2.0"
   },
   "compatibility": {
-    "terraform": ">= 1.8, < 2.0",
-    "opentofu": ">= 1.8, < 2.0"
+    "terraform": ">= 1.8, < 2.0"
   },
   "source": {
     "repository": "https://github.example.invalid/cloud/internal-cloud-provider",

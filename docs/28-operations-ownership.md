@@ -23,7 +23,7 @@
 - daily: alarms, DLQ, reconciliation drift, failed promotions;
 - weekly: capacity, latency, error budget, security findings, stale ownership;
 - monthly: dependency/image/IaC patching and restore sample;
-- quarterly: upstream UI review, access review, DR readiness, package lifecycle review;
+- quarterly: UI dependency review, access review, DR readiness, package lifecycle review;
 - annually or per policy: penetration, accessibility, full recovery and signing-key exercise.
 
 ## Incident priority

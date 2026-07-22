@@ -1,5 +1,6 @@
 .DS_Store
 .bootstrap/
+.codex-artifacts/
 .idea/
 .vscode/
 *.swp
@@ -18,6 +19,7 @@
 !repositories/private-registry-api/infrastructure/terraform/live/prod/.terraform.lock.hcl
 !repositories/private-registry-api/infrastructure/terraform/live/dr/.terraform.lock.hcl
 !repositories/private-registry-api/infrastructure/terraform/jfrog/.terraform.lock.hcl
+!repositories/private-registry-api/infrastructure/terraform/identity-test/.terraform.lock.hcl
 !repositories/private-registry-api/infrastructure/terraform/tests/registry-mirror/.terraform.lock.hcl
 **/terraform.tfvars
 **/backend.hcl

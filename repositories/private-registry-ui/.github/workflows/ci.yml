@@ -17,26 +17,20 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-          cache-dependency-path: app/pnpm-lock.yaml
-      - name: Import approved upstream frontend
-        run: ./scripts/import-upstream.sh
-      - name: Apply enterprise overlays
-        run: ./scripts/apply-overlays.sh
-      - name: Verify provenance
-        run: ./scripts/verify-upstream.sh
+          cache-dependency-path: web/pnpm-lock.yaml
       - name: Validate runtime template
         run: python3 ./scripts/check-runtime-template.py
       - name: Install dependencies
-        working-directory: app
+        working-directory: web
         run: pnpm install --frozen-lockfile
       - name: Lint
-        working-directory: app
+        working-directory: web
         run: pnpm lint
       - name: Unit tests
-        working-directory: app
-        run: pnpm run test --run
+        working-directory: web
+        run: pnpm test
       - name: Build
-        working-directory: app
+        working-directory: web
         run: pnpm build
       - name: Build container
         run: docker build --build-arg VITE_BUILD_SHA=${GITHUB_SHA} -t private-registry-ui:${GITHUB_SHA} .

@@ -22,8 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Import approved upstream and apply overlays
-        run: ./scripts/import-upstream.sh && ./scripts/apply-overlays.sh && ./scripts/verify-upstream.sh
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_IMAGE_ROLE_ARN }}

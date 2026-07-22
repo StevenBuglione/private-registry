@@ -1,5 +1,8 @@
 {
-  "index_patterns": ["private-registry-packages-v1-*"],
+  "index_patterns": [
+    "private-registry-packages-write",
+    "private-registry-packages-v1-*"
+  ],
   "template": {
     "settings": {
       "number_of_shards": 3,
@@ -33,8 +36,8 @@
         "lifecycle": {"type": "keyword"},
         "verification": {"type": "keyword"},
         "risk_tier": {"type": "keyword"},
+        "apm_ids": {"type": "keyword"},
         "terraform_compatible": {"type": "boolean"},
-        "opentofu_compatible": {"type": "boolean"},
         "latest_version": {"type": "keyword"},
         "published_at": {"type": "date"},
         "updated_at": {"type": "date"}

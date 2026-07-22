@@ -1,23 +1,23 @@
-# OpenTofu UI compatibility contract
+# Registry API contract
 
-The internal domain model and enterprise API are not the UI compatibility contract. The exact compatibility contract is the pinned upstream OpenAPI document.
+The first-party UI consumes only the versioned, same-origin Registry API. The internal database and JFrog models stay behind explicit response DTOs.
 
-Run in a network-enabled intake branch:
+Primary interfaces:
 
-```bash
-./scripts/sync-opentofu-contract.sh
-```
+- `GET /api/v1/auth/session`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/catalog/packages`
+- `GET /api/v1/catalog/packages/{kind}/{namespace}/{name}[/{target}][/{version}]`
+- version, documentation, and governance subresources beneath the package route
+- `GET /api/v1/catalog/events`
+- `POST /internal/webhooks/jfrog`
 
-This writes `api/opentofu-compatibility-upstream.yaml` from the commit recorded in `contracts/upstream/OPEN_TOFU_COMMIT`. Commit that generated file after review. Generate response DTOs and contract tests from it, then keep internal Aurora/JFrog models behind an explicit translation layer.
+Contract rules:
 
-Required rules:
-
-- module lists return the upstream `ModuleList` shape (`modules`);
-- provider lists return the upstream `ProviderList` shape (`providers`);
-- package and version endpoints are distinct;
-- version metadata preserves upstream required fields and omission/null behavior;
-- search and `/top/providers` match the pinned frontend's expected response;
-- enterprise-only fields stay under `/api/v1/enterprise` instead of modifying standard DTOs;
-- every pin change reruns captured UI route tests before merge.
-
-The starter handlers are intentionally small fixtures. Do not treat their current domain JSON as production compatibility evidence.
+- Every catalog call requires an `AccessContext` and applies APM authorization before projection.
+- Unauthorized, revoked, and nonexistent package/version routes return the same 404 response.
+- Search, counts, details, versions, documentation, governance, and SSE are authorization filtered.
+- Pagination cursors are opaque, deterministic, and tied to the selected sort.
+- Markdown is served from normalized immutable documentation with path validation.
+- Browser responses never contain OAuth/Graph tokens, JFrog credentials, AWS credentials, or package bytes.
+- Contract and browser tests must pass before a response shape changes.
