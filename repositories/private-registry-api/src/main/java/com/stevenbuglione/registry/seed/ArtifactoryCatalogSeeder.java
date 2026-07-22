@@ -667,7 +667,6 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
     if (existing != null) {
       return existing;
     }
-    var sha1 = digest(content, "SHA-1", "");
     @Nullable RuntimeException lastFailure = null;
     for (var attempt = 1; attempt <= properties.uploadAttempts(); attempt++) {
       try {
@@ -677,7 +676,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
             attempt,
             properties.uploadAttempts(),
             Files.size(content));
-        var uploaded = artifactory.upload(repository, path, content, sha1, artifactProperties);
+        var uploaded = artifactory.upload(repository, path, content, artifactProperties);
         var verified = existingArtifact(repository, path, sha256);
         if (verified == null) {
           throw new IllegalStateException(

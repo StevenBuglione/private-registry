@@ -6,12 +6,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
 import org.springframework.security.core.context.SecurityContextImpl;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -56,8 +56,7 @@ public class AlbAuthenticationFilter extends OncePerRequestFilter {
               .map(role -> role.toUpperCase(java.util.Locale.ROOT).replace('-', '_'))
               .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
               .toList();
-      var authentication =
-          UsernamePasswordAuthenticationToken.authenticated(principal, "", authorities);
+      var authentication = new PreAuthenticatedAuthenticationToken(principal, "", authorities);
       securityContextHolder.setContext(new SecurityContextImpl(authentication));
       filterChain.doFilter(request, response);
     } catch (IdentityProviderUnavailableException exception) {

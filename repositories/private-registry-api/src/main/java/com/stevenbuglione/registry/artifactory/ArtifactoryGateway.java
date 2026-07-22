@@ -115,29 +115,17 @@ public class ArtifactoryGateway {
     return metadata(repositoryKey, path, file, artifactProperties);
   }
 
-  /**
-   * Uploads a repeatable file body using the JFrog client's checksum-deploy support. The client
-   * first asks Artifactory to materialize an existing SHA-1 from its binary store and automatically
-   * falls back to uploading this file when the checksum is not present. A file is deliberately used
-   * instead of a one-shot stream so a caller can safely retry interrupted writes.
-   */
+  /** Uploads a repeatable file body using the official JFrog Java Client. */
   public ArtifactMetadata upload(
-      String repositoryKey,
-      String path,
-      Path content,
-      String sha1,
-      Map<String, ?> artifactProperties) {
+      String repositoryKey, String path, Path content, Map<String, ?> artifactProperties) {
     validateArtifactLocation(repositoryKey, path);
     Objects.requireNonNull(content, "content");
     if (!Files.isRegularFile(content)) {
       throw new IllegalArgumentException("Upload content must be a regular file");
     }
-    if (sha1 == null || !sha1.matches("[0-9a-f]{40}")) {
-      throw new IllegalArgumentException("A lowercase SHA-1 is required for checksum deploy");
-    }
     var upload = client.repository(repositoryKey).upload(path, content.toFile());
     applyProperties(upload, artifactProperties);
-    var file = upload.bySha1Checksum(sha1).doUpload();
+    var file = upload.doUpload();
     return metadata(repositoryKey, path, file, artifactProperties);
   }
 

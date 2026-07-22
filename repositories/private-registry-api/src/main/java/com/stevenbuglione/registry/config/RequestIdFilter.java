@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -17,13 +18,14 @@ public class RequestIdFilter extends OncePerRequestFilter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RequestIdFilter.class);
   private static final String REQUEST_ID_HEADER = "X-Request-ID";
+  private static final int MAXIMUM_REQUEST_ID_LENGTH = 128;
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     var requestId = request.getHeader(REQUEST_ID_HEADER);
-    if (requestId == null || requestId.isBlank()) {
+    if (!isSafeRequestId(requestId)) {
       requestId = UUID.randomUUID().toString();
     }
 
@@ -37,12 +39,23 @@ public class RequestIdFilter extends OncePerRequestFilter {
     } finally {
       var durationMillis = (System.nanoTime() - started) / 1_000_000;
       LOGGER.info(
-          "request method={} path={} status={} duration_ms={}",
-          request.getMethod(),
-          request.getRequestURI(),
-          response.getStatus(),
-          durationMillis);
+          "request completed status={} duration_ms={}", response.getStatus(), durationMillis);
       MDC.remove("request_id");
     }
+  }
+
+  private static boolean isSafeRequestId(@Nullable String value) {
+    if (value == null || value.isBlank() || value.length() > MAXIMUM_REQUEST_ID_LENGTH) {
+      return false;
+    }
+    return value
+        .chars()
+        .allMatch(
+            character ->
+                Character.isLetterOrDigit(character)
+                    || character == '-'
+                    || character == '_'
+                    || character == '.'
+                    || character == ':');
   }
 }

@@ -1,5 +1,6 @@
 package com.stevenbuglione.registry.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -140,5 +141,13 @@ class CatalogControllerTest {
   @Test
   void rejectsIncompleteModuleRoute() throws Exception {
     mvc.perform(get("/registry/docs/modules/incomplete")).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void trimsPathSlashesInLinearTimeWithoutChangingInteriorSeparators() {
+    assertThat(CatalogController.trimSlashes("////docs//resources////"))
+        .isEqualTo("docs//resources");
+    assertThat(CatalogController.trimSlashes("////")).isEmpty();
+    assertThat(CatalogController.trimSlashes(null)).isEmpty();
   }
 }

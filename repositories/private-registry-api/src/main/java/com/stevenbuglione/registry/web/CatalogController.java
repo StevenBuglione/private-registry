@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -169,7 +170,9 @@ public class CatalogController {
   }
 
   static String trimSlashes(@Nullable String value) {
-    return value == null ? "" : value.replaceAll("^/+|/+$", "");
+    return value == null
+        ? ""
+        : StringUtils.trimTrailingCharacter(StringUtils.trimLeadingCharacter(value, '/'), '/');
   }
 
   private static Map<String, @Nullable Object> nullableMap(@Nullable Object... keyValues) {
