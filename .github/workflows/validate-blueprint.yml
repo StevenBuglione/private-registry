@@ -55,6 +55,12 @@ jobs:
           curl --fail --silent --show-error http://localhost:8080/health/ready
           curl --fail --silent --show-error http://localhost:3000/config/runtime.json
           curl --fail --silent --show-error 'http://localhost:3000/registry/docs/search?q=vpc'
+      - name: Capture Compose diagnostics
+        if: failure() && steps.compose.outcome == 'failure'
+        working-directory: repositories/private-registry-api
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml ps --all
+          docker compose -f compose.yaml -f compose.ci.yaml logs --no-color --tail 300
       - name: Stop Compose stack
         if: always() && steps.compose.outcome != 'skipped'
         working-directory: repositories/private-registry-api
