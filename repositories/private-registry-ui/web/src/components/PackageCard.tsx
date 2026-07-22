@@ -36,7 +36,7 @@ export function PackageCard({ item }: { item: PackageSummary }) {
     <Link className="package-card provider-card" to={packageHref(item)}>
       <PackageIcon kind={item.kind} name={item.name} />
       <div className="provider-card-content">
-        <strong>{item.name}</strong>
+        <strong>{providerDisplayName(item.name)}</strong>
         <span>by {item.owner}</span>
         <small>
           Docs <ArrowSquareOutIcon size={13} />
@@ -50,4 +50,22 @@ export function PackageCard({ item }: { item: PackageSummary }) {
       ) : null}
     </Link>
   );
+}
+
+function providerDisplayName(name: string): string {
+  const labels: Record<string, string> = {
+    aws: "AWS",
+    azurerm: "Azure",
+    azuread: "Azure Active Directory",
+    google: "Google Cloud Platform",
+    kubernetes: "Kubernetes",
+    helm: "Helm",
+    random: "Random",
+    null: "Null",
+    tls: "TLS",
+    time: "Time",
+    datadog: "Datadog",
+    grafana: "Grafana",
+  };
+  return labels[name.toLowerCase()] ?? name;
 }
