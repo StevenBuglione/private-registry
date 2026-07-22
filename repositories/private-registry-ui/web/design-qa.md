@@ -1,35 +1,66 @@
 **Source visual truth**
 
-- Primary references: `.codex-artifacts/terraform-home-desktop-top.png`, `terraform-browse-providers-1440.png`, `terraform-provider-detail-1440.png`, and `terraform-provider-docs-1440.png`.
-- Responsive references: `.codex-artifacts/terraform-home-mobile-top.png`, `terraform-home-mobile-menu.png`, `terraform-browse-providers-mobile-filter.png`, and `terraform-provider-docs-mobile.png`.
-- The screenshots are structural references only. Terraform and HashiCorp marks, names, product copy, public counts, and unauthenticated controls are intentionally replaced with Registry identity, governed catalog data, and enterprise identity controls.
+- Live source: `https://registry.terraform.io/providers/hashicorp/azurerm/latest` captured on July 22, 2026.
+- Source screenshots:
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/01-official-overview.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/03-official-documentation-index.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/04-official-resource-group.png`
+- The source is a structural and interaction reference. Terraform/HashiCorp marks, public download statistics, public authentication controls, and public-marketplace copy are intentionally replaced by Registry identity, governed private counts, Entra identity, APM authorization, and JFrog-backed package metadata.
 
-**Verified implementation evidence**
+**Implementation evidence**
 
-- Side-by-side source/local comparisons were inspected at original size for home, provider catalog, provider detail, and mobile navigation.
-- Authenticated local captures: `.codex-artifacts/local-home-desktop-final.png`, `local-providers-1440-final.png`, `local-provider-detail-1440-final.png`, `local-home-mobile-final.png`, `local-home-mobile-menu-final.png`, and `local-provider-detail-mobile-final.png`.
-- Responsive browser inspection passed at 1440, 1024, 768, and 390 CSS pixels. Every inspected page reported no horizontal overflow.
-- Real Entra administrator OIDC sign-in and Graph-backed session recovery passed after service restarts.
-- Global authorized suggestions returned the governed AWS provider and only matching authorized modules.
-- Provider/module details, version selection, documentation navigation, legacy singular redirects, Artifactory copy actions, private 404 behavior, filter drawer, and mobile menu passed.
-- Clipboard inspection proved the copied provider instructions contain the governed JFrog repository URL and SHA-256 verification command.
-- Browser console warning/error scan returned zero entries.
-- Runtime catalog showed truthful 12-provider/30-module counts from the real JFrog seed.
-- Module detail browser verification showed 234 real inputs, 119 outputs, one provider dependency, and 84 declared resources/data sources for `terraform-aws-modules/vpc/aws` 6.0.1; every tab rendered populated source-derived content.
-- Provider documentation browser verification showed 8 guides, 1,520 resources, 605 data sources, and 3 functions for `hashicorp/aws` 5.100.0. Filtering for `vpc` exposed 84 resources and 30 data sources, and the selected `aws_vpc` page rendered its real examples, arguments, attributes, and import documentation.
-- Latest captures: `.codex-artifacts/local-module-inputs-final.png` and `.codex-artifacts/local-provider-vpc-resource-final.png`.
+- Local implementation: `http://localhost:3000/providers/hashicorp/azurerm/4.37.0`
+- Final screenshots:
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/13-final-overview.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/14-final-documentation-index.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/15-final-resource-group.png`
+- Browser viewport: 1280 x 720 CSS pixels at device pixel ratio 1 for both source and implementation. Captured page pixels are 1265 x 712 for both sides; no density normalization was required.
+- Final side-by-side comparison evidence:
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/16-overview-side-by-side-final.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/17-docs-side-by-side-final.png`
+  - `D:/Users/steve/private-registry/.codex-artifacts/azurerm-parity-20260722/18-resource-side-by-side-final.png`
+- States compared: provider Overview, provider Documentation index, filtered `resource group` results, and selected `azurerm_resource_group` documentation.
+- Focused crops were not needed because three state-specific, original-size comparisons make the header, rail, article, table of contents, metadata, and callout details readable without scaling.
 
-**Comparison history and fixes**
+**Comparison history**
 
-- Replaced the original custom visual direction with the Terraform Registry's black header, full-width search, announcement band, centered hero, compact tabs, filter rail/drawer, provider grid, module rows, and package documentation layout.
-- Replaced source branding and public-marketplace actions with the Registry emblem, Entra identity, access context, governed counts, lifecycle/risk metadata, and Artifactory instructions.
-- Fixed the mobile navigation from a white dropdown to the source-like full black navigation surface.
-- Fixed a tablet/mobile package-detail overflow caused by the long immutable Artifactory URL; the code panel now remains within its grid/card at 768 and 390 pixels.
-- Preserved a usable true-responsive mobile layout where the reference site itself renders a desktop-width surface at 390 pixels.
+- Initial P1: the Overview used a compressed identity block, oversized two-column module cards, and a long raw Artifactory download script where the source uses a dense module list and compact supporting rail.
+  - Fix: matched the source header height, action placement, metadata rhythm, lifecycle pill, tab position, one-column module rows, helpful-links rail, provider-version panel, and concise Terraform configuration panel while retaining truthful private metadata.
+  - Post-fix evidence: `16-overview-side-by-side-final.png`.
+- Initial P1: all documentation symbols were permanently expanded, making the provider navigator materially denser and harder to scan than the source.
+  - Fix: added collapsible document groups, automatic filtered expansion, full provider-prefixed resource names, matching-result counts, selected state, and a sticky navigation header/filter.
+  - Post-fix evidence: `17-docs-side-by-side-final.png` and `18-resource-side-by-side-final.png`.
+- Initial P1: source admonitions rendered as literal `-> Note:` paragraphs and the page title was incorrectly repeated in the table of contents.
+  - Fix: added source-like information/warning callouts, heading permalinks, code-copy controls, and an H2/H3-only table of contents.
+  - Post-fix evidence: `18-resource-side-by-side-final.png`.
+- Initial P2: documentation article and right-rail proportions drifted from the source.
+  - Fix: normalized the detail container and documentation grid to the source geometry at the comparison viewport.
+  - Post-fix evidence: all three final comparisons.
 
-**Final findings**
+**Required fidelity surfaces**
 
-- No open P0, P1, or P2 visual or interaction defects.
-- APM-A/APM-B authorization permutations remain covered by backend/UI automated tests; the browser pass used the real Entra administrator session and did not expose or reuse test-user passwords.
+- Fonts and typography: both sides use compact sans-serif UI type with matching hierarchy, weights, line heights, link treatment, code styling, and readable truncation. Dynamic private copy is shorter in the header but retains the source hierarchy.
+- Spacing and layout rhythm: header, tabs, documentation rail, article start, table-of-contents rail, module list, borders, radii, and above-the-fold density align closely in the final comparisons.
+- Colors and tokens: black shell, white package header, light-gray content surface, blue active/link states, muted metadata, and restrained borders map to the source. Private approval and risk content uses existing semantic tokens.
+- Image quality and asset fidelity: the real AzureRM provider asset is used at the source-like scale. UI icons come from the existing Phosphor icon library; no CSS art, text glyph, placeholder image, or handcrafted SVG was introduced.
+- Copy and content: package versions, counts, owners, lifecycle, risk, APM access, source repository, approved modules, and Artifactory path are backend-derived private data. No public download statistic or official-provider claim is fabricated.
+- Behavior and accessibility: version switching preserves the active documentation query, documentation groups expand/collapse, filtering exposes provider-prefixed resources, direct resource selection loads real Markdown, copy buttons report `Copied`, heading links and table-of-contents links work, controls have accessible names, and the updated unit test passes axe checks.
+
+**Residual P3 differences**
+
+- The private header has Entra/APM controls instead of Terraform's Publish/Sign In actions.
+- Governed package metadata replaces public download panels and counts.
+- The mirrored AzureRM version is 4.37.0 while the live public source capture is 4.81.0.
+
+These are required product and data differences, not visual defects.
+
+**Verification**
+
+- `npm run lint`: passed.
+- `npm test`: 13 tests passed.
+- `npm run build`: passed.
+- Docker Compose UI rebuild and health wait: passed.
+- In-app browser: Overview, Documentation, filtered resource navigation, selected resource content, copy success, group collapse, and version switching verified.
+- Browser DOM inspection confirmed real `azurerm_resource_group` arguments, attributes, timeouts, import content, two rendered Note callouts, and a title-free table of contents.
 
 final result: passed

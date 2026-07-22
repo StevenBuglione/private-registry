@@ -81,9 +81,20 @@ const providerDetail: PackageDetail = {
   name: "aws",
   target: undefined,
   version: "6.8.0",
-  versions: ["6.8.0"],
+  versions: ["6.8.0", "6.7.0"],
   description: "AWS infrastructure provider.",
   documentation: "# AWS Provider\n\nProvider overview.",
+  artifactRepository: "iac-provider-release-local",
+  artifactPath: "hashicorp/aws/6.8.0/provider.zip",
+  governance: {
+    owner: "Cloud Platform",
+    support: "supported",
+    approval: "approved",
+    lifecycle: "approved",
+    risk: "low",
+    sourceRepository: "https://github.com/hashicorp/terraform-provider-aws",
+    apmIds: ["APM0000001"],
+  },
   symbols: [
     {
       kind: "guide",
@@ -127,7 +138,7 @@ vi.mock("../hooks", () => ({
     documentationHook(documentPath);
     const documents: Record<string, string> = {
       "resources/aws_vpc.md":
-        "# aws_vpc Resource\n\nManages an Amazon Virtual Private Cloud.",
+        "# aws_vpc Resource\n\nManages an Amazon Virtual Private Cloud.\n\n-> **Note:** Deleting the VPC also deletes managed routes.",
       "data-sources/aws_vpc.md": "# aws_vpc Data Source\n\nReads a VPC.",
       "guides/authentication.md": "# Authentication\n\nConfigure credentials.",
       "functions/arn_parse.md": "# arn_parse Function\n\nParses an ARN.",
@@ -146,7 +157,7 @@ vi.mock("../hooks", () => ({
     refetch: vi.fn(),
   }),
   useCatalogPage: () => ({
-    data: { items: [], total: 0 },
+    data: { items: [moduleDetail], total: 7 },
     isPending: false,
     isError: false,
     refetch: vi.fn(),
@@ -165,7 +176,12 @@ const session: RegistrySession = {
 
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location">{location.search}</output>;
+  return (
+    <output data-testid="location">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
 }
 
 function BackButton() {
@@ -203,6 +219,30 @@ function renderDetail(kind: PackageKind, initialEntry: string) {
 }
 
 describe("PackageDetailPage symbol-driven views", () => {
+  it("matches the provider overview information architecture with truthful private metadata", () => {
+    renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
+
+    expect(
+      screen.getByRole("heading", { name: "Approved aws modules" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Showing 1 - 1 of 7 available modules"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Provider Versions" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Source" })).toHaveAttribute(
+      "href",
+      "https://github.com/hashicorp/terraform-provider-aws",
+    );
+    expect(
+      screen.getByText(/source\s*=\s*"hashicorp\/aws"/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/iac-provider-release-local\/hashicorp\/aws\/6.8.0/),
+    ).toBeInTheDocument();
+  });
+
   it("renders populated module definition and inventory tabs accessibly", async () => {
     const user = userEvent.setup();
     const { container } = renderDetail(
@@ -255,6 +295,14 @@ describe("PackageDetailPage symbol-driven views", () => {
     expect(
       view.getByRole("heading", { name: "AWS Provider" }),
     ).toBeInTheDocument();
+    expect(
+      within(
+        view.getByRole("complementary", { name: "On this page" }),
+      ).queryByRole("link", { name: "AWS Provider" }),
+    ).not.toBeInTheDocument();
+    expect(
+      view.queryByRole("button", { name: "Authentication" }),
+    ).not.toBeInTheDocument();
     await user.type(
       view.getByRole("textbox", { name: "Filter documentation" }),
       "vpc",
@@ -271,11 +319,22 @@ describe("PackageDetailPage symbol-driven views", () => {
       "doc=resources%2Faws_vpc.md",
     );
     expect(documentationHook).toHaveBeenCalledWith("resources/aws_vpc.md");
+    expect(view.getByRole("note")).toHaveTextContent(
+      "Deleting the VPC also deletes managed routes.",
+    );
 
     await user.click(view.getByRole("button", { name: "Browser back" }));
     expect(
       await view.findByRole("heading", { name: "AWS Provider" }),
     ).toBeInTheDocument();
+
+    await user.selectOptions(
+      view.getByRole("combobox", { name: "Provider version" }),
+      "6.7.0",
+    );
+    expect(view.getByTestId("location")).toHaveTextContent(
+      "/providers/hashicorp/aws/6.7.0?tab=documentation",
+    );
 
     const result = await axe.run(container, {
       rules: { "color-contrast": { enabled: false } },

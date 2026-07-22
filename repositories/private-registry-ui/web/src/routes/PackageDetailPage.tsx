@@ -1,20 +1,24 @@
 import {
+  ArrowSquareOutIcon,
   CaretRightIcon,
   CheckIcon,
   ClipboardIcon,
+  CubeIcon,
   FileTextIcon,
+  InfoIcon,
+  LinkSimpleIcon,
   ListIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
+  WarningIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { Children, useMemo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { ApiError } from "../api";
 import { ApprovalBadge } from "../components/Badges";
-import { PackageCard } from "../components/PackageCard";
 import { PackageIcon } from "../components/PackageIcon";
 import { StatePanel } from "../components/StatePanel";
 import {
@@ -25,7 +29,13 @@ import {
 } from "../hooks";
 import { useRegistry } from "../registry-context";
 import { runtimeConfig } from "../runtime-config";
-import type { PackageKind, PackageSymbol } from "../types";
+import type {
+  GovernanceRecord,
+  PackageDetail,
+  PackageKind,
+  PackageSummary,
+  PackageSymbol,
+} from "../types";
 import { formatRelativeDate, packageHref } from "../utils";
 
 export function PackageDetailPage({ kind }: { kind: PackageKind }) {
@@ -92,6 +102,8 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     item,
     runtimeConfig().jfrogHostname,
   );
+  const providerSnippet = buildProviderConfigurationSnippet(item);
+  const sourceRepository = safeExternalUrl(governanceData?.sourceRepository);
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", value);
@@ -105,8 +117,11 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     else next.delete("doc");
     setSearchParams(next);
   };
-  const changeVersion = (version: string) =>
-    navigate(packageHref({ ...item, version }));
+  const changeVersion = (version: string) => {
+    const destination = packageHref({ ...item, version });
+    const query = searchParams.toString();
+    navigate(query ? `${destination}?${query}` : destination);
+  };
   const showDocumentation = kind === "provider" && tab === "documentation";
 
   return (
@@ -135,20 +150,33 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
               {item.target ? `/${item.target}` : ""}
             </span>
           </div>
-          <label className="version-select">
-            <span>Version</span>
-            <select
-              value={item.version}
-              onChange={(event) => changeVersion(event.target.value)}
-            >
-              {item.versions.map((version) => (
-                <option key={version} value={version}>
-                  Version {version}
-                  {version === item.versions[0] ? " (latest)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="package-header-actions">
+            <label className="version-select">
+              <span>Version</span>
+              <select
+                aria-label={`${kind === "provider" ? "Provider" : "Module"} version`}
+                value={item.version}
+                onChange={(event) => changeVersion(event.target.value)}
+              >
+                {item.versions.map((version) => (
+                  <option key={version} value={version}>
+                    Version {version}
+                    {version === item.versions[0] ? " (latest)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {sourceRepository ? (
+              <a
+                className="view-source-button"
+                href={sourceRepository}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ArrowSquareOutIcon size={16} /> View Source
+              </a>
+            ) : null}
+          </div>
         </div>
         <p className="package-description">{item.description}</p>
         <div className="package-facts">
@@ -158,16 +186,25 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
           <span>
             Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
           </span>
+          {sourceRepository ? (
+            <span>
+              Source code:{" "}
+              <a href={sourceRepository} target="_blank" rel="noreferrer">
+                {item.namespace}/{item.name}
+              </a>
+            </span>
+          ) : null}
           <span>
             Lifecycle: <strong>{item.lifecycle}</strong>
           </span>
           <span>
-            Updated: <strong>{formatRelativeDate(item.updatedAt)}</strong>
+            Published: <strong>{formatCalendarDate(item.updatedAt)}</strong>
           </span>
           <span>
             Risk: <strong>{item.risk}</strong>
           </span>
         </div>
+        <span className="package-category">{capitalize(item.lifecycle)}</span>
       </header>
 
       <nav
@@ -230,81 +267,208 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
         />
       ) : (
         <div className="package-content-surface">
-          <div className="source-container package-overview-grid">
-            <main>
-              {kind === "provider" && tab === "overview" ? (
-                <>
-                  <div className="content-title-row">
-                    <h2>Approved {item.name} modules</h2>
-                    <Link
-                      to={`/modules?provider=${encodeURIComponent(item.provider)}`}
-                    >
-                      View all modules <CaretRightIcon size={14} />
-                    </Link>
-                  </div>
-                  <p>
-                    Reusable packages for this provider that are available to
-                    your current access context.
-                  </p>
-                  {related.data?.items.length ? (
-                    <div className="related-module-grid">
-                      {related.data.items.map((module) => (
-                        <PackageCard
-                          key={`${module.namespace}-${module.name}`}
-                          item={module}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <StatePanel kind="empty" />
-                  )}
-                </>
-              ) : kind === "module" ? (
-                <ModuleTabContent
-                  tab={tab}
-                  docs={docs}
-                  symbols={item.symbols}
+          {kind === "provider" && tab === "overview" ? (
+            <ProviderOverview
+              item={item}
+              modules={related.data?.items ?? []}
+              moduleTotal={related.data?.total ?? 0}
+              snippet={providerSnippet}
+              governance={governanceData}
+              selectedApmId={selectedApmId}
+              sourceRepository={sourceRepository}
+            />
+          ) : (
+            <div className="source-container package-overview-grid module-overview-grid">
+              <main>
+                {kind === "module" ? (
+                  <ModuleTabContent
+                    tab={tab}
+                    docs={docs}
+                    symbols={item.symbols}
+                  />
+                ) : (
+                  <MarkdownDocument docs={docs} className="source-readme" />
+                )}
+              </main>
+              <aside
+                className="source-install-sidebar"
+                aria-label="Installation and governance"
+              >
+                <InstallPanel snippet={installSnippet} kind={kind} />
+                <GovernanceCard
+                  item={item}
+                  governance={governanceData}
+                  selectedApmId={selectedApmId}
                 />
-              ) : (
-                <MarkdownDocument docs={docs} className="source-readme" />
-              )}
-            </main>
-            <aside
-              className="source-install-sidebar"
-              aria-label="Installation and governance"
-            >
-              <InstallPanel snippet={installSnippet} kind={kind} />
-              <section className="source-governance-card">
-                <h2>
-                  <ShieldCheckIcon size={18} /> Governance
-                </h2>
-                <dl>
-                  <div>
-                    <dt>Owner</dt>
-                    <dd>{governanceData?.owner ?? item.owner}</dd>
-                  </div>
-                  <div>
-                    <dt>Support</dt>
-                    <dd>{governanceData?.support ?? "Internal support"}</dd>
-                  </div>
-                  <div>
-                    <dt>APM access</dt>
-                    <dd>
-                      {(governanceData?.apmIds.length
-                        ? governanceData.apmIds
-                        : item.apmIds
-                      ).join(", ") ||
-                        selectedApmId ||
-                        "Administrator"}
-                    </dd>
-                  </div>
-                </dl>
-              </section>
-            </aside>
-          </div>
+              </aside>
+            </div>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function ProviderOverview({
+  item,
+  modules,
+  moduleTotal,
+  snippet,
+  governance,
+  selectedApmId,
+  sourceRepository,
+}: {
+  item: PackageDetail;
+  modules: PackageSummary[];
+  moduleTotal: number;
+  snippet: string;
+  governance?: GovernanceRecord;
+  selectedApmId?: string;
+  sourceRepository?: string;
+}) {
+  const supportUrl = safeExternalUrl(runtimeConfig().supportUrl);
+  return (
+    <div className="source-container provider-overview-grid">
+      <main>
+        <div className="content-title-row provider-modules-heading">
+          <h2>
+            <CubeIcon size={20} /> Approved {item.name} modules
+          </h2>
+          <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
+            View all modules <CaretRightIcon size={14} />
+          </Link>
+        </div>
+        <p className="provider-overview-intro">
+          Modules are self-contained packages of Terraform configurations that
+          are managed as a group.
+        </p>
+        {modules.length ? (
+          <>
+            <p className="provider-module-count">
+              Showing 1 - {modules.length} of{" "}
+              {Math.max(moduleTotal, modules.length)} available modules
+            </p>
+            <div className="provider-module-list">
+              {modules.map((module) => (
+                <Link
+                  className="provider-module-row"
+                  key={`${module.namespace}-${module.name}-${module.target}`}
+                  to={packageHref(module)}
+                >
+                  <PackageIcon kind="module" name={module.provider} />
+                  <div>
+                    <h3>
+                      <span>{module.namespace}</span>
+                      <b>/</b>
+                      {module.name}
+                    </h3>
+                    <p>{module.description}</p>
+                    <small>
+                      {formatRelativeDate(module.updatedAt)}
+                      <span>v{module.version}</span>
+                    </small>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : (
+          <StatePanel kind="empty" />
+        )}
+        <InstallPanel
+          snippet={snippet}
+          kind="provider"
+          artifactLabel={
+            item.artifactRepository && item.artifactPath
+              ? `${item.artifactRepository}/${item.artifactPath}`
+              : item.artifactRepository
+          }
+        />
+      </main>
+      <aside
+        className="provider-overview-sidebar"
+        aria-label="Provider details"
+      >
+        <section className="provider-helpful-links">
+          <h2>Helpful Links</h2>
+          <nav aria-label="Provider links">
+            {sourceRepository ? (
+              <a href={sourceRepository} target="_blank" rel="noreferrer">
+                Source Code <ArrowSquareOutIcon size={14} />
+              </a>
+            ) : null}
+            <Link to="?tab=documentation">
+              Provider Documentation <CaretRightIcon size={14} />
+            </Link>
+            <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
+              Approved Modules <CaretRightIcon size={14} />
+            </Link>
+            {supportUrl ? (
+              <a href={supportUrl} target="_blank" rel="noreferrer">
+                Registry Support <ArrowSquareOutIcon size={14} />
+              </a>
+            ) : null}
+          </nav>
+        </section>
+        <section className="provider-versions-card">
+          <header>
+            <h2>Provider Versions</h2>
+            <span>{item.versions.length}</span>
+          </header>
+          <ul>
+            {item.versions.map((version, index) => (
+              <li key={version}>
+                <span>Version {version}</span>
+                {index === 0 ? <strong>Latest</strong> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+        <GovernanceCard
+          item={item}
+          governance={governance}
+          selectedApmId={selectedApmId}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function GovernanceCard({
+  item,
+  governance,
+  selectedApmId,
+}: {
+  item: PackageDetail;
+  governance?: GovernanceRecord;
+  selectedApmId?: string;
+}) {
+  return (
+    <section className="source-governance-card">
+      <h2>
+        <ShieldCheckIcon size={18} /> Governance
+      </h2>
+      <dl>
+        <div>
+          <dt>Owner</dt>
+          <dd>{governance?.owner ?? item.owner}</dd>
+        </div>
+        <div>
+          <dt>Support</dt>
+          <dd>{governance?.support ?? "Internal support"}</dd>
+        </div>
+        <div>
+          <dt>APM access</dt>
+          <dd>
+            {(governance?.apmIds.length ? governance.apmIds : item.apmIds).join(
+              ", ",
+            ) ||
+              selectedApmId ||
+              "Administrator"}
+          </dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 
@@ -333,10 +497,42 @@ function ProviderDocumentation({
     () => providerDocumentGroups(symbols, filter),
     [filter, symbols],
   );
-  const headings = extractMarkdownHeadings(docs);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    const selectedGroup = providerDocumentGroups(symbols, "").find((group) =>
+      group.items.some((symbol) => symbol.path === selectedPath),
+    );
+    return selectedGroup ? new Set([selectedGroup.label]) : new Set();
+  });
+  const headings = extractMarkdownHeadings(docs).filter(
+    (heading) => heading.level > 1,
+  );
+  const matchingDocumentCount = groups.reduce(
+    (count, group) => count + group.items.length,
+    0,
+  );
+  const autoExpandedGroups = useMemo(() => {
+    if (filter.trim()) {
+      return new Set(
+        groups
+          .filter((group) => group.items.length > 0)
+          .map((group) => group.label),
+      );
+    }
+    return undefined;
+  }, [filter, groups]);
+  const isGroupExpanded = (label: string) =>
+    (autoExpandedGroups ?? expandedGroups).has(label);
   const select = (path?: string) => {
     onSelect(path);
     setBrowseOpen(false);
+  };
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
   };
   return (
     <div className="provider-docs-layout source-container">
@@ -352,42 +548,68 @@ function ProviderDocumentation({
         className={`provider-docs-nav ${browseOpen ? "is-open" : ""}`}
         aria-label="Provider documentation navigation"
       >
-        <strong>{packageName} documentation</strong>
-        <label className="docs-filter">
-          <MagnifyingGlassIcon size={15} />
-          <input
-            aria-label="Filter documentation"
-            placeholder="Filter"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className={!selectedPath ? "active" : ""}
-          aria-current={!selectedPath ? "page" : undefined}
-          onClick={() => select()}
-        >
-          {packageName} provider
-        </button>
+        <div className="provider-docs-nav-header">
+          <strong>{packageName} documentation</strong>
+          <label className="docs-filter">
+            <MagnifyingGlassIcon size={15} />
+            <input
+              aria-label="Filter documentation"
+              placeholder="Filter"
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className={!selectedPath ? "active" : ""}
+            aria-current={!selectedPath ? "page" : undefined}
+            onClick={() => select()}
+          >
+            {packageName} provider
+          </button>
+          {filter.trim() ? (
+            <span className="docs-result-count">
+              {matchingDocumentCount} matching result
+              {matchingDocumentCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
         {groups.map((group) => (
           <section className="docs-nav-group" key={group.label}>
             <h2>
-              <CaretRightIcon size={13} /> {group.label}
-              <span>{group.items.length}</span>
-            </h2>
-            {group.items.map((symbol) => (
               <button
                 type="button"
-                key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
-                className={selectedPath === symbol.path ? "active" : ""}
-                aria-current={selectedPath === symbol.path ? "page" : undefined}
-                title={symbol.description}
-                onClick={() => select(symbol.path)}
+                className="docs-group-toggle"
+                aria-expanded={isGroupExpanded(group.label)}
+                onClick={() => toggleGroup(group.label)}
               >
-                {displaySymbolName(symbol.name)}
+                <CaretRightIcon
+                  className={isGroupExpanded(group.label) ? "expanded" : ""}
+                  size={13}
+                />
+                {group.label}
+                <span>{group.items.length}</span>
               </button>
-            ))}
+            </h2>
+            {isGroupExpanded(group.label)
+              ? group.items.map((symbol) => (
+                  <button
+                    type="button"
+                    key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
+                    className={selectedPath === symbol.path ? "active" : ""}
+                    aria-current={
+                      selectedPath === symbol.path ? "page" : undefined
+                    }
+                    title={symbol.description}
+                    onClick={() => {
+                      setExpandedGroups(new Set([group.label]));
+                      select(symbol.path);
+                    }}
+                  >
+                    {displayProviderSymbolName(packageName, symbol)}
+                  </button>
+                ))
+              : null}
           </section>
         ))}
         {filter && groups.every((group) => group.items.length === 0) ? (
@@ -646,14 +868,97 @@ function MarkdownDocument({
         rehypePlugins={[rehypeSanitize]}
         components={{
           h1: ({ children }) => <h1 id={slugText(children)}>{children}</h1>,
-          h2: ({ children }) => <h2 id={slugText(children)}>{children}</h2>,
-          h3: ({ children }) => <h3 id={slugText(children)}>{children}</h3>,
+          h2: ({ children }) => {
+            const id = slugText(children);
+            return (
+              <h2 id={id}>
+                <a className="heading-self-link" href={`#${id}`}>
+                  {children}
+                  <LinkSimpleIcon aria-hidden="true" size={15} />
+                </a>
+              </h2>
+            );
+          },
+          h3: ({ children }) => {
+            const id = slugText(children);
+            return (
+              <h3 id={id}>
+                <a className="heading-self-link" href={`#${id}`}>
+                  {children}
+                  <LinkSimpleIcon aria-hidden="true" size={14} />
+                </a>
+              </h3>
+            );
+          },
+          p: MarkdownParagraph,
+          pre: MarkdownPre,
         }}
       >
         {docs}
       </ReactMarkdown>
     </article>
   );
+}
+
+function MarkdownParagraph({ children }: { children?: ReactNode }) {
+  const parts = Children.toArray(children);
+  const leading = typeof parts[0] === "string" ? parts[0] : "";
+  const isInfo = /^\s*->\s*/.test(leading);
+  const isWarning = /^\s*~>\s*/.test(leading);
+  if (!isInfo && !isWarning) return <p>{children}</p>;
+  const rest = [leading.replace(/^\s*(?:->|~>)\s*/, ""), ...parts.slice(1)];
+  return (
+    <aside
+      className={`docs-callout ${isWarning ? "warning" : "info"}`}
+      role="note"
+    >
+      {isWarning ? (
+        <WarningIcon aria-hidden="true" size={18} weight="fill" />
+      ) : (
+        <InfoIcon aria-hidden="true" size={18} weight="fill" />
+      )}
+      <p>{rest}</p>
+    </aside>
+  );
+}
+
+function MarkdownPre({ children }: { children?: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(reactNodeText(children));
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+  return (
+    <div className="markdown-code-block">
+      <button type="button" onClick={() => void copy()}>
+        {copied ? <CheckIcon size={14} /> : <ClipboardIcon size={14} />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+      <pre>{children}</pre>
+    </div>
+  );
+}
+
+function reactNodeText(node: ReactNode): string {
+  return Children.toArray(node)
+    .map((child) => {
+      if (typeof child === "string" || typeof child === "number") {
+        return String(child);
+      }
+      if (
+        child &&
+        typeof child === "object" &&
+        "props" in child &&
+        child.props &&
+        typeof child.props === "object" &&
+        "children" in child.props
+      ) {
+        return reactNodeText(child.props.children as ReactNode);
+      }
+      return "";
+    })
+    .join("");
 }
 
 function moduleTabCount(symbols: PackageSymbol[], tab: string): number {
@@ -720,8 +1025,18 @@ function symbolKindLabel(kind: string): string {
   return normalizeSymbolKind(kind).split("_").map(capitalize).join(" ");
 }
 
-function displaySymbolName(name: string): string {
-  return name;
+function displayProviderSymbolName(
+  packageName: string,
+  symbol: PackageSymbol,
+): string {
+  const kind = normalizeSymbolKind(symbol.kind);
+  if (
+    ["resource", "data_source", "datasource"].includes(kind) &&
+    !symbol.name.startsWith(`${packageName}_`)
+  ) {
+    return `${packageName}_${symbol.name}`;
+  }
+  return symbol.name;
 }
 
 function formatDefaultValue(value: unknown): string {
@@ -760,12 +1075,40 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function formatCalendarDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function safeExternalUrl(value?: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (
+      !["https:", "http:"].includes(url.protocol) ||
+      url.hostname.endsWith(".invalid")
+    ) {
+      return undefined;
+    }
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function InstallPanel({
   snippet,
   kind,
+  artifactLabel,
 }: {
   snippet: string;
   kind: PackageKind;
+  artifactLabel?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -781,9 +1124,16 @@ function InstallPanel({
           : "Provision instructions"}
       </h2>
       <p>
-        Copy this approved configuration into your project, then initialize your
-        workspace.
+        {kind === "provider" ? (
+          <>
+            To install this provider, copy and paste this code into your
+            Terraform configuration. Then, run <code>terraform init</code>.
+          </>
+        ) : (
+          "Copy this approved configuration into your project, then initialize your workspace."
+        )}
       </p>
+      {kind === "provider" ? <strong>Terraform 0.13+</strong> : null}
       <pre>
         <code>{snippet}</code>
       </pre>
@@ -791,8 +1141,28 @@ function InstallPanel({
         {copied ? <CheckIcon size={16} /> : <ClipboardIcon size={16} />}
         {copied ? "Copied" : "Copy"}
       </button>
+      {artifactLabel ? (
+        <small className="artifact-source-note">
+          Approved binary source: <code>{artifactLabel}</code>
+        </small>
+      ) : null}
     </section>
   );
+}
+
+function buildProviderConfigurationSnippet(item: PackageDetail): string {
+  return `terraform {
+  required_providers {
+    ${item.name} = {
+      source  = "${item.namespace}/${item.name}"
+      version = "${item.version}"
+    }
+  }
+}
+
+provider "${item.name}" {
+  # Configuration options
+}`;
 }
 
 function buildInstallSnippet(
