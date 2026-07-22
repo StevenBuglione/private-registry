@@ -1,0 +1,28 @@
+{
+  "entra_tenant_id": "00000000-0000-0000-0000-000000000000",
+  "apm_assignments": {
+    "APM0000001": {
+      "developerGroup": "APM0000001-developer",
+      "description": "Developers authorized to consume Terraform packages assigned to APM0000001",
+      "entraMemberObjectIds": [
+        "00000000-0000-0000-0000-000000000000"
+      ],
+      "jfrogMembers": [
+        "developer@example.invalid"
+      ],
+      "modulePatterns": [
+        ".jfrog/service.discovery",
+        ".terraform/modules/cloudposse/label/null/**",
+        "cloudposse/terraform-null-label/**"
+      ],
+      "providerPatterns": [
+        ".terraform/providers/hashicorp/null/**",
+        "terraform-provider-null/**"
+      ],
+      "propertyTargets": [
+        "iac-modules-public-remote-cache/cloudposse/terraform-null-label/**",
+        "iac-providers-public-remote-cache/terraform-provider-null/**"
+      ]
+    }
+  }
+}

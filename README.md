@@ -29,7 +29,11 @@ curl http://localhost:8080/health/ready
 curl 'http://localhost:8080/registry/docs/search?q=vpc'
 ```
 
-Flyway creates the catalog schema and loads deterministic fixture records only under the Compose `local` profile. See the API repository README for build, test, shutdown, and data-reset commands.
+Then open <http://localhost:3000>. Compose builds the pinned OpenTofu frontend,
+applies the reviewed enterprise overlays, and runs it with PostgreSQL, OpenSearch,
+and the Java API. Flyway creates the catalog schema and loads deterministic fixture
+records only under the Compose `local` profile. See the API repository README for
+build, test, shutdown, and data-reset commands.
 
 ## Two production repositories
 

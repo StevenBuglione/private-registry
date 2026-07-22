@@ -7,6 +7,7 @@ This repository owns the Java 25 Spring Boot catalog API, database migrations, s
 - Java 25 with Spring Boot 4.1
 - Gradle 9.6 through the committed Gradle Wrapper
 - Spring MVC, Validation, Security, Actuator, JDBC/Hikari, and Flyway
+- JFrog Artifactory Java Client 2.21.2 for Artifactory connectivity and repository operations
 - PostgreSQL for authoritative catalog and governance metadata
 - The official OpenSearch Java client for search-cluster connectivity
 
@@ -26,7 +27,18 @@ curl http://localhost:8080/health/ready
 curl 'http://localhost:8080/registry/docs/search?q=vpc'
 ```
 
-Compose starts PostgreSQL, OpenSearch, and the API. Flyway applies the production schema and a separate local-only fixture migration. The local security setting permits requests so the UI and API contract can be exercised without an identity provider.
+Open <http://localhost:3000> for the complete UI. Compose starts PostgreSQL,
+OpenSearch, the Java API, and a pinned, deterministically patched OpenTofu Registry
+UI build. Nginx proxies UI data and governance requests to the API on the Compose
+network. Flyway applies the production schema and a separate local-only fixture
+migration. The local security setting permits requests so the full contract can be
+exercised without an identity provider.
+
+The readiness response includes Artifactory, PostgreSQL, and OpenSearch. The
+Artifactory system ping is anonymous on the configured JFrog instance. Set
+`JFROG_ACCESS_TOKEN` only in your shell before starting Compose when you also want
+`/api/v1/artifactory/status` to verify the configured repository metadata; the token
+is passed to the official Java client and is never stored in the repository.
 
 To stop the services while preserving local data:
 

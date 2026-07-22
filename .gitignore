@@ -17,8 +17,13 @@
 !repositories/private-registry-api/infrastructure/terraform/live/dev/.terraform.lock.hcl
 !repositories/private-registry-api/infrastructure/terraform/live/prod/.terraform.lock.hcl
 !repositories/private-registry-api/infrastructure/terraform/live/dr/.terraform.lock.hcl
+!repositories/private-registry-api/infrastructure/terraform/jfrog/.terraform.lock.hcl
+!repositories/private-registry-api/infrastructure/terraform/tests/registry-mirror/.terraform.lock.hcl
 **/terraform.tfvars
 **/backend.hcl
+**/*.tfplan
+**/*.tfrc.local
+**/apm-packages.auto.tfvars.json
 **/node_modules/
 **/dist/
 **/.gradle/

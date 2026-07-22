@@ -112,7 +112,7 @@ if command -v terraform >/dev/null 2>&1 && [[ -d "${ROOT}/repositories/private-r
   mkdir -p "${plugin_cache}"
   export TF_PLUGIN_CACHE_DIR="${plugin_cache}"
   terraform -chdir="${terraform_root}" fmt -check -recursive
-  for terraform_module in bootstrap global modules/platform live/dev live/prod live/dr; do
+  for terraform_module in bootstrap global modules/platform live/dev live/prod live/dr jfrog; do
     terraform -chdir="${terraform_root}/${terraform_module}" init -backend=false -input=false >/dev/null
     terraform -chdir="${terraform_root}/${terraform_module}" validate
   done

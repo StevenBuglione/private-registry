@@ -47,6 +47,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
       SPRING_DATASOURCE_USERNAME: registry
       SPRING_DATASOURCE_PASSWORD: registry
+      REGISTRY_ARTIFACTORY_URL: https://${REGISTRY_JFROG_HOSTNAME:-trialwbgt07.jfrog.io}/artifactory
+      REGISTRY_ARTIFACTORY_ACCESS_TOKEN: ${JFROG_ACCESS_TOKEN:-}
       REGISTRY_OPENSEARCH_ENDPOINT: http://opensearch:9200
       REGISTRY_SECURITY_PERMIT_ALL: "true"
     depends_on:
@@ -62,6 +64,35 @@ services:
       timeout: 5s
       retries: 20
       start_period: 20s
+
+  ui:
+    build:
+      context: ../private-registry-ui
+      args:
+        VITE_BUILD_SHA: local-compose
+    environment:
+      REGISTRY_DATA_API_URL: /registry/docs/
+      REGISTRY_ENTERPRISE_API_URL: /api/v1/enterprise
+      REGISTRY_JFROG_HOSTNAME: ${REGISTRY_JFROG_HOSTNAME:-trialwbgt07.jfrog.io}
+      REGISTRY_ENVIRONMENT: local
+      REGISTRY_SUPPORT_URL: https://support.example.invalid/private-registry
+      REGISTRY_FEATURE_PROVIDERS: "true"
+      REGISTRY_FEATURE_MODULES: "true"
+      REGISTRY_FEATURE_SECURITY: "true"
+      REGISTRY_FEATURE_AUDIT: "false"
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${REGISTRY_UI_PORT:-3000}:8080"
+    volumes:
+      - ../private-registry-ui/deploy/nginx/local.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   postgres-data:

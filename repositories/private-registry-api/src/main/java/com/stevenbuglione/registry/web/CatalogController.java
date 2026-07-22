@@ -25,26 +25,25 @@ public class CatalogController {
 
     @GetMapping("/registry/docs/modules/index.json")
     public Map<String, Object> listModules() {
-        return packagePage(catalog.listPackages(PackageKind.MODULE));
+        return OpenTofuUiMapper.packageList(PackageKind.MODULE, catalog.listPackages(PackageKind.MODULE));
     }
 
     @GetMapping("/registry/docs/providers/index.json")
     public Map<String, Object> listProviders() {
-        return packagePage(catalog.listPackages(PackageKind.PROVIDER));
+        return OpenTofuUiMapper.packageList(PackageKind.PROVIDER, catalog.listPackages(PackageKind.PROVIDER));
     }
 
     @GetMapping("/top/providers")
-    public List<CatalogPackage> topProviders() {
-        return catalog.listPackages(PackageKind.PROVIDER);
+    public List<Map<String, Object>> topProviders() {
+        return OpenTofuUiMapper.topProviders(catalog.listPackages(PackageKind.PROVIDER));
     }
 
     @GetMapping("/registry/docs/search")
-    public Map<String, Object> search(
+    public List<Map<String, Object>> search(
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) String type,
             @RequestParam(defaultValue = "25") int limit) {
-        var results = catalog.search(q, PackageKind.from(type), limit);
-        return Map.of("results", results, "total", results.size());
+        return OpenTofuUiMapper.searchResults(catalog.search(q, PackageKind.from(type), limit));
     }
 
     @GetMapping("/registry/docs/modules/{*path}")
@@ -103,25 +102,23 @@ public class CatalogController {
     private ResponseEntity<?> packageRoute(String id, List<String> rest, String defaultDocument) {
         var item = catalog.getPackage(id);
         if (rest.isEmpty() || (rest.size() == 1 && "index.json".equals(rest.getFirst()))) {
-            return ResponseEntity.ok(item);
+            return ResponseEntity.ok(OpenTofuUiMapper.packageSummary(item));
         }
         if ("index.json".equals(rest.getLast())) {
-            return ResponseEntity.ok(item);
+            return ResponseEntity.ok(OpenTofuUiMapper.packageVersion(item, rest.getFirst()));
         }
 
         var documentPath = defaultDocument;
         if (rest.getLast().endsWith(".md")) {
-            var start = rest.size() > 1 && item.latestVersion().equals(rest.getFirst()) ? 1 : 0;
+            var versionSegment = rest.size() > 1
+                    && (item.latestVersion().equals(rest.getFirst()) || "latest".equals(rest.getFirst()));
+            var start = versionSegment ? 1 : 0;
             documentPath = String.join("/", rest.subList(start, rest.size()));
         }
         var document = catalog.readDocument(id, documentPath);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(document.contentType()))
                 .body(document.content());
-    }
-
-    private static Map<String, Object> packagePage(List<CatalogPackage> items) {
-        return Map.of("items", items, "total", items.size());
     }
 
     private static List<String> splitPath(String path) {

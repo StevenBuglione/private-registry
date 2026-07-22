@@ -26,6 +26,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
     implementation("org.opensearch.client:opensearch-java:3.9.0")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 

@@ -38,7 +38,6 @@ replace_once(
     '''import { queryClient } from "./query";
 import { router } from "./router";''',
     '''import { configureApi, queryClient } from "./query";
-import { router } from "./router";
 import { loadRegistryRuntimeConfig } from "./enterprise/runtime-config";''',
     "loadRegistryRuntimeConfig",
 )
@@ -57,6 +56,7 @@ replace_once(
     '''async function bootstrap(): Promise<void> {
   const runtimeConfig = await loadRegistryRuntimeConfig();
   configureApi(runtimeConfig.dataApiUrl);
+  const { router } = await import("./router");
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
@@ -77,6 +77,24 @@ void bootstrap().catch((error: unknown) => {
 });''',
     "async function bootstrap",
 )
+
+# Upgrade app/ directories patched by an earlier revision that imported the
+# router before runtime configuration. Fresh imports already have the desired
+# form from the replacements above.
+main_path = APP / "src/main.tsx"
+main_text = main_path.read_text()
+if "loadRegistryRuntimeConfig" in main_text:
+    main_text = main_text.replace('import { router } from "./router";\n', "")
+    if 'await import("./router")' not in main_text:
+        bootstrap_marker = "  configureApi(runtimeConfig.dataApiUrl);\n"
+        if main_text.count(bootstrap_marker) != 1:
+            raise SystemExit("src/main.tsx: unable to upgrade runtime-first router bootstrap")
+        main_text = main_text.replace(
+            bootstrap_marker,
+            bootstrap_marker + '  const { router } = await import("./router");\n',
+            1,
+        )
+    main_path.write_text(main_text)
 
 replace_once(
     "src/routes/Module/index.tsx",

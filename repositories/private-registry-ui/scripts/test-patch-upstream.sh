@@ -77,8 +77,14 @@ TSX
 
 grep -q 'export function configureApi' "${TMP}/app/src/query.ts"
 grep -q 'loadRegistryRuntimeConfig' "${TMP}/app/src/main.tsx"
+grep -q 'await import("./router")' "${TMP}/app/src/main.tsx"
+if grep -q '^import { router } from "./router"' "${TMP}/app/src/main.tsx"; then
+  echo 'router must be imported only after runtime API configuration' >&2
+  exit 1
+fi
 grep -q '<ModuleEnterprisePanel />' "${TMP}/app/src/routes/Module/index.tsx"
 grep -q '<ProviderEnterprisePanel />' "${TMP}/app/src/routes/Provider/index.tsx"
 grep -q 'dataApiUrl: "/registry/docs/"' "${TMP}/app/src/enterprise/runtime-config.ts"
+grep -q 'document.execCommand("copy")' "${TMP}/app/src/enterprise/RegistrySourceSnippet.tsx"
 
 echo 'OpenTofu UI patch smoke test passed'

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.stevenbuglione.registry.catalog.CatalogService;
@@ -51,7 +52,26 @@ class CatalogControllerTest {
 
         mvc.perform(get("/registry/docs/search").queryParam("q", "vpc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("AWS VPC")));
+                .andExpect(jsonPath("$[0].title").value("AWS VPC"))
+                .andExpect(jsonPath("$[0].link_variables.target_system").value("aws"))
+                .andExpect(jsonPath("$[0].link_variables.version").value("2.4.1"));
+    }
+
+    @Test
+    void returnsOpenTofuModuleContract() throws Exception {
+        when(catalog.listPackages(PackageKind.MODULE)).thenReturn(List.of(module));
+        when(catalog.getPackage(module.id())).thenReturn(module);
+
+        mvc.perform(get("/registry/docs/modules/index.json"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modules[0].addr.namespace").value("cloud-platform"))
+                .andExpect(jsonPath("$.modules[0].versions[0].id").value("2.4.1"));
+
+        mvc.perform(get("/registry/docs/modules/cloud-platform/vpc/aws/2.4.1/index.json"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("2.4.1"))
+                .andExpect(jsonPath("$.readme").value(true))
+                .andExpect(jsonPath("$.variables").isMap());
     }
 
     @Test
@@ -63,6 +83,17 @@ class CatalogControllerTest {
         mvc.perform(get("/registry/docs/modules/cloud-platform/vpc/aws/2.4.1/README.md"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_MARKDOWN))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("AWS VPC")));
+    }
+
+    @Test
+    void resolvesLatestModuleDocumentationAlias() throws Exception {
+        when(catalog.getPackage(module.id())).thenReturn(module);
+        when(catalog.readDocument(module.id(), "README.md"))
+                .thenReturn(new CatalogService.DocumentContent("# AWS VPC\n", "text/markdown; charset=utf-8"));
+
+        mvc.perform(get("/registry/docs/modules/cloud-platform/vpc/aws/latest/README.md"))
+                .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("AWS VPC")));
     }
 

@@ -39,6 +39,13 @@ management:
         enabled: true
 
 registry:
+  artifactory:
+    url: ${REGISTRY_ARTIFACTORY_URL:https://trialwbgt07.jfrog.io/artifactory}
+    access-token: ${REGISTRY_ARTIFACTORY_ACCESS_TOKEN:}
+    connection-timeout: ${REGISTRY_ARTIFACTORY_CONNECTION_TIMEOUT:3s}
+    socket-timeout: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:5s}
+    module-repository: ${REGISTRY_ARTIFACTORY_MODULE_REPOSITORY:iac-modules-public-remote}
+    provider-repository: ${REGISTRY_ARTIFACTORY_PROVIDER_REPOSITORY:iac-providers-public-remote}
   opensearch:
     endpoint: ${REGISTRY_OPENSEARCH_ENDPOINT:http://localhost:9200}
   security:
