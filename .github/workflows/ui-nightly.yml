@@ -1,0 +1,105 @@
+name: UI nightly quality
+
+on:
+  schedule:
+    - cron: '29 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ui-nightly-${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
+
+defaults:
+  run:
+    working-directory: repositories/private-registry-ui/web
+
+jobs:
+  mutation:
+    name: Stryker mutation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: repositories/private-registry-ui/web/pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run mutation tests
+        run: pnpm test:mutation
+
+      - name: Upload mutation report
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-mutation-report-${{ github.run_id }}
+          path: repositories/private-registry-ui/web/reports/mutation/**
+          if-no-files-found: warn
+          retention-days: 30
+
+  cross-browser:
+    name: Chromium, Firefox, and WebKit journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PLAYWRIGHT_FULL_MATRIX: 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: repositories/private-registry-ui/web/pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install all browser engines
+        run: pnpm test:e2e:install:all
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Run complete browser matrix
+        run: pnpm test:e2e
+
+      - name: Run Lighthouse budgets
+        run: pnpm lighthouse
+
+      - name: Upload nightly browser reports
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-nightly-browser-reports-${{ github.run_id }}
+          path: |
+            repositories/private-registry-ui/web/playwright-report/**
+            repositories/private-registry-ui/web/test-results/**
+            repositories/private-registry-ui/web/reports/lighthouse/**
+          if-no-files-found: warn
+          retention-days: 30

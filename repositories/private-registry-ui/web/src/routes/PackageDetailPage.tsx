@@ -12,7 +12,13 @@ import {
   ShieldCheckIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
-import { Children, useMemo, useState, type ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  type ReactNode,
+  useMemo,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import rehypeSanitize from "rehype-sanitize";
@@ -27,7 +33,6 @@ import {
   usePackageDocumentation,
   usePackageGovernance,
 } from "../hooks";
-import { useRegistry } from "../registry-context";
 import { runtimeConfig } from "../runtime-config";
 import type {
   GovernanceRecord,
@@ -36,7 +41,8 @@ import type {
   PackageSummary,
   PackageSymbol,
 } from "../types";
-import { formatRelativeDate, packageHref } from "../utils";
+import { useRegistry } from "../use-registry";
+import { formatRelativeDate, hasText, packageHref } from "../utils";
 
 export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const params = useParams();
@@ -45,10 +51,10 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const { selectedApmId } = useRegistry();
   const identity = {
     kind,
-    namespace: params.namespace ?? "",
-    name: params.name ?? "",
-    target: kind === "module" ? params.target : undefined,
-    version: params.version,
+    namespace: params["namespace"] ?? "",
+    name: params["name"] ?? "",
+    target: kind === "module" ? params["target"] : undefined,
+    version: params["version"],
     apmId: selectedApmId,
   };
   const defaultTab = kind === "provider" ? "overview" : "readme";
@@ -86,7 +92,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
       <div className="source-container">
         <StatePanel
           kind={notFound ? "not-found" : "api-error"}
-          action={notFound ? undefined : () => void detail.refetch()}
+          {...(notFound ? {} : { action: () => void detail.refetch() })}
         />
       </div>
     );
@@ -95,7 +101,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const item = detail.data;
   const docs =
     documentation.data ??
-    (documentPath ? undefined : item.documentation) ??
+    (hasText(documentPath) ? undefined : item.documentation) ??
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
   const governanceData = governance.data ?? item.governance;
   const installSnippet = buildInstallSnippet(
@@ -113,14 +119,14 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const selectDocument = (path?: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", "documentation");
-    if (path) next.set("doc", path);
+    if (hasText(path)) next.set("doc", path);
     else next.delete("doc");
     setSearchParams(next);
   };
   const changeVersion = (version: string) => {
     const destination = packageHref({ ...item, version });
     const query = searchParams.toString();
-    navigate(query ? `${destination}?${query}` : destination);
+    void navigate(query ? `${destination}?${query}` : destination);
   };
   const showDocumentation = kind === "provider" && tab === "documentation";
 
@@ -151,7 +157,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             </div>
             <span>
               {item.namespace}/{item.name}
-              {item.target ? `/${item.target}` : ""}
+              {hasText(item.target) ? `/${item.target}` : ""}
             </span>
           </div>
           <div className="package-header-actions">
@@ -160,7 +166,9 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
               <select
                 aria-label={`${kind === "provider" ? "Provider" : "Module"} version`}
                 value={item.version}
-                onChange={(event) => changeVersion(event.target.value)}
+                onChange={(event) => {
+                  changeVersion(event.target.value);
+                }}
               >
                 {item.versions.map((version) => (
                   <option key={version} value={version}>
@@ -170,7 +178,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                 ))}
               </select>
             </label>
-            {sourceRepository ? (
+            {hasText(sourceRepository) ? (
               <a
                 className="view-source-button"
                 href={sourceRepository}
@@ -197,7 +205,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
           <span>
             Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
           </span>
-          {sourceRepository ? (
+          {hasText(sourceRepository) ? (
             <span>
               Source code:{" "}
               <a href={sourceRepository} target="_blank" rel="noreferrer">
@@ -229,14 +237,18 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             <button
               className={tab === "overview" ? "active" : ""}
               type="button"
-              onClick={() => setTab("overview")}
+              onClick={() => {
+                setTab("overview");
+              }}
             >
               Overview
             </button>
             <button
               className={tab === "documentation" ? "active" : ""}
               type="button"
-              onClick={() => setTab("documentation")}
+              onClick={() => {
+                setTab("documentation");
+              }}
             >
               Documentation
             </button>
@@ -251,9 +263,11 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                 aria-label={
                   value === "readme"
                     ? "Readme"
-                    : `${capitalize(value)} (${moduleTabCount(item.symbols, value)})`
+                    : `${capitalize(value)} (${String(moduleTabCount(item.symbols, value))})`
                 }
-                onClick={() => setTab(value)}
+                onClick={() => {
+                  setTab(value);
+                }}
               >
                 {capitalize(value)}
                 {value !== "readme" ? (
@@ -335,9 +349,9 @@ function ProviderOverview({
   modules: PackageSummary[];
   moduleTotal: number;
   snippet: string;
-  governance?: GovernanceRecord;
-  selectedApmId?: string;
-  sourceRepository?: string;
+  governance: GovernanceRecord | undefined;
+  selectedApmId: string | undefined;
+  sourceRepository: string | undefined;
 }) {
   const supportUrl = safeExternalUrl(runtimeConfig().supportUrl);
   return (
@@ -355,7 +369,7 @@ function ProviderOverview({
           Modules are self-contained packages of Terraform configurations that
           are managed as a group.
         </p>
-        {modules.length ? (
+        {modules.length > 0 ? (
           <>
             <p className="provider-module-count">
               Showing 1 - {modules.length} of{" "}
@@ -365,7 +379,7 @@ function ProviderOverview({
               {modules.map((module) => (
                 <Link
                   className="provider-module-row"
-                  key={`${module.namespace}-${module.name}-${module.target}`}
+                  key={`${module.namespace}-${module.name}-${module.target ?? "general"}`}
                   to={packageHref(module)}
                 >
                   <PackageIcon kind="module" name={module.provider} />
@@ -391,11 +405,13 @@ function ProviderOverview({
         <InstallPanel
           snippet={snippet}
           kind="provider"
-          artifactLabel={
-            item.artifactRepository && item.artifactPath
-              ? `${item.artifactRepository}/${item.artifactPath}`
-              : item.artifactRepository
-          }
+          {...(hasText(item.artifactRepository)
+            ? {
+                artifactLabel: hasText(item.artifactPath)
+                  ? `${item.artifactRepository}/${item.artifactPath}`
+                  : item.artifactRepository,
+              }
+            : {})}
         />
       </main>
       <aside
@@ -405,7 +421,7 @@ function ProviderOverview({
         <section className="provider-helpful-links">
           <h2>Helpful Links</h2>
           <nav aria-label="Provider links">
-            {sourceRepository ? (
+            {hasText(sourceRepository) ? (
               <a href={sourceRepository} target="_blank" rel="noreferrer">
                 Source Code <ArrowSquareOutIcon size={14} />
               </a>
@@ -416,7 +432,7 @@ function ProviderOverview({
             <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
               Approved Modules <CaretRightIcon size={14} />
             </Link>
-            {supportUrl ? (
+            {hasText(supportUrl) ? (
               <a href={supportUrl} target="_blank" rel="noreferrer">
                 Registry Support <ArrowSquareOutIcon size={14} />
               </a>
@@ -453,8 +469,8 @@ function GovernanceCard({
   selectedApmId,
 }: {
   item: PackageDetail;
-  governance?: GovernanceRecord;
-  selectedApmId?: string;
+  governance: GovernanceRecord | undefined;
+  selectedApmId: string | undefined;
 }) {
   return (
     <section className="source-governance-card">
@@ -473,11 +489,10 @@ function GovernanceCard({
         <div>
           <dt>APM access</dt>
           <dd>
-            {(governance?.apmIds.length ? governance.apmIds : item.apmIds).join(
-              ", ",
-            ) ||
-              selectedApmId ||
-              "Administrator"}
+            {(governance?.apmIds.length ?? 0) > 0
+              ? governance?.apmIds.join(", ")
+              : item.apmIds.join(", ") ||
+                (hasText(selectedApmId) ? selectedApmId : "Administrator")}
           </dd>
         </div>
       </dl>
@@ -498,7 +513,7 @@ function ProviderDocumentation({
   docs: string;
   packageName: string;
   symbols: PackageSymbol[];
-  selectedPath?: string;
+  selectedPath: string | undefined;
   pending: boolean;
   failed: boolean;
   onRetry: () => void;
@@ -516,13 +531,13 @@ function ProviderDocumentation({
         section.items.some((symbol) => symbol.path === selectedPath),
       ),
     );
-    if (!selectedGroup) return new Set();
+    if (selectedGroup === undefined) return new Set();
     const selectedSection = selectedGroup.sections.find((section) =>
       section.items.some((symbol) => symbol.path === selectedPath),
     );
     return new Set([
       selectedGroup.label,
-      ...(selectedSection
+      ...(selectedSection !== undefined
         ? [documentSectionKey(selectedGroup.label, selectedSection.label)]
         : []),
     ]);
@@ -571,7 +586,9 @@ function ProviderDocumentation({
       <button
         className="mobile-docs-button"
         type="button"
-        onClick={() => setBrowseOpen((value) => !value)}
+        onClick={() => {
+          setBrowseOpen((value) => !value);
+        }}
         aria-expanded={browseOpen}
       >
         <ListIcon size={18} /> Browse {packageName} documentation
@@ -588,14 +605,18 @@ function ProviderDocumentation({
               aria-label="Filter documentation"
               placeholder="Filter"
               value={filter}
-              onChange={(event) => setFilter(event.target.value)}
+              onChange={(event) => {
+                setFilter(event.target.value);
+              }}
             />
           </label>
           <button
             type="button"
-            className={!selectedPath ? "active" : ""}
-            aria-current={!selectedPath ? "page" : undefined}
-            onClick={() => select()}
+            className={!hasText(selectedPath) ? "active" : ""}
+            aria-current={!hasText(selectedPath) ? "page" : undefined}
+            onClick={() => {
+              select();
+            }}
           >
             {packageName} provider
           </button>
@@ -613,7 +634,9 @@ function ProviderDocumentation({
                 type="button"
                 className="docs-group-toggle"
                 aria-expanded={isGroupExpanded(group.label)}
-                onClick={() => toggleGroup(group.label)}
+                onClick={() => {
+                  toggleGroup(group.label);
+                }}
               >
                 <CaretRightIcon
                   className={isGroupExpanded(group.label) ? "expanded" : ""}
@@ -638,7 +661,9 @@ function ProviderDocumentation({
                           type="button"
                           className="docs-section-toggle"
                           aria-expanded={isGroupExpanded(sectionKey)}
-                          onClick={() => toggleGroup(sectionKey)}
+                          onClick={() => {
+                            toggleGroup(sectionKey);
+                          }}
                         >
                           <CaretRightIcon
                             className={
@@ -702,8 +727,8 @@ function ProviderDocumentation({
         </strong>
         {headings.slice(0, 10).map((heading) => (
           <a
-            key={`${heading.level}-${heading.id}`}
-            className={`heading-level-${heading.level}`}
+            key={`${String(heading.level)}-${heading.id}`}
+            className={`heading-level-${String(heading.level)}`}
             href={`#${heading.id}`}
           >
             {heading.title}
@@ -747,8 +772,8 @@ function ModuleTabContent({
 }
 
 function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
-  const required = symbols.filter((symbol) => symbol.required);
-  const optional = symbols.filter((symbol) => !symbol.required);
+  const required = symbols.filter((symbol) => symbol.required === true);
+  const optional = symbols.filter((symbol) => symbol.required !== true);
   return (
     <section className="module-symbol-panel">
       {required.length ? (
@@ -822,7 +847,7 @@ function DefinitionSection({
                   {symbol.type ?? "Unknown"}
                 </code>
               ) : null}
-              {symbol.sensitive ? (
+              {symbol.sensitive === true ? (
                 <span className="definition-sensitive">Sensitive</span>
               ) : null}
             </dt>
@@ -850,7 +875,9 @@ function DefinitionCopyButton({ value }: { value: string }) {
   const copy = async () => {
     await navigator.clipboard.writeText(value);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 1400);
   };
   return (
     <button
@@ -942,7 +969,7 @@ function dependencyDescription(symbol: PackageSymbol): string {
 }
 
 function dependencyKind(symbol: PackageSymbol): string {
-  if (symbol.type) return capitalize(symbol.type);
+  if (hasText(symbol.type)) return capitalize(symbol.type);
   const kind = normalizeSymbolKind(symbol.kind);
   if (kind.includes("provider")) return "Provider";
   if (kind.includes("module")) return "Module";
@@ -950,8 +977,8 @@ function dependencyKind(symbol: PackageSymbol): string {
 }
 
 function resourceProvider(symbol: PackageSymbol): string {
-  if (symbol.provider) return symbol.provider;
-  const resourceType = symbol.type ?? symbol.name.split(".")[0];
+  if (hasText(symbol.provider)) return symbol.provider;
+  const resourceType = symbol.type ?? symbol.name.split(".")[0] ?? symbol.name;
   const separator = resourceType.indexOf("_");
   return separator > 0 ? resourceType.slice(0, separator) : resourceType;
 }
@@ -1029,7 +1056,9 @@ function MarkdownPre({ children }: { children?: ReactNode }) {
   const copy = async () => {
     await navigator.clipboard.writeText(reactNodeText(children));
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 1800);
   };
   return (
     <div className="markdown-code-block">
@@ -1048,15 +1077,8 @@ function reactNodeText(node: ReactNode): string {
       if (typeof child === "string" || typeof child === "number") {
         return String(child);
       }
-      if (
-        child &&
-        typeof child === "object" &&
-        "props" in child &&
-        child.props &&
-        typeof child.props === "object" &&
-        "children" in child.props
-      ) {
-        return reactNodeText(child.props.children as ReactNode);
+      if (isValidElement<{ children?: ReactNode }>(child)) {
+        return reactNodeText(child.props.children);
       }
       return "";
     })
@@ -1270,17 +1292,25 @@ function displayProviderSymbolName(
 function formatDefaultValue(value: unknown): string {
   if (value === undefined) return "Unknown";
   if (typeof value === "string") return value || '""';
+  if (value === null) return "null";
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
   try {
     return JSON.stringify(value);
   } catch {
-    return String(value);
+    return `Unserializable ${typeof value}`;
   }
 }
 
 function cleanSymbolDescription(value?: string): string {
   const description = value?.trim();
   if (
-    !description ||
+    !hasText(description) ||
     /^<<[A-Z_]+$/.test(description) ||
     /^(?:optional|list|map|set|object)\s*\(/.test(description)
   ) {
@@ -1295,8 +1325,9 @@ function extractMarkdownHeadings(markdown: string) {
     .map((line) => /^(#{1,3})\s+(.+?)\s*#*\s*$/.exec(line))
     .filter((match): match is RegExpExecArray => match !== null)
     .map((match) => {
-      const title = match[2].replaceAll(/[*_`[\]]/g, "").trim();
-      return { level: match[1].length, title, id: slugText(title) };
+      const markers = match[1] ?? "";
+      const title = (match[2] ?? "").replaceAll(/[*_`[\]]/g, "").trim();
+      return { level: markers.length, title, id: slugText(title) };
     });
 }
 
@@ -1322,7 +1353,7 @@ function formatCalendarDate(value: string): string {
 }
 
 function safeExternalUrl(value?: string): string | undefined {
-  if (!value) return undefined;
+  if (!hasText(value)) return undefined;
   try {
     const url = new URL(value);
     if (
@@ -1350,7 +1381,9 @@ function InstallPanel({
   const copy = async () => {
     await navigator.clipboard.writeText(snippet);
     setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 1800);
   };
   return (
     <section className="source-install-card">
@@ -1380,7 +1413,7 @@ function InstallPanel({
         {copied ? <CheckIcon size={16} /> : <ClipboardIcon size={16} />}
         {copied ? "Copied" : "Copy"}
       </button>
-      {artifactLabel ? (
+      {hasText(artifactLabel) ? (
         <small className="artifact-source-note">
           Approved binary source: <code>{artifactLabel}</code>
         </small>
@@ -1412,7 +1445,7 @@ function buildInstallSnippet(
     ? jfrogHostname.replace(/\/$/, "")
     : `https://${jfrogHostname || "artifactory.internal"}`;
   const artifactUrl =
-    item.artifactRepository && item.artifactPath
+    hasText(item.artifactRepository) && hasText(item.artifactPath)
       ? `${jfrogBase}/artifactory/${item.artifactRepository}/${item.artifactPath}`
       : undefined;
   if (item.kind === "provider") {
@@ -1421,12 +1454,12 @@ function buildInstallSnippet(
       item.artifactPath?.split("/").at(-1) ??
       `terraform-provider-${item.name}_${item.version}_linux_amd64.zip`;
     const mirrorDirectory = `.terraform/providers/${source}`;
-    const download = artifactUrl
+    const download = hasText(artifactUrl)
       ? `mkdir -p "${mirrorDirectory}"\ncurl --fail --location --header "Authorization: Bearer $JFROG_ACCESS_TOKEN" "${artifactUrl}" --output "${mirrorDirectory}/${filename}"`
       : `# Resolve the approved archive in Artifactory before installing ${source}.`;
     const checksum = item.packageDigest?.replace(/^sha256:/, "");
     return `${download}${
-      checksum
+      hasText(checksum)
         ? `\necho "${checksum}  ${mirrorDirectory}/${filename}" | sha256sum --check`
         : ""
     }\n\n# Add this mirror to ~/.terraformrc\nprovider_installation {\n  filesystem_mirror {\n    path    = ".terraform/providers"\n    include = ["${source}"]\n  }\n}\n\nterraform {\n  required_providers {\n    ${item.name} = {\n      source  = "${source}"\n      version = "${item.version}"\n    }\n  }\n}`;

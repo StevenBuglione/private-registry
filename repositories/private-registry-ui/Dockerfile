@@ -4,7 +4,8 @@ WORKDIR /workspace
 RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml ./web/
 WORKDIR /workspace/web
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    SKIP_INSTALL_SIMPLE_GIT_HOOKS=1 pnpm install --frozen-lockfile
 COPY web/ ./
 COPY public/ ../public/
 ARG VITE_BUILD_SHA=unknown

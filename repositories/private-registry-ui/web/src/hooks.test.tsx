@@ -1,0 +1,201 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderHook, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as ApiExports from "./api";
+import {
+  useCatalogEvents,
+  useCatalogPage,
+  useCatalogSuggestions,
+  usePackage,
+  usePackageDocumentation,
+  usePackageGovernance,
+  useSession,
+} from "./hooks";
+import type { GovernanceRecord } from "./types";
+
+const apiMocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  getCatalogPage: vi.fn(),
+  getPackage: vi.fn(),
+  getPackageDocumentation: vi.fn(),
+  getPackageGovernance: vi.fn(),
+  catalogEventsUrl: vi.fn(),
+}));
+
+vi.mock("./api", async (importOriginal) => {
+  const actual = await importOriginal<typeof ApiExports>();
+  return { ...actual, ...apiMocks };
+});
+
+let queryClient: QueryClient;
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+const identity = {
+  kind: "provider" as const,
+  namespace: "hashicorp",
+  name: "aws",
+  target: undefined,
+  version: "6.8.0",
+  apmId: "APM0000001",
+};
+
+beforeEach(() => {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  apiMocks.getSession.mockResolvedValue({ subject: "user-1" });
+  apiMocks.getCatalogPage.mockResolvedValue({ items: [], total: 0 });
+  apiMocks.getPackage.mockResolvedValue({ name: "aws" });
+  apiMocks.getPackageDocumentation.mockResolvedValue("# AWS");
+  apiMocks.getPackageGovernance.mockResolvedValue({ owner: "Platform" });
+  apiMocks.catalogEventsUrl.mockReturnValue("/api/v1/catalog/events");
+});
+
+afterEach(() => {
+  queryClient.clear();
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe("query hooks", () => {
+  it("loads sessions, catalog pages, and enabled suggestions", async () => {
+    const sessionHook = renderHook(() => useSession(), { wrapper: Wrapper });
+    await waitFor(() => {
+      expect(sessionHook.result.current.isSuccess).toBe(true);
+    });
+    expect(apiMocks.getSession).toHaveBeenCalledOnce();
+
+    const catalogHook = renderHook(
+      () => useCatalogPage({ kind: "provider", limit: 20 }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => {
+      expect(catalogHook.result.current.isSuccess).toBe(true);
+    });
+    expect(apiMocks.getCatalogPage).toHaveBeenCalledWith({
+      kind: "provider",
+      limit: 20,
+    });
+
+    const suggestionHook = renderHook(() => useCatalogSuggestions("aws"), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => {
+      expect(suggestionHook.result.current.isSuccess).toBe(true);
+    });
+    expect(apiMocks.getCatalogPage).toHaveBeenCalledWith({
+      q: "aws",
+      apmId: undefined,
+      approval: "approved",
+      sort: "relevance",
+      limit: 8,
+    });
+  });
+
+  it("does not query incomplete suggestions", () => {
+    renderHook(() => useCatalogSuggestions("a"), { wrapper: Wrapper });
+    expect(apiMocks.getCatalogPage).not.toHaveBeenCalled();
+  });
+
+  it("loads package details, documentation, and governance", async () => {
+    const packageHook = renderHook(() => usePackage(identity), {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => {
+      expect(packageHook.result.current.isSuccess).toBe(true);
+    });
+    expect(apiMocks.getPackage).toHaveBeenCalledWith(
+      "provider",
+      "hashicorp",
+      "aws",
+      undefined,
+      "6.8.0",
+      "APM0000001",
+    );
+
+    const docsHook = renderHook(
+      () => usePackageDocumentation(identity, undefined, "resources/aws.md"),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => {
+      expect(docsHook.result.current.isSuccess).toBe(true);
+    });
+    expect(apiMocks.getPackageDocumentation).toHaveBeenCalledWith(
+      "provider",
+      "hashicorp",
+      "aws",
+      undefined,
+      "6.8.0",
+      "APM0000001",
+      "resources/aws.md",
+    );
+
+    const governance: GovernanceRecord = {
+      owner: "Platform",
+      support: "Teams",
+      approval: "approved",
+      risk: "low",
+      lifecycle: "approved",
+      apmIds: ["APM0000001"],
+    };
+    const governanceHook = renderHook(
+      () => usePackageGovernance(identity, governance),
+      { wrapper: Wrapper },
+    );
+    expect(governanceHook.result.current.data).toEqual(governance);
+  });
+});
+
+describe("catalog event stream", () => {
+  it("invalidates authorized query families and closes cleanly", () => {
+    class FakeEventSource {
+      static current: FakeEventSource | undefined;
+      readonly close = vi.fn();
+      readonly listeners = new Map<string, () => void>();
+      onmessage: (() => void) | null = null;
+
+      constructor(
+        readonly url: string,
+        readonly options: EventSourceInit,
+      ) {
+        FakeEventSource.current = this;
+      }
+
+      addEventListener(name: string, listener: () => void): void {
+        this.listeners.set(name, listener);
+      }
+    }
+
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const stream = renderHook(
+      () => {
+        useCatalogEvents("APM0000001");
+      },
+      {
+        wrapper: Wrapper,
+      },
+    );
+    const currentSource = FakeEventSource.current;
+    if (currentSource === undefined)
+      throw new Error("Expected an event stream");
+
+    expect(currentSource.url).toBe("/api/v1/catalog/events");
+    expect(currentSource.options).toEqual({ withCredentials: true });
+    currentSource.listeners.get("catalog-change")?.();
+    currentSource.onmessage?.();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["catalog"] });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["package-governance"],
+    });
+
+    stream.unmount();
+    expect(currentSource.close).toHaveBeenCalledOnce();
+  });
+});

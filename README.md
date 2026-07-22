@@ -88,10 +88,9 @@ cd repositories/private-registry-api
 .\gradlew.bat clean test bootJar --no-configuration-cache
 
 cd ..\private-registry-ui\web
-pnpm install
-pnpm test
-pnpm lint
-pnpm build
+corepack pnpm install --frozen-lockfile
+corepack pnpm test:e2e:install
+corepack pnpm quality:full
 ```
 
 ## Repository layout

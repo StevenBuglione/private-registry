@@ -1,9 +1,9 @@
-import axe from "axe-core";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RegistryProvider } from "../registry-context";
+import { RegistryProvider } from "../registry-provider";
 import type { PackageSummary, RegistrySession } from "../types";
 import { SearchBox } from "./SearchBox";
 
@@ -62,7 +62,9 @@ const session: RegistrySession = {
 };
 
 describe("SearchBox", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it("shows grouped authorized provider and module suggestions", async () => {
     const user = userEvent.setup();
@@ -94,5 +96,20 @@ describe("SearchBox", () => {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(result.violations).toEqual([]);
+  });
+
+  it("submits a normalized query through the explicit search contract", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox initialValue="  aws  " onSearch={onSearch} />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(onSearch).toHaveBeenCalledWith("aws");
   });
 });

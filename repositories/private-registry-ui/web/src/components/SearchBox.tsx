@@ -1,8 +1,8 @@
-import { useState, type FocusEvent, type FormEvent } from "react";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { type FocusEvent, type SyntheticEvent, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useCatalogSuggestions } from "../hooks";
-import { useRegistry } from "../registry-context";
+import { useRegistry } from "../use-registry";
 import { packageHref } from "../utils";
 import { PackageIcon } from "./PackageIcon";
 
@@ -17,6 +17,7 @@ export function SearchBox({
 }) {
   const [value, setValue] = useState(initialValue);
   const [open, setOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
   const { selectedApmId } = useRegistry();
   const suggestions = useCatalogSuggestions(value, selectedApmId);
@@ -28,25 +29,27 @@ export function SearchBox({
     suggestions.data?.items
       .filter((item) => item.kind === "module")
       .slice(0, 4) ?? [];
-  const submit = (event: FormEvent) => {
+  const submit = (event: SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
     event.preventDefault();
     const query = value.trim();
-    if (onSearch) onSearch(query);
-    else navigate(query ? `/browse?q=${encodeURIComponent(query)}` : "/browse");
+    if (onSearch !== undefined) onSearch(query);
+    else
+      void navigate(
+        query ? `/browse?q=${encodeURIComponent(query)}` : "/browse",
+      );
     setOpen(false);
   };
 
-  const closeOnBlur = (event: FocusEvent<HTMLFormElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+  const closeOnBlur = (event: FocusEvent<HTMLInputElement>) => {
+    if (formRef.current?.contains(event.relatedTarget) !== true) setOpen(false);
   };
 
   return (
     <form
+      ref={formRef}
       className={compact ? "search-box compact" : "search-box"}
       role="search"
       onSubmit={submit}
-      onFocus={() => setOpen(true)}
-      onBlur={closeOnBlur}
     >
       <MagnifyingGlassIcon size={20} aria-hidden="true" />
       <label
@@ -58,9 +61,15 @@ export function SearchBox({
       <input
         id={compact ? "catalog-search-compact" : "catalog-search"}
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => {
+          setValue(event.target.value);
+        }}
         placeholder="Search providers, modules, and keywords"
         autoComplete="off"
+        onFocus={() => {
+          setOpen(true);
+        }}
+        onBlur={closeOnBlur}
       />
       {!compact ? (
         <button type="submit" className="button button-primary">

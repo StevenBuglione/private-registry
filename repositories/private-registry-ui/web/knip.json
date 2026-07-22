@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["e2e/**/*.spec.ts"],
+  "project": ["src/**/*.{ts,tsx,css}!", "e2e/**/*.ts", "*.{js,mjs,cjs,ts}"],
+  "ignoreDependencies": ["@lhci/cli"],
+  "includeEntryExports": true,
+  "treatConfigHintsAsErrors": true
+}

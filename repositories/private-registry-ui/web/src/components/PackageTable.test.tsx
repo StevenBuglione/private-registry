@@ -1,5 +1,5 @@
-import axe from "axe-core";
 import { render } from "@testing-library/react";
+import axe from "axe-core";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { PackageSummary } from "../types";

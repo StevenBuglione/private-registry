@@ -1,4 +1,3 @@
-import { Fragment, useState, type ReactNode } from "react";
 import {
   Menu,
   MenuButton,
@@ -17,11 +16,13 @@ import {
   UserCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { Fragment, type ReactNode, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router";
 import { ApiError, logout } from "../api";
 import { useCatalogEvents, useSession } from "../hooks";
-import { RegistryProvider, useRegistry } from "../registry-context";
+import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
+import { useRegistry } from "../use-registry";
 import { RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
@@ -58,7 +59,9 @@ export function AppShell() {
           kind={kind}
           action={
             kind === "expired"
-              ? () => window.location.assign("/oauth2/authorization/entra")
+              ? () => {
+                  window.location.assign("/oauth2/authorization/entra");
+                }
               : () => void session.refetch()
           }
           actionLabel={kind === "expired" ? "Sign in" : "Try again"}
@@ -104,7 +107,9 @@ function AuthenticatedShell() {
             type="button"
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            onClick={() => setMobileOpen((value) => !value)}
+            onClick={() => {
+              setMobileOpen((value) => !value);
+            }}
           >
             <span>Menu</span>
             {mobileOpen ? <XIcon size={18} /> : <ListIcon size={18} />}
@@ -112,16 +117,36 @@ function AuthenticatedShell() {
         </div>
         {mobileOpen ? (
           <nav className="mobile-nav" aria-label="Mobile navigation">
-            <NavLink to="/providers" onClick={() => setMobileOpen(false)}>
+            <NavLink
+              to="/providers"
+              onClick={() => {
+                setMobileOpen(false);
+              }}
+            >
               <PackageIcon size={17} /> Providers
             </NavLink>
-            <NavLink to="/modules" onClick={() => setMobileOpen(false)}>
+            <NavLink
+              to="/modules"
+              onClick={() => {
+                setMobileOpen(false);
+              }}
+            >
               <CubeIcon size={17} /> Modules
             </NavLink>
-            <NavLink to="/browse" onClick={() => setMobileOpen(false)}>
+            <NavLink
+              to="/browse"
+              onClick={() => {
+                setMobileOpen(false);
+              }}
+            >
               <MagnifyingGlassIcon size={17} /> Browse all
             </NavLink>
-            <NavLink to="/docs" onClick={() => setMobileOpen(false)}>
+            <NavLink
+              to="/docs"
+              onClick={() => {
+                setMobileOpen(false);
+              }}
+            >
               <BooksIcon size={17} /> Documentation
             </NavLink>
             <AccessSelect compact />
@@ -196,7 +221,12 @@ function HeaderActions() {
               <span>{session.email}</span>
             </div>
             <MenuItem>
-              <button type="button" onClick={() => navigate("/docs#access")}>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigate("/docs#access");
+                }}
+              >
                 <UserCircleIcon size={17} /> Access help
               </button>
             </MenuItem>
@@ -265,7 +295,7 @@ function BrowseMenu() {
   );
 }
 
-export function AccessSelect({ compact = false }: { compact?: boolean }) {
+function AccessSelect({ compact = false }: { compact?: boolean }) {
   const { session, selectedApmId, setSelectedApmId } = useRegistry();
   if (session.admin && session.apms.length === 0) {
     return <span className="admin-context">Registry administrator</span>;
@@ -274,8 +304,11 @@ export function AccessSelect({ compact = false }: { compact?: boolean }) {
     <label className={compact ? "access-select compact" : "access-select"}>
       <span>Access context</span>
       <select
+        aria-label="Access context"
         value={selectedApmId ?? ""}
-        onChange={(event) => setSelectedApmId(event.target.value)}
+        onChange={(event) => {
+          setSelectedApmId(event.target.value);
+        }}
       >
         {session.admin ? <option value="">All approved packages</option> : null}
         {session.apms.map((apm) => (
@@ -303,7 +336,7 @@ function PublicFrame({
             <RegistryMark />
             <span>Registry</span>
           </a>
-          {sessionName ? (
+          {sessionName !== undefined && sessionName.length > 0 ? (
             <span className="public-user">{sessionName}</span>
           ) : null}
           <ThemeToggle />

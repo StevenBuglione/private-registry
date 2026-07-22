@@ -18,7 +18,7 @@ export function PackageIcon({
   const Icon =
     kind === "provider"
       ? ProviderIcon
-      : name?.toLowerCase().includes("module")
+      : name?.toLowerCase().includes("module") === true
         ? BracketsCurlyIcon
         : CubeIcon;
   return (
@@ -26,7 +26,11 @@ export function PackageIcon({
       className={`package-icon package-icon-${kind} package-icon-${size}`}
       aria-hidden="true"
     >
-      {logo ? <img src={logo} alt="" /> : <Icon weight="regular" />}
+      {logo !== undefined ? (
+        <img src={logo} alt="" />
+      ) : (
+        <Icon weight="regular" />
+      )}
     </span>
   );
 }

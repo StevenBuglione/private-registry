@@ -1,3 +1,4 @@
+import { type ZodType, z } from "zod";
 import { runtimeConfig } from "./runtime-config";
 import type {
   ApmAccess,
@@ -6,12 +7,151 @@ import type {
   GovernanceRecord,
   PackageDetail,
   PackageKind,
-  PackageSymbol,
   PackageSummary,
+  PackageSymbol,
   RegistrySession,
 } from "./types";
 
-type JsonObject = Record<string, unknown>;
+const wireKeys = [
+  "access_contexts",
+  "admin",
+  "apm_entitlements",
+  "apm_id",
+  "apm_ids",
+  "apmEntitlements",
+  "apmId",
+  "apmIds",
+  "apms",
+  "approval",
+  "approved",
+  "artifact_path",
+  "artifact_repository",
+  "artifactPath",
+  "artifactRepository",
+  "checksum",
+  "code",
+  "content",
+  "csrf_token",
+  "csrfToken",
+  "current_version",
+  "currentVersion",
+  "data",
+  "default",
+  "default_value",
+  "defaultValue",
+  "description",
+  "detail",
+  "display_name",
+  "displayName",
+  "document_path",
+  "documentation",
+  "documentPath",
+  "email",
+  "entitled_apms",
+  "entitledApms",
+  "error",
+  "error_code",
+  "governance",
+  "group_id",
+  "groupId",
+  "id",
+  "install_source",
+  "installSource",
+  "is_required",
+  "is_sensitive",
+  "isRequired",
+  "isSensitive",
+  "items",
+  "kind",
+  "last_updated",
+  "latest_version",
+  "latestVersion",
+  "lifecycle",
+  "login_url",
+  "loginUrl",
+  "logout_url",
+  "logoutUrl",
+  "markdown",
+  "message",
+  "name",
+  "namespace",
+  "next_cursor",
+  "nextCursor",
+  "organization",
+  "owner",
+  "owner_namespace",
+  "owners",
+  "package_digest",
+  "package_name",
+  "packageDigest",
+  "packages",
+  "pagination",
+  "path",
+  "platform",
+  "preferred_username",
+  "provider",
+  "provider_name",
+  "published_at",
+  "readme",
+  "redirect_uri",
+  "redirect_url",
+  "redirectUri",
+  "redirectUrl",
+  "required",
+  "risk",
+  "risk_tier",
+  "riskTier",
+  "roles",
+  "sensitive",
+  "sha256",
+  "source",
+  "source_address",
+  "source_repository",
+  "source_repository_url",
+  "sourceAddress",
+  "sourceRepository",
+  "sourceRepositoryUrl",
+  "sub",
+  "subject",
+  "summary",
+  "support",
+  "support_channel",
+  "support_level",
+  "support_owner",
+  "supportLevel",
+  "symbols",
+  "system",
+  "target",
+  "title",
+  "total",
+  "total_count",
+  "totalElements",
+  "type",
+  "type_kind",
+  "updated_at",
+  "updatedAt",
+  "user_id",
+  "value",
+  "value_type",
+  "valueType",
+  "verification",
+  "verified",
+  "verified_at",
+  "verifiedAt",
+  "version",
+  "versions",
+] as const;
+
+type WireKey = (typeof wireKeys)[number];
+type JsonObject = Record<string, unknown> & Partial<Record<WireKey, unknown>>;
+
+const jsonObjectSchema = z
+  .preprocess(
+    (value) => (value === undefined ? {} : value),
+    z.record(z.string(), z.unknown()),
+  )
+  .transform((value): JsonObject => value);
+const documentationSchema = z.union([jsonObjectSchema, z.string()]);
 
 export class ApiError extends Error {
   constructor(
@@ -25,7 +165,7 @@ export class ApiError extends Error {
 }
 
 export async function getSession(): Promise<RegistrySession> {
-  const response = await request<JsonObject>("/auth/session");
+  const response = await request("/auth/session", jsonObjectSchema);
   const raw = objectValue(response.data) ?? response;
   const roles = stringList(raw.roles);
   const access = firstArray(
@@ -63,7 +203,7 @@ export async function getSession(): Promise<RegistrySession> {
 }
 
 export async function logout(csrfToken?: string): Promise<string | undefined> {
-  const response = await request<JsonObject>("/auth/logout", {
+  const response = await request("/auth/logout", jsonObjectSchema, {
     method: "POST",
     headers: csrfHeaders(csrfToken),
   });
@@ -92,8 +232,9 @@ export async function getCatalogPage(
   addParam(params, "cursor", query.cursor);
   addParam(params, "limit", query.limit?.toString());
 
-  const raw = await request<JsonObject>(
+  const raw = await request(
     `/catalog/packages?${params.toString()}`,
+    jsonObjectSchema,
   );
   return normalizeCatalogPage(raw);
 }
@@ -107,13 +248,14 @@ export async function getPackage(
   apmId?: string,
 ): Promise<PackageDetail> {
   const parts = [kind, namespace, name, target, version]
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part!));
+    .filter(isNonEmptyString)
+    .map((part) => encodeURIComponent(part));
   const params = new URLSearchParams();
   addParam(params, "apm_id", apmId);
   const suffix = params.size ? `?${params.toString()}` : "";
-  const raw = await request<JsonObject>(
+  const raw = await request(
     `/catalog/packages/${parts.join("/")}${suffix}`,
+    jsonObjectSchema,
   );
   return normalizePackageDetail(raw);
 }
@@ -128,14 +270,15 @@ export async function getPackageDocumentation(
   documentPath?: string,
 ): Promise<string> {
   const parts = [kind, namespace, name, target, version]
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part!));
+    .filter(isNonEmptyString)
+    .map((part) => encodeURIComponent(part));
   const params = new URLSearchParams();
   addParam(params, "apm_id", apmId);
   addParam(params, "path", documentPath);
   const suffix = params.size ? `?${params.toString()}` : "";
-  const raw = await request<JsonObject | string>(
+  const raw = await request(
     `/catalog/packages/${parts.join("/")}/documentation${suffix}`,
+    documentationSchema,
     { headers: { Accept: "application/json, text/markdown" } },
   );
   if (typeof raw === "string") return raw;
@@ -151,13 +294,14 @@ export async function getPackageGovernance(
   apmId?: string,
 ): Promise<GovernanceRecord> {
   const parts = [kind, namespace, name, target, version]
-    .filter(Boolean)
-    .map((part) => encodeURIComponent(part!));
+    .filter(isNonEmptyString)
+    .map((part) => encodeURIComponent(part));
   const params = new URLSearchParams();
   addParam(params, "apm_id", apmId);
   const suffix = params.size ? `?${params.toString()}` : "";
-  const raw = await request<JsonObject>(
+  const raw = await request(
     `/catalog/packages/${parts.join("/")}/governance${suffix}`,
+    jsonObjectSchema,
   );
   return normalizeGovernance(raw);
 }
@@ -299,7 +443,10 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
       envelope.markdown,
       envelope.readme,
     ),
-    governance: rawGovernance ? normalizeGovernance(rawGovernance) : undefined,
+    governance:
+      rawGovernance !== undefined
+        ? normalizeGovernance(rawGovernance)
+        : undefined,
     installSource: optionalString(
       envelope.installSource,
       envelope.install_source,
@@ -427,15 +574,18 @@ function normalizeApm(value: unknown): ApmAccess | null {
   };
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  schema: ZodType<T>,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
   const response = await fetch(`${runtimeConfig().apiBaseUrl}${path}`, {
     credentials: "include",
     cache: "no-store",
     ...init,
-    headers: {
-      Accept: "application/json",
-      ...init.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -454,11 +604,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     );
   }
 
-  if (response.status === 204) return undefined as T;
+  if (response.status === 204) return schema.parse(undefined);
   const contentType = response.headers.get("content-type") ?? "";
-  return (
-    contentType.includes("json") ? await response.json() : await response.text()
-  ) as T;
+  const payload: unknown = contentType.includes("json")
+    ? await response.json()
+    : await response.text();
+  return schema.parse(payload);
 }
 
 function csrfHeaders(sessionToken?: string): HeadersInit {
@@ -469,24 +620,32 @@ function csrfHeaders(sessionToken?: string): HeadersInit {
     ?.split("=")
     .slice(1)
     .join("=");
-  const token = sessionToken || cookieToken;
-  return token ? { "X-XSRF-TOKEN": decodeURIComponent(token) } : {};
+  const token = sessionToken ?? cookieToken;
+  return isNonEmptyString(token)
+    ? { "X-XSRF-TOKEN": decodeURIComponent(token) }
+    : {};
 }
 
 async function safeJson(response: Response): Promise<JsonObject | undefined> {
   try {
-    return (await response.json()) as JsonObject;
+    const payload: unknown = await response.json();
+    const result = jsonObjectSchema.safeParse(payload);
+    return result.success ? result.data : undefined;
   } catch {
     return undefined;
   }
 }
 
 function addParam(params: URLSearchParams, key: string, value?: string): void {
-  if (value) params.set(key, value);
+  if (isNonEmptyString(value)) params.set(key, value);
 }
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: string | undefined): value is string {
+  return typeof value === "string" && value.length > 0;
 }
 
 function objectValue(value: unknown): JsonObject | undefined {

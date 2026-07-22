@@ -25,6 +25,31 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
 
+  - package-ecosystem: npm
+    directory: /repositories/private-registry-ui/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      frontend-quality-tools:
+        patterns:
+          - '*biome*'
+          - '*eslint*'
+          - '*stylelint*'
+          - '*vitest*'
+          - '*playwright*'
+          - '*stryker*'
+          - '*lighthouse*'
+          - '*size-limit*'
+          - '*knip*'
+          - '*dependency-cruiser*'
+
+  - package-ecosystem: docker
+    directory: /repositories/private-registry-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   ApiError,
   catalogEventsUrl,
@@ -54,9 +54,9 @@ interface PackageIdentity {
   kind: PackageKind;
   namespace: string;
   name: string;
-  target?: string;
-  version?: string;
-  apmId?: string;
+  target: string | undefined;
+  version: string | undefined;
+  apmId: string | undefined;
 }
 
 export function usePackage(identity: PackageIdentity) {
@@ -92,7 +92,10 @@ export function usePackageDocumentation(
         identity.apmId,
         documentPath,
       ),
-    initialData: documentPath ? undefined : initial,
+    initialData:
+      documentPath !== undefined && documentPath.length > 0
+        ? undefined
+        : initial,
     retry: queryRetry,
   });
 }
@@ -139,6 +142,8 @@ export function useCatalogEvents(apmId?: string) {
 
     eventSource.addEventListener("catalog-change", refresh);
     eventSource.onmessage = refresh;
-    return () => eventSource.close();
+    return () => {
+      eventSource.close();
+    };
   }, [apmId, queryClient]);
 }

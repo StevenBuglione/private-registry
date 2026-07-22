@@ -45,16 +45,23 @@ describe("OpenAPI response normalization", () => {
 
   it("uses the snake_case Entra logout redirect", async () => {
     const fetchMock = vi
-      .fn()
+      .fn<typeof fetch>()
       .mockResolvedValue(jsonResponse({ redirect_uri: "/signed-out" }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(logout("csrf-value")).resolves.toBe("/signed-out");
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/auth/logout"),
-      expect.objectContaining({
-        headers: expect.objectContaining({ "X-XSRF-TOKEN": "csrf-value" }),
-      }),
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("Expected a logout request");
+    const requestUrl =
+      typeof call[0] === "string"
+        ? call[0]
+        : call[0] instanceof URL
+          ? call[0].toString()
+          : call[0].url;
+    expect(requestUrl).toContain("/auth/logout");
+    expect(new Headers(call[1]?.headers).get("X-XSRF-TOKEN")).toBe(
+      "csrf-value",
     );
   });
 

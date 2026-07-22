@@ -1,6 +1,6 @@
-import axe from "axe-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import {
   MemoryRouter,
   Route,
@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RegistryProvider } from "../registry-context";
+import { RegistryProvider } from "../registry-provider";
 import type { PackageDetail, PackageKind, RegistrySession } from "../types";
 import { PackageDetailPage } from "./PackageDetailPage";
 
@@ -144,7 +144,10 @@ vi.mock("../hooks", () => ({
       "functions/arn_parse.md": "# arn_parse Function\n\nParses an ARN.",
     };
     return {
-      data: documentPath ? documents[documentPath] : initial,
+      data:
+        documentPath !== undefined && documentPath.length > 0
+          ? documents[documentPath]
+          : initial,
       isPending: false,
       isError: false,
       refetch: vi.fn(),
@@ -187,7 +190,12 @@ function LocationProbe() {
 function BackButton() {
   const navigate = useNavigate();
   return (
-    <button type="button" onClick={() => navigate(-1)}>
+    <button
+      type="button"
+      onClick={() => {
+        void navigate(-1);
+      }}
+    >
       Browser back
     </button>
   );
@@ -273,9 +281,10 @@ describe("PackageDetailPage symbol-driven views", () => {
     await user.click(screen.getByRole("button", { name: "Resources (1)" }));
     const resource = screen.getByText("aws_vpc.this").closest("li");
     expect(resource).not.toBeNull();
-    expect(within(resource!).getByText("aws")).toBeInTheDocument();
+    if (resource === null) throw new Error("Expected a resource list item");
+    expect(within(resource).getByText("aws")).toBeInTheDocument();
     expect(
-      within(resource!).getByText("resources/aws_vpc.this"),
+      within(resource).getByText("resources/aws_vpc.this"),
     ).toBeInTheDocument();
 
     const result = await axe.run(container, {
@@ -310,7 +319,12 @@ describe("PackageDetailPage symbol-driven views", () => {
     expect(
       view.queryByRole("button", { name: "arn_parse" }),
     ).not.toBeInTheDocument();
-    await user.click(view.getAllByRole("button", { name: "aws_vpc" })[0]);
+    const vpcButtons = view.getAllByRole("button", { name: "aws_vpc" });
+    const firstVpcButton = vpcButtons[0];
+    expect(firstVpcButton).toBeDefined();
+    if (firstVpcButton === undefined)
+      throw new Error("Expected an aws_vpc button");
+    await user.click(firstVpcButton);
 
     expect(
       await view.findByRole("heading", { name: "aws_vpc Resource" }),

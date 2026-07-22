@@ -84,7 +84,7 @@ export function StatePanel({
       </span>
       <h1>{copy[kind].title}</h1>
       <p>{copy[kind].description}</p>
-      {action ? (
+      {action !== undefined ? (
         <button
           className="button button-primary"
           type="button"

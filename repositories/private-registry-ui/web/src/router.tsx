@@ -1,7 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
 import {
-  Navigate,
   createBrowserRouter,
+  Navigate,
   useLocation,
   useParams,
 } from "react-router";
@@ -50,10 +49,10 @@ export function LegacyPackageRedirect({ kind }: { kind: PackageKind }) {
   const location = useLocation();
   const parts = [
     kind === "provider" ? "providers" : "modules",
-    params.namespace,
-    params.name,
-    kind === "module" ? params.target : undefined,
-    params.version,
+    params["namespace"],
+    params["name"],
+    kind === "module" ? params["target"] : undefined,
+    params["version"],
   ].filter(Boolean);
   return (
     <Navigate
@@ -66,7 +65,12 @@ export function LegacyPackageRedirect({ kind }: { kind: PackageKind }) {
 function RouteError() {
   return (
     <div className="page-shell">
-      <StatePanel kind="api-error" action={() => window.location.reload()} />
+      <StatePanel
+        kind="api-error"
+        action={() => {
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

@@ -1,12 +1,13 @@
 import { ArrowLeftIcon, ArrowRightIcon, ListIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { NavLink, useSearchParams } from "react-router";
-import { Filters, type FilterState } from "../components/Filters";
+import { type FilterState, Filters } from "../components/Filters";
 import { PackageCard } from "../components/PackageCard";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage } from "../hooks";
-import { useRegistry } from "../registry-context";
 import type { Approval, Lifecycle, PackageKind, Risk } from "../types";
+import { useRegistry } from "../use-registry";
+import { hasText } from "../utils";
 
 export function CatalogPage({ kind }: { kind?: PackageKind }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -79,17 +80,20 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     cursor,
     limit: 20,
   });
+  const nextCursor = result.data?.nextCursor;
 
   const updateParam = (key: string, value?: string) => {
     const next = new URLSearchParams(searchParams);
-    if (value) next.set(key, value);
+    if (hasText(value)) next.set(key, value);
     else next.delete(key);
     setSearchParams(next, { replace: true });
   };
   const updateFilter = <K extends keyof FilterState>(
     key: K,
     value?: FilterState[K],
-  ) => updateParam(key === "kind" ? "kind" : key, value);
+  ) => {
+    updateParam(key === "kind" ? "kind" : key, value);
+  };
   const clear = () => {
     const next = new URLSearchParams();
     if (q) next.set("q", q);
@@ -130,7 +134,9 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
       <button
         className="mobile-filter-button"
         type="button"
-        onClick={() => setMobileFilters((value) => !value)}
+        onClick={() => {
+          setMobileFilters((value) => !value);
+        }}
         aria-expanded={mobileFilters}
       >
         <ListIcon size={18} /> Filter{" "}
@@ -145,7 +151,9 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
           value={filters}
           kindLocked={kind}
           mobileOpen={mobileFilters}
-          onMobileToggle={() => setMobileFilters((value) => !value)}
+          onMobileToggle={() => {
+            setMobileFilters((value) => !value);
+          }}
           onChange={updateFilter}
           onClear={clear}
         />
@@ -160,7 +168,9 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
               <span>Sort by</span>
               <select
                 value={sort}
-                onChange={(event) => updateParam("sort", event.target.value)}
+                onChange={(event) => {
+                  updateParam("sort", event.target.value);
+                }}
               >
                 <option value="relevance">Relevance</option>
                 <option value="updated">Recently updated</option>
@@ -172,7 +182,7 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
           <div className="result-summary" aria-live="polite">
             <strong>{result.data?.total ?? 0}</strong> authorized{" "}
             {kind ? `${kind}s` : "packages"}
-            {selectedApmId ? <span>for {selectedApmId}</span> : null}
+            {hasText(selectedApmId) ? <span>for {selectedApmId}</span> : null}
           </div>
           {result.isPending ? (
             <div
@@ -183,10 +193,10 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
           {result.isError ? (
             <StatePanel kind="api-error" action={() => void result.refetch()} />
           ) : null}
-          {result.data && result.data.items.length === 0 ? (
+          {result.data !== undefined && result.data.items.length === 0 ? (
             <StatePanel kind="empty" />
           ) : null}
-          {providerItems.length ? (
+          {providerItems.length > 0 ? (
             <section className="catalog-result-section">
               <h2>
                 {kind === "provider" && !q ? "Featured Providers" : "Providers"}
@@ -201,48 +211,49 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
               </div>
             </section>
           ) : null}
-          {moduleItems.length ? (
+          {moduleItems.length > 0 ? (
             <section className="catalog-result-section">
-              {providerItems.length ? <h2>Modules</h2> : null}
+              {providerItems.length > 0 ? <h2>Modules</h2> : null}
               <div className="source-card-grid modules">
                 {moduleItems.map((item) => (
                   <PackageCard
-                    key={`${item.namespace}-${item.name}-${item.target}`}
+                    key={`${item.namespace}-${item.name}-${item.target ?? "general"}`}
                     item={item}
                   />
                 ))}
               </div>
             </section>
           ) : null}
-          {result.data?.items.length ? (
+          {(result.data?.items.length ?? 0) > 0 ? (
             <nav className="pagination" aria-label="Catalog pages">
               <button
                 type="button"
-                disabled={!cursorHistory.length}
-                onClick={() =>
+                disabled={cursorHistory.length === 0}
+                onClick={() => {
                   setCursorState((state) => ({
                     ...state,
                     values: state.values.slice(0, -1),
-                  }))
-                }
+                  }));
+                }}
               >
                 <ArrowLeftIcon size={16} /> Previous
               </button>
               <span>
                 Showing {cursorHistory.length * 20 + 1}–
-                {cursorHistory.length * 20 + result.data.items.length} of{" "}
-                {result.data.total}
+                {cursorHistory.length * 20 + (result.data?.items.length ?? 0)}{" "}
+                of {result.data?.total ?? 0}
               </span>
               <button
                 type="button"
-                disabled={!result.data.nextCursor}
-                onClick={() =>
-                  result.data?.nextCursor &&
-                  setCursorState((state) => ({
-                    ...state,
-                    values: [...state.values, result.data!.nextCursor!],
-                  }))
-                }
+                disabled={!hasText(nextCursor)}
+                onClick={() => {
+                  if (hasText(nextCursor)) {
+                    setCursorState((state) => ({
+                      ...state,
+                      values: [...state.values, nextCursor],
+                    }));
+                  }
+                }}
               >
                 Next <ArrowRightIcon size={16} />
               </button>
@@ -258,5 +269,7 @@ function enumParam<T extends string>(
   value: string | null,
   values: readonly T[],
 ): T | undefined {
-  return value && values.includes(value as T) ? (value as T) : undefined;
+  return value !== null && values.includes(value as T)
+    ? (value as T)
+    : undefined;
 }

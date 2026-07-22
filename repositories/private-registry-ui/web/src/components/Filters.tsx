@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import type { Approval, Lifecycle, PackageKind, Risk } from "../types";
 
 export interface FilterState {
-  kind?: PackageKind;
-  provider?: string;
-  lifecycle?: Lifecycle;
-  approval?: Approval;
-  risk?: Risk;
+  kind?: PackageKind | undefined;
+  provider?: string | undefined;
+  lifecycle?: Lifecycle | undefined;
+  approval?: Approval | undefined;
+  risk?: Risk | undefined;
 }
 
 export function Filters({
@@ -19,7 +19,7 @@ export function Filters({
   onClear,
 }: {
   value: FilterState;
-  kindLocked?: PackageKind;
+  kindLocked?: PackageKind | undefined;
   mobileOpen: boolean;
   onMobileToggle: () => void;
   onChange: <K extends keyof FilterState>(
@@ -52,17 +52,23 @@ export function Filters({
           <RadioFilter
             label="All packages"
             checked={!value.kind}
-            onChange={() => onChange("kind", undefined)}
+            onChange={() => {
+              onChange("kind", undefined);
+            }}
           />
           <RadioFilter
             label="Providers"
             checked={value.kind === "provider"}
-            onChange={() => onChange("kind", "provider")}
+            onChange={() => {
+              onChange("kind", "provider");
+            }}
           />
           <RadioFilter
             label="Modules"
             checked={value.kind === "module"}
-            onChange={() => onChange("kind", "module")}
+            onChange={() => {
+              onChange("kind", "module");
+            }}
           />
         </FilterGroup>
       ) : null}
@@ -72,9 +78,9 @@ export function Filters({
             key={item}
             label={capitalize(item)}
             checked={value.approval === item}
-            onChange={() =>
-              onChange("approval", value.approval === item ? undefined : item)
-            }
+            onChange={() => {
+              onChange("approval", value.approval === item ? undefined : item);
+            }}
           />
         ))}
       </FilterGroup>
@@ -94,9 +100,12 @@ export function Filters({
             key={item}
             label={capitalize(item)}
             checked={value.lifecycle === item}
-            onChange={() =>
-              onChange("lifecycle", value.lifecycle === item ? undefined : item)
-            }
+            onChange={() => {
+              onChange(
+                "lifecycle",
+                value.lifecycle === item ? undefined : item,
+              );
+            }}
           />
         ))}
       </FilterGroup>
@@ -106,9 +115,9 @@ export function Filters({
             key={item}
             label={capitalize(item)}
             checked={value.risk === item}
-            onChange={() =>
-              onChange("risk", value.risk === item ? undefined : item)
-            }
+            onChange={() => {
+              onChange("risk", value.risk === item ? undefined : item);
+            }}
           />
         ))}
       </FilterGroup>

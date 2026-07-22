@@ -20,13 +20,15 @@ The Vite development server reads the catalog through same-origin `/api/v1` path
 
 ```bash
 cd web
-corepack pnpm lint
-corepack pnpm test
-corepack pnpm build
+corepack pnpm install --frozen-lockfile
+corepack pnpm test:e2e:install
+corepack pnpm quality:full
 cd ..
 python scripts/check-runtime-template.py
 docker build -t registry-ui:local .
 ```
+
+The full gate covers Biome, strict TypeScript, typed ESLint, React Hooks, JSX accessibility, Stylelint, dependency-cruiser, Knip, Vitest/Testing Library/axe with coverage, a production build, bundle budgets, Playwright, Lighthouse, and the production dependency audit. See [web/QUALITY.md](web/QUALITY.md) for thresholds, architecture rules, CI cadence, mutation testing, CodeQL, SBOM generation, and local `act` usage.
 
 ## Runtime values
 

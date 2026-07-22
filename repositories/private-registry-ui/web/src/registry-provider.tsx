@@ -1,21 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { RegistryContext } from "./registry-context";
 import type { RegistrySession } from "./types";
-
-interface RegistryContextValue {
-  session: RegistrySession;
-  selectedApmId?: string;
-  setSelectedApmId: (value: string) => void;
-}
-
-const RegistryContext = createContext<RegistryContextValue | null>(null);
 
 export function RegistryProvider({
   session,
@@ -33,14 +18,18 @@ export function RegistryProvider({
   });
 
   useEffect(() => {
-    if (selectedApmId) localStorage.setItem(storageKey, selectedApmId);
+    if (selectedApmId !== undefined && selectedApmId.length > 0) {
+      localStorage.setItem(storageKey, selectedApmId);
+    }
   }, [selectedApmId, storageKey]);
 
   const value = useMemo(
     () => ({
       session,
       selectedApmId,
-      setSelectedApmId: (value: string) => setSelectedApmId(value || undefined),
+      setSelectedApmId: (value: string) => {
+        setSelectedApmId(value.length > 0 ? value : undefined);
+      },
     }),
     [session, selectedApmId],
   );
@@ -50,11 +39,4 @@ export function RegistryProvider({
       {children}
     </RegistryContext.Provider>
   );
-}
-
-export function useRegistry(): RegistryContextValue {
-  const value = useContext(RegistryContext);
-  if (!value)
-    throw new Error("useRegistry must be used inside RegistryProvider");
-  return value;
 }

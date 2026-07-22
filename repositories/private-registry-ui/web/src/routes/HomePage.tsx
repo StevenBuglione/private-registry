@@ -12,7 +12,7 @@ import { PackageCard } from "../components/PackageCard";
 import { RegistryMark } from "../components/RegistryMark";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage } from "../hooks";
-import { useRegistry } from "../registry-context";
+import { useRegistry } from "../use-registry";
 
 export function HomePage() {
   const { selectedApmId, session } = useRegistry();
@@ -78,7 +78,7 @@ export function HomePage() {
         <div className="source-container">
           <ShieldCheckIcon size={20} />
           <strong>
-            {activeApm
+            {activeApm !== undefined
               ? `${activeApm.id} · ${activeApm.name}`
               : "Registry administrator"}
           </strong>
@@ -96,7 +96,9 @@ export function HomePage() {
         <div className="source-container">
           <StatePanel
             kind="api-error"
-            action={() => window.location.reload()}
+            action={() => {
+              window.location.reload();
+            }}
           />
         </div>
       ) : (
@@ -185,7 +187,7 @@ function CatalogSection({
             ),
           )}
         </div>
-      ) : items.length ? (
+      ) : items.length > 0 ? (
         <div className={`source-card-grid ${variant}`}>
           {items.map((item) => (
             <PackageCard

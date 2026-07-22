@@ -1,5 +1,5 @@
 import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import type { Approval, Lifecycle, Risk } from "../types";
+import type { Approval, Lifecycle } from "../types";
 
 export function ApprovalBadge({
   value,
@@ -9,7 +9,7 @@ export function ApprovalBadge({
   verified?: boolean;
 }) {
   const label =
-    verified && value === "approved" ? "Verified" : capitalize(value);
+    verified === true && value === "approved" ? "Verified" : capitalize(value);
   return (
     <span className={`badge badge-${value}`}>
       {value === "approved" ? (
@@ -28,12 +28,6 @@ export function LifecycleBadge({ value }: { value: Lifecycle }) {
       <span className="badge-dot" aria-hidden="true" />
       {capitalize(value)}
     </span>
-  );
-}
-
-export function RiskBadge({ value }: { value: Risk }) {
-  return (
-    <span className={`risk-label risk-${value}`}>{capitalize(value)} risk</span>
   );
 }
 

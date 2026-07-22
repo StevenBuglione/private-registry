@@ -13,7 +13,7 @@ export function packageHref(
 }
 
 export function formatRelativeDate(value: string): string {
-  if (!value) return "Recently";
+  if (value.length === 0) return "Recently";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   const seconds = Math.round((date.getTime() - Date.now()) / 1000);
@@ -31,4 +31,8 @@ export function formatRelativeDate(value: string): string {
       return formatter.format(Math.round(seconds / divisor), unit);
   }
   return "Just now";
+}
+
+export function hasText(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.length > 0;
 }

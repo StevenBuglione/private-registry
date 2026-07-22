@@ -22,8 +22,8 @@ export interface RegistrySession {
   roles: string[];
   apms: ApmAccess[];
   csrfToken: string;
-  loginUrl?: string;
-  logoutUrl?: string;
+  loginUrl?: string | undefined;
+  logoutUrl?: string | undefined;
   admin: boolean;
 }
 
@@ -31,7 +31,7 @@ export interface PackageSummary {
   kind: PackageKind;
   namespace: string;
   name: string;
-  target?: string;
+  target?: string | undefined;
   version: string;
   description: string;
   provider: string;
@@ -50,54 +50,54 @@ export interface GovernanceRecord {
   approval: Approval;
   lifecycle: Lifecycle;
   risk: Risk;
-  verifiedAt?: string;
-  sourceRepository?: string;
-  artifactRepository?: string;
-  checksum?: string;
+  verifiedAt?: string | undefined;
+  sourceRepository?: string | undefined;
+  artifactRepository?: string | undefined;
+  checksum?: string | undefined;
   apmIds: string[];
 }
 
 export interface PackageDetail extends PackageSummary {
   versions: string[];
   symbols: PackageSymbol[];
-  documentation?: string;
-  governance?: GovernanceRecord;
-  installSource?: string;
-  artifactRepository?: string;
-  artifactPath?: string;
-  packageDigest?: string;
+  documentation?: string | undefined;
+  governance?: GovernanceRecord | undefined;
+  installSource?: string | undefined;
+  artifactRepository?: string | undefined;
+  artifactPath?: string | undefined;
+  packageDigest?: string | undefined;
 }
 
 export interface PackageSymbol {
   kind: string;
   name: string;
-  description?: string;
+  description?: string | undefined;
   path: string;
-  type?: string;
+  type?: string | undefined;
   defaultValue?: unknown;
-  required?: boolean;
-  sensitive?: boolean;
-  provider?: string;
-  source?: string;
+  required?: boolean | undefined;
+  sensitive?: boolean | undefined;
+  provider?: string | undefined;
+  source?: string | undefined;
 }
 
 export interface CatalogPage {
   items: PackageSummary[];
   total: number;
-  nextCursor?: string;
+  nextCursor?: string | undefined;
 }
 
 export interface CatalogQuery {
-  q?: string;
-  kind?: PackageKind;
-  provider?: string;
-  apmId?: string;
-  lifecycle?: Lifecycle;
-  approval?: Approval;
-  risk?: Risk;
-  sort?: "relevance" | "updated" | "name" | "risk";
-  cursor?: string;
-  limit?: number;
+  q?: string | undefined;
+  kind?: PackageKind | undefined;
+  provider?: string | undefined;
+  apmId?: string | undefined;
+  lifecycle?: Lifecycle | undefined;
+  approval?: Approval | undefined;
+  risk?: Risk | undefined;
+  sort?: "relevance" | "updated" | "name" | "risk" | undefined;
+  cursor?: string | undefined;
+  limit?: number | undefined;
 }
 
 export interface RuntimeConfig {

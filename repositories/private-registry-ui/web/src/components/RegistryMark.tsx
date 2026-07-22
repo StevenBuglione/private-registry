@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { StackIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 
 export function RegistryMark({ compact = false }: { compact?: boolean }) {
   const [failed, setFailed] = useState(false);
@@ -17,7 +17,9 @@ export function RegistryMark({ compact = false }: { compact?: boolean }) {
       alt=""
       width={compact ? 28 : 34}
       height={compact ? 28 : 34}
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+      }}
     />
   );
 }
