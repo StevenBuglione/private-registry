@@ -33,16 +33,12 @@ support_url                     = "https://support.example.invalid/iac-registry"
 deploy_application_services = false
 ui_image_tag                = "replace-commit-sha"
 api_image_tag               = "replace-commit-sha"
-indexer_image_tag           = "replace-commit-sha"
-reconciler_image_tag        = "replace-commit-sha"
 migrations_image_tag        = "replace-commit-sha"
 
 ui_desired_count      = 1
 api_desired_count     = 1
-indexer_desired_count = 1
 ui_min_count          = 1
 api_min_count         = 1
-indexer_min_count     = 1
 
 aurora_instance_class            = "db.r7g.large"
 aurora_instance_count            = 2
@@ -54,10 +50,6 @@ is_dr_region                     = false
 primary_region                   = null
 database_proxy_secret_arn        = null
 
-opensearch_data_instance_count  = 3
-opensearch_ebs_volume_size      = 50
-audit_object_lock_enabled       = false
-force_destroy_buckets           = true
 load_balancer_deletion_protection = false
 
 create_github_oidc_provider = false

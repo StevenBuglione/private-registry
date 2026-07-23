@@ -3,7 +3,7 @@ info:
   title: Registry API
   version: 1.0.0
   description: |
-    Authenticated catalog, governance, event-stream, and operational interfaces for Registry.
+    Authenticated catalog, event-stream, and operational interfaces for Registry.
     Package binaries remain in Artifactory and are never served by this API. Catalog responses are
     filtered by the caller's Microsoft Entra APM entitlements; unauthorized and nonexistent package
     identities intentionally return the same response.
@@ -16,6 +16,17 @@ tags:
   - name: Authentication
   - name: Catalog
   - name: Event stream
+  - name: Administration
+  - name: Traffic analytics
+    description: Authenticated page-view collection and administrator-only reporting.
+  - name: Sync API keys
+    description: |
+      Administrator-only lifecycle operations for scoped GitHub runner credentials. Creating a key
+      returns its plaintext token exactly once; listing and revocation never disclose the secret.
+  - name: Artifact sync
+    description: |
+      Runner-facing endpoint authenticated by a Registry sync credential. In Swagger Authorize,
+      paste the `rgs.…` token without adding `Bearer`.
   - name: Webhook
   - name: Health
 paths:
@@ -66,33 +77,43 @@ paths:
         - name: kind
           in: query
           schema: {type: string, enum: [module, provider]}
-        - name: provider
+        - name: namespace
           in: query
-          description: Module target or provider name.
-          schema: {type: string}
-        - $ref: '#/components/parameters/ApmId'
-        - name: lifecycle
-          in: query
+          description: Exact package namespace, matched case-insensitively.
           schema:
             type: string
-            enum: [draft, candidate, approved, maintenance, deprecated, revoked, archived]
-        - name: approval
+            pattern: '^[A-Za-z0-9._-]{1,128}$'
+        - name: provider
           in: query
-          schema: {type: string, enum: [approved, rejected, waived]}
-        - name: risk
+          description: Comma-separated module targets. Values are combined with OR semantics.
+          schema: {type: string, example: aws,azure}
+        - name: tier
           in: query
-          schema: {type: string, enum: [low, medium, high, critical]}
+          description: Comma-separated Registry tiers. Values are combined with OR semantics.
+          schema:
+            type: string
+            example: official,partner
+        - name: category
+          in: query
+          description: Comma-separated provider categories. Values are combined with OR semantics.
+          schema:
+            type: string
+            example: public-cloud,networking
         - name: sort
           in: query
           description: Relevance applies when q is present; without q it is normalized to updated.
           schema:
             type: string
-            enum: [relevance, updated, name, risk]
+            enum: [relevance, updated, name, downloads]
             default: updated
         - name: cursor
           in: query
-          description: Opaque cursor returned by the previous page; it must be used with the same sort.
+          description: Opaque cursor returned by the previous page; it must be used with the same sort and cannot be combined with page.
           schema: {type: string}
+        - name: page
+          in: query
+          description: One-based browser page number; cannot be combined with cursor.
+          schema: {type: integer, minimum: 1, maximum: 10000}
         - name: limit
           in: query
           schema: {type: integer, minimum: 1, maximum: 100, default: 25}
@@ -133,7 +154,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -148,7 +168,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -162,7 +181,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -177,7 +195,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -191,7 +208,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
@@ -207,39 +223,9 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/provider/{namespace}/{name}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getLatestProviderGovernance
-      summary: Return latest authorized provider governance
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/provider/{namespace}/{name}/{version}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getProviderGovernance
-      summary: Return authorized provider governance for one version
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/PackageNotFound'}
         '503': {$ref: '#/components/responses/IdentityUnavailable'}
@@ -252,7 +238,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -268,7 +253,6 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -283,7 +267,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -299,7 +282,6 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -314,7 +296,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
@@ -331,41 +312,9 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/module/{namespace}/{name}/{target}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getLatestModuleGovernance
-      summary: Return latest authorized module governance
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/module/{namespace}/{name}/{target}/{version}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getModuleGovernance
-      summary: Return authorized module governance for one version
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/PackageNotFound'}
         '503': {$ref: '#/components/responses/IdentityUnavailable'}
@@ -375,8 +324,6 @@ paths:
       operationId: streamCatalogEvents
       summary: Stream authorized catalog changes
       description: Events never include APM assignment lists. Clients should invalidate affected catalog queries.
-      parameters:
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200':
           description: Server-sent event stream containing connected and catalog-change events.
@@ -393,6 +340,253 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/IdentityUnavailable'
+  /api/v1/registry/homepage:
+    get:
+      tags: [Administration]
+      operationId: getHomepageSettings
+      summary: Return the administrator-managed homepage presentation
+      responses:
+        '200':
+          description: Current notification and featured-provider configuration.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HomepageSettings'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    put:
+      tags: [Administration]
+      operationId: updateHomepageSettings
+      summary: Replace the homepage presentation configuration
+      description: Requires the registry-admin role and writes immutable before/after audit evidence.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/HomepageSettingsUpdate'}
+      responses:
+        '200':
+          description: Updated homepage configuration.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HomepageSettings'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/analytics/page-views:
+    post:
+      tags: [Traffic analytics]
+      operationId: recordPageView
+      summary: Record an authenticated Registry page view
+      description: Stores identity and a path only. Query strings, fragments, tokens, and request bodies are not collected.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  maxLength: 512
+                  pattern: '^/[^?#\\]*$'
+              additionalProperties: false
+      responses:
+        '204': {description: Page view recorded.}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: CSRF token is missing or invalid.}
+  /api/v1/admin/dashboard:
+    get:
+      tags: [Administration]
+      operationId: getAdminDashboard
+      summary: Return point-in-time catalog and ingestion telemetry
+      responses:
+        '200':
+          description: Registry health, dependency, catalog, queue, and ingestion metrics.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminDashboard'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/traffic:
+    get:
+      tags: [Traffic analytics]
+      operationId: getTrafficAnalytics
+      summary: Return authenticated Registry traffic and visitor activity
+      parameters:
+        - name: days
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 90, default: 30}
+        - name: visitorLimit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Page-view totals, daily traffic, top routes, visitors, and recent access.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TrafficReport'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/operations:
+    get:
+      tags: [Administration]
+      operationId: listAdminOperations
+      summary: List recent structured operational events
+      description: Raw process logs, event payloads, and secrets are never exposed.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Recent ingestion, retry, dead-letter, and reconciliation events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/OperationalEvent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/audit-events:
+    get:
+      tags: [Administration]
+      operationId: listAuditEvents
+      summary: List immutable administrator and automation audit history
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - name: before
+          in: query
+          description: Cursor timestamp; returns events strictly older than this instant.
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Newest-first audit history.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/AuditEvent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/sync-credentials:
+    get:
+      tags: [Sync API keys]
+      operationId: listSyncCredentials
+      summary: List safe sync credential metadata
+      description: Secret values and hashes are never returned.
+      responses:
+        '200':
+          description: Sync credential metadata.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/SyncCredential'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+    post:
+      tags: [Sync API keys]
+      operationId: createSyncCredential
+      summary: Create a scoped, expiring GitHub runner credential
+      description: The plaintext token is returned exactly once and only its SHA-256 digest is retained.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scope, expires_in_days]
+              properties:
+                name:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+                  example: GitHub module releases
+                scope: {type: string, enum: [module, provider, all]}
+                expires_in_days:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                  example: 90
+              additionalProperties: false
+      responses:
+        '200':
+          description: Credential metadata and one-time token.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreatedSyncCredential'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/sync-credentials/{id}:
+    delete:
+      tags: [Sync API keys]
+      operationId: revokeSyncCredential
+      summary: Irreversibly revoke a sync credential
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Revoked credential metadata.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SyncCredential'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+        '404': {description: Sync credential does not exist.}
+  /api/v1/sync/artifacts:
+    post:
+      tags: [Artifact sync]
+      operationId: triggerArtifactSync
+      summary: Enqueue an Artifactory artifact change from a trusted runner
+      description: |
+        Authenticates a scoped, unexpired Registry sync credential and publishes the normalized
+        hint to the same durable PostgreSQL queue used by signed JFrog webhooks. The request is
+        idempotent for a credential and Idempotency-Key pair.
+      security:
+        - syncCredential: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: |
+            A runner-generated key unique to this publication attempt. Reusing it with the same
+            credential safely returns the original receipt instead of enqueueing a duplicate.
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+            example: github-run-1842-module-release
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TriggerSyncRequest'}
+      responses:
+        '202':
+          description: Event durably accepted by the PostgreSQL queue.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TriggerSyncReceipt'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {description: Credential is invalid, expired, or revoked.}
+        '403': {description: Credential scope does not permit the package kind.}
+        '503': {description: Durable event ingestion is not enabled or available.}
   /api/v1/status:
     get:
       tags: [Health]
@@ -447,7 +641,7 @@ paths:
               $ref: '#/components/schemas/JfrogWebhookPayload'
       responses:
         '202':
-          description: The normalized event was durably accepted by EventBridge.
+          description: The normalized event was durably accepted by the PostgreSQL event queue.
           content:
             application/json:
               schema:
@@ -461,7 +655,7 @@ paths:
         '415':
           description: Content type is not application/json.
         '503':
-          description: Signing is not configured or EventBridge did not accept the event.
+          description: Signing is not configured or PostgreSQL did not accept the event.
   /health/live:
     get:
       tags: [Health]
@@ -479,7 +673,7 @@ paths:
       tags: [Health]
       operationId: getApiReadiness
       summary: Report API read dependencies
-      description: API readiness covers PostgreSQL and OpenSearch; Artifactory is deliberately a worker dependency.
+      description: API readiness covers PostgreSQL; Artifactory is deliberately a worker dependency.
       security: []
       responses:
         '200':
@@ -497,7 +691,7 @@ paths:
       tags: [Health]
       operationId: getWorkerReadiness
       summary: Report worker dependencies
-      description: Present when eventing is enabled; probes PostgreSQL, OpenSearch, Artifactory, SQS, and S3.
+      description: Present when ingestion is enabled; probes PostgreSQL and Artifactory.
       security: []
       responses:
         '200':
@@ -518,6 +712,13 @@ components:
       description: |
         Microsoft Entra OIDC is terminated by the production ALB or by the local Spring OAuth2 client.
         The browser holds only a secure server-side session cookie; ALB identity headers are verified by the API.
+    syncCredential:
+      type: http
+      scheme: bearer
+      bearerFormat: RegistrySyncCredential
+      description: |
+        Scoped, expiring token generated by a Registry administrator and returned once. Paste the
+        `rgs.…` token only; Swagger UI adds the `Bearer` prefix automatically.
   parameters:
     Namespace:
       name: namespace
@@ -540,11 +741,6 @@ components:
       required: true
       description: Exact non-revoked package version, or latest.
       schema: {type: string, minLength: 1}
-    ApmId:
-      name: apm_id
-      in: query
-      description: Optional selected APM context. Unknown or unauthorized values fail closed.
-      schema: {type: string, pattern: '^APM[0-9]{7}$'}
     DocumentPath:
       name: path
       in: query
@@ -577,11 +773,6 @@ components:
       content:
         text/markdown:
           schema: {type: string}
-    Governance:
-      description: Authorized governance metadata
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Governance'}
     BadRequest:
       description: A filter, cursor, route, or request value is invalid.
       content:
@@ -590,7 +781,7 @@ components:
     Unauthorized:
       description: No valid OIDC session or verified ALB identity is present.
     PackageNotFound:
-      description: Package or version does not exist, is revoked, or is not authorized for the selected APM context.
+      description: Package or version does not exist, is revoked, or is not available to the caller.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ApiError'}
@@ -600,6 +791,276 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/ApiError'}
   schemas:
+    HomepageSettings:
+      allOf:
+        - $ref: '#/components/schemas/HomepageSettingsUpdate'
+        - type: object
+          required: [updated_at]
+          properties:
+            updated_at: {type: string, format: date-time}
+    HomepageSettingsUpdate:
+      type: object
+      required:
+        - notification_enabled
+        - notification_title
+        - notification_message
+        - featured_provider_ids
+        - featured_module_ids
+      properties:
+        notification_enabled: {type: boolean}
+        notification_title: {type: string, minLength: 1, maxLength: 120}
+        notification_message: {type: string, minLength: 1, maxLength: 600}
+        notification_link_label: {type: string, maxLength: 80}
+        notification_link_url:
+          type: string
+          maxLength: 500
+          description: HTTPS or Registry-relative URL.
+        featured_provider_ids:
+          type: array
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^provider/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+        featured_module_ids:
+          type: array
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^module/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+      additionalProperties: false
+    AdminDashboard:
+      type: object
+      required:
+        - generated_at
+        - status
+        - worker_enabled
+        - dependencies
+        - catalog
+        - queue
+        - ingestion
+        - database_size_bytes
+      properties:
+        generated_at: {type: string, format: date-time}
+        status: {type: string, enum: [healthy, degraded]}
+        worker_enabled: {type: boolean}
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [up, down, not_configured]
+        catalog:
+          type: object
+          required: [providers, modules, active_versions, documents, downloads]
+          properties:
+            providers: {type: integer, minimum: 0}
+            modules: {type: integer, minimum: 0}
+            active_versions: {type: integer, minimum: 0}
+            documents: {type: integer, minimum: 0}
+            downloads: {type: integer, minimum: 0}
+        queue:
+          type: object
+          required: [queued, processing, retry, completed, dead_letter]
+          properties:
+            queued: {type: integer, minimum: 0}
+            processing: {type: integer, minimum: 0}
+            retry: {type: integer, minimum: 0}
+            completed: {type: integer, minimum: 0}
+            dead_letter: {type: integer, minimum: 0}
+        ingestion:
+          type: object
+          required: [completed, failed, quarantined, latency_p95_ms]
+          properties:
+            completed: {type: integer, minimum: 0}
+            failed: {type: integer, minimum: 0}
+            quarantined: {type: integer, minimum: 0}
+            latency_p95_ms: {type: integer, minimum: 0}
+            last_completed_at: {type: string, format: date-time}
+        reconciliation:
+          type: object
+          required: [id, mode, scope, status, discrepancies, repaired, started_at]
+          properties:
+            id: {type: string, format: uuid}
+            mode: {type: string}
+            scope: {type: string}
+            status: {type: string, enum: [running, completed, failed]}
+            discrepancies: {type: integer, minimum: 0}
+            repaired: {type: integer, minimum: 0}
+            started_at: {type: string, format: date-time}
+            completed_at: {type: string, format: date-time}
+        database_size_bytes: {type: integer, minimum: 0}
+      additionalProperties: false
+    TrafficReport:
+      type: object
+      required: [generated_at, days, summary, daily, top_routes, visitors, recent_access]
+      properties:
+        generated_at: {type: string, format: date-time}
+        days: {type: integer, minimum: 1, maximum: 90}
+        summary:
+          type: object
+          required: [page_views, unique_visitors, page_views_today, visitors_today]
+          properties:
+            page_views: {type: integer, minimum: 0}
+            unique_visitors: {type: integer, minimum: 0}
+            page_views_today: {type: integer, minimum: 0}
+            visitors_today: {type: integer, minimum: 0}
+          additionalProperties: false
+        daily:
+          type: array
+          items: {$ref: '#/components/schemas/DailyTraffic'}
+        top_routes:
+          type: array
+          items: {$ref: '#/components/schemas/RouteTraffic'}
+        visitors:
+          type: array
+          items: {$ref: '#/components/schemas/VisitorTraffic'}
+        recent_access:
+          type: array
+          items: {$ref: '#/components/schemas/RecentAccess'}
+      additionalProperties: false
+    DailyTraffic:
+      type: object
+      required: [day, page_views, unique_visitors]
+      properties:
+        day: {type: string, format: date}
+        page_views: {type: integer, minimum: 0}
+        unique_visitors: {type: integer, minimum: 0}
+      additionalProperties: false
+    RouteTraffic:
+      type: object
+      required: [path, page_views, unique_visitors, last_viewed_at]
+      properties:
+        path: {type: string}
+        page_views: {type: integer, minimum: 0}
+        unique_visitors: {type: integer, minimum: 0}
+        last_viewed_at: {type: string, format: date-time}
+      additionalProperties: false
+    VisitorTraffic:
+      type: object
+      required: [subject, display_name, page_views, first_seen_at, last_seen_at, last_path]
+      properties:
+        subject: {type: string}
+        display_name: {type: string}
+        email: {type: [string, 'null'], format: email}
+        page_views: {type: integer, minimum: 0}
+        first_seen_at: {type: string, format: date-time}
+        last_seen_at: {type: string, format: date-time}
+        last_path: {type: string}
+      additionalProperties: false
+    RecentAccess:
+      type: object
+      required: [subject, display_name, path, occurred_at]
+      properties:
+        subject: {type: string}
+        display_name: {type: string}
+        email: {type: [string, 'null'], format: email}
+        path: {type: string}
+        occurred_at: {type: string, format: date-time}
+      additionalProperties: false
+    OperationalEvent:
+      type: object
+      required: [source, event_id, status, title, detail, correlation_id, occurred_at]
+      properties:
+        source: {type: string, enum: [ingestion, queue, reconciliation]}
+        event_id: {type: string}
+        status: {type: string}
+        title: {type: string}
+        detail: {type: string}
+        repository: {type: string}
+        path: {type: string}
+        correlation_id: {type: string}
+        occurred_at: {type: string, format: date-time}
+      additionalProperties: false
+    AuditEvent:
+      type: object
+      required:
+        - id
+        - occurred_at
+        - actor_type
+        - actor_id
+        - action
+        - resource_type
+        - resource_id
+        - correlation_id
+        - detail
+      properties:
+        id: {type: string, format: uuid}
+        occurred_at: {type: string, format: date-time}
+        actor_type: {type: string, enum: [user, api_key, system]}
+        actor_id: {type: string}
+        action: {type: string}
+        resource_type: {type: string}
+        resource_id: {type: string}
+        correlation_id: {type: string}
+        detail: {type: object, additionalProperties: true}
+      additionalProperties: false
+    SyncCredential:
+      type: object
+      required:
+        - id
+        - name
+        - scope
+        - key_prefix
+        - created_by
+        - created_at
+        - expires_at
+        - use_count
+        - status
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        scope: {type: string, enum: [MODULE, PROVIDER, ALL]}
+        key_prefix: {type: string}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        revoked_at: {type: string, format: date-time}
+        revoked_by: {type: string}
+        last_used_at: {type: string, format: date-time}
+        use_count: {type: integer, minimum: 0}
+        status: {type: string, enum: [ACTIVE, EXPIRED, REVOKED]}
+      additionalProperties: false
+    CreatedSyncCredential:
+      type: object
+      required: [credential, token]
+      properties:
+        credential: {$ref: '#/components/schemas/SyncCredential'}
+        token:
+          type: string
+          readOnly: true
+          pattern: '^rgs\.[0-9a-fA-F-]{36}\.[A-Za-z0-9_-]+$'
+          example: rgs.00000000-0000-0000-0000-000000000000.EXAMPLE_ONE_TIME_SECRET
+          description: Returned once. Store as a masked GitHub Actions secret and never log it.
+      additionalProperties: false
+    TriggerSyncRequest:
+      type: object
+      required: [kind, repository, path]
+      properties:
+        kind: {type: string, enum: [module, provider]}
+        repository:
+          type: string
+          enum: [iac-module-release-local, iac-provider-release-local]
+          example: iac-module-release-local
+        path:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: '^(?!/)(?!.*(?:^|/)\.\.?(?:/|$))(?!.*\\).+$'
+          example: terraform-aws-modules/vpc/aws/6.0.1.zip
+        action:
+          type: string
+          enum: [DEPLOYED, PROPERTIES_CHANGED, DELETED, MOVED, COPIED]
+          default: DEPLOYED
+      additionalProperties: false
+    TriggerSyncReceipt:
+      type: object
+      required: [event_id, publication_id, status]
+      properties:
+        event_id: {type: string}
+        publication_id: {type: string}
+        status: {type: string, const: accepted}
+      additionalProperties: false
     ApiError:
       type: object
       required: [error]
@@ -671,11 +1132,7 @@ components:
         - title
         - description
         - latest_version
-        - owners
-        - support_level
-        - lifecycle
         - verification
-        - risk_tier
         - source_address
         - updated_at
         - versions
@@ -691,11 +1148,7 @@ components:
         latest_version:
           type: string
           description: Latest visible version, or the selected version on an explicit version route.
-        owners: {type: array, items: {type: string}}
-        support_level: {type: string, enum: [supported, maintenance, experimental, deprecated, revoked, archived]}
-        lifecycle: {type: string, enum: [draft, candidate, approved, maintenance, deprecated, revoked, archived]}
         verification: {type: string}
-        risk_tier: {type: string, enum: [low, medium, high, critical]}
         source_address: {type: string}
         updated_at: {type: string, format: date-time}
         versions:
@@ -742,43 +1195,6 @@ components:
           description: Raw HCL default expression. Registry returns but never evaluates this value.
         required: {type: boolean}
         sensitive: {type: boolean}
-      additionalProperties: false
-    Governance:
-      type: object
-      required:
-        - package_id
-        - owners
-        - support_level
-        - lifecycle
-        - risk_tier
-        - verification
-        - approvals
-        - source_address
-        - version_constraint
-      properties:
-        package_id: {type: string}
-        owners: {type: array, items: {type: string}}
-        support_level: {type: string}
-        lifecycle: {type: string}
-        risk_tier: {type: string}
-        verification: {type: string}
-        approvals:
-          type: array
-          items: {$ref: '#/components/schemas/Approval'}
-        source_address: {type: string}
-        version_constraint: {type: string}
-        support_url: {type: [string, 'null'], format: uri}
-        source_repository_url: {type: [string, 'null'], format: uri}
-        jfrog_console_url: {type: [string, 'null'], format: uri}
-      additionalProperties: false
-    Approval:
-      type: object
-      required: [type, status, decided_by, decided_at]
-      properties:
-        type: {type: string}
-        status: {type: string, enum: [approved, rejected, waived]}
-        decided_by: {type: string}
-        decided_at: {type: string, format: date-time}
       additionalProperties: false
     WebhookReceipt:
       type: object

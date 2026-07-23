@@ -428,7 +428,7 @@
       "name": "iam",
       "target": "aws",
       "title": "AWS IAM",
-      "description": "AWS identity and access management patterns.",
+      "description": "Terraform module to create AWS IAM resources 🇺🇦",
       "owner": "security-platform",
       "risk_tier": "critical",
       "apm_ids": [
@@ -438,6 +438,10 @@
         "6.2.1",
         "6.2.0"
       ],
+      "version_published_at": {
+        "6.2.1": "2025-08-26T07:33:00Z",
+        "6.2.0": "2025-08-22T00:00:00Z"
+      },
       "download_template": "https://github.com/terraform-aws-modules/terraform-aws-iam/archive/refs/tags/v{version}.zip",
       "expected_sha256": {
         "6.2.1:archive": "49840dcecb7c28acc5fe7193f4a1fd3ce9a36e38ef0ddaa91e6666f95e061379",
@@ -658,6 +662,9 @@
         "0.16.0",
         "0.15.0"
       ],
+      "version_published_at": {
+        "0.16.0": "2025-04-02T00:00:00Z"
+      },
       "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-web-site/archive/refs/tags/v{version}.zip",
       "expected_sha256": {
         "0.16.0:archive": "1f356740b45117b7d3fd5b2c96c573bb3675522358919cc930cfddbdb39f5ab5",

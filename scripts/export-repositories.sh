@@ -34,6 +34,9 @@ for repo in private-registry-ui private-registry-api; do
     relative_path="${tracked_path#repositories/${repo}/}"
     source_path="${SOURCE_ROOT}/${tracked_path}"
     destination_path="${target_dir}/${relative_path}"
+    if [[ ! -e "${source_path}" && ! -L "${source_path}" ]]; then
+      continue
+    fi
     mkdir -p "$(dirname "${destination_path}")"
     cp -Pp "${source_path}" "${destination_path}"
   done < <(

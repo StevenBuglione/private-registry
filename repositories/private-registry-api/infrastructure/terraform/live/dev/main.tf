@@ -70,18 +70,13 @@ module "registry" {
   deploy_application_services = var.deploy_application_services
   ui_image_tag                = var.ui_image_tag
   api_image_tag               = var.api_image_tag
-  indexer_image_tag           = var.indexer_image_tag
-  reconciler_image_tag        = var.reconciler_image_tag
   migrations_image_tag        = var.migrations_image_tag
   ui_desired_count            = var.ui_desired_count
   api_desired_count           = var.api_desired_count
-  indexer_desired_count       = var.indexer_desired_count
   ui_min_count                = var.ui_min_count
   ui_max_count                = var.ui_max_count
   api_min_count               = var.api_min_count
   api_max_count               = var.api_max_count
-  indexer_min_count           = var.indexer_min_count
-  indexer_max_count           = var.indexer_max_count
 
   aurora_engine_version            = var.aurora_engine_version
   aurora_instance_class            = var.aurora_instance_class
@@ -94,20 +89,11 @@ module "registry" {
   is_dr_region                     = var.is_dr_region
   primary_region                   = var.primary_region
 
-  opensearch_engine_version       = var.opensearch_engine_version
-  opensearch_data_instance_type   = var.opensearch_data_instance_type
-  opensearch_data_instance_count  = var.opensearch_data_instance_count
-  opensearch_master_instance_type = var.opensearch_master_instance_type
-  opensearch_ebs_volume_size      = var.opensearch_ebs_volume_size
-
-  audit_object_lock_enabled         = var.audit_object_lock_enabled
-  force_destroy_buckets             = var.force_destroy_buckets
   backup_copy_destination_vault_arn = var.backup_copy_destination_vault_arn
   alarm_notification_email          = var.alarm_notification_email
   load_balancer_deletion_protection = var.load_balancer_deletion_protection
   authorization_config_secret_arn   = var.authorization_config_secret_arn
   support_url                       = var.support_url
-  event_publisher_principal_arns    = var.event_publisher_principal_arns
 
   create_github_oidc_provider        = var.create_github_oidc_provider
   github_oidc_provider_arn           = var.github_oidc_provider_arn

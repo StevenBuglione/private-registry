@@ -11,16 +11,6 @@ variable "ecr_repository_prefix" {
   type    = string
   default = "private-registry"
 }
-variable "bucket_replications" {
-  type = map(object({
-    source_bucket_id        = string
-    source_bucket_arn       = string
-    destination_bucket_arn  = string
-    source_kms_key_arn      = string
-    destination_kms_key_arn = string
-  }))
-  default = {}
-}
 variable "tags" {
   type    = map(string)
   default = {}

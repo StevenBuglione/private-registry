@@ -6,6 +6,7 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -27,6 +28,11 @@ public class ApiExceptionHandler {
       IdentityProviderUnavailableException exception) {
     return error(
         HttpStatus.SERVICE_UNAVAILABLE, "identity_provider_unavailable", exception.getMessage());
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  ResponseEntity<ApiError> forbidden(AccessDeniedException exception) {
+    return error(HttpStatus.FORBIDDEN, "forbidden", exception.getMessage());
   }
 
   private static ResponseEntity<ApiError> error(

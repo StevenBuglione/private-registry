@@ -1,24 +1,21 @@
 package com.stevenbuglione.registry.ingestion;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 
 @Repository
 public class CatalogWriteRepository {
 
   private final JdbcClient jdbc;
-  private final ObjectMapper objectMapper;
+  private final CatalogActivationNotifier activationNotifier;
 
-  public CatalogWriteRepository(JdbcClient jdbc, ObjectMapper objectMapper) {
+  public CatalogWriteRepository(JdbcClient jdbc, CatalogActivationNotifier activationNotifier) {
     this.jdbc = jdbc;
-    this.objectMapper = objectMapper;
+    this.activationNotifier = activationNotifier;
   }
 
   @Transactional
@@ -27,12 +24,13 @@ public class CatalogWriteRepository {
     if (isAuthoritativePackageMetadata(packageId, manifest)) {
       upsertOwners(packageId, manifest);
       replaceApmAccess(packageId, manifest.access().apmIds());
+      replaceCategories(packageId, RegistryTaxonomy.categories(manifest));
     }
     var versionId = upsertVersion(packageId, manifest);
     replaceDocuments(versionId, documents);
     replaceSymbols(versionId, manifest.symbols());
     replaceApproval(versionId, manifest);
-    enqueueSearchDocument(packageId, versionId, manifest);
+    activateVersion(packageId, manifest);
     return new StagedVersion(
         packageId, versionId, manifest.publicId(), manifest.identity().version());
   }
@@ -43,11 +41,13 @@ public class CatalogWriteRepository {
             """
                         INSERT INTO packages (
                             kind, namespace, name, target, title, description, source_address,
-                            visibility, risk_tier, verification, support_level, lifecycle
+                            visibility, risk_tier, verification, support_level, lifecycle,
+                            search_keywords, registry_tier
                         ) VALUES (
                             CAST(:kind AS package_kind), :namespace, :name, :target, :title, :description,
                             :sourceAddress, :visibility, :riskTier, :verification,
-                            CAST(:supportLevel AS support_level), CAST(:lifecycle AS lifecycle_state)
+                            CAST(:supportLevel AS support_level), CAST(:lifecycle AS lifecycle_state),
+                            :searchKeywords, :registryTier
                         )
                         ON CONFLICT (kind, namespace, name, target) DO UPDATE SET
                             title = CASE WHEN NOT EXISTS (
@@ -82,6 +82,14 @@ public class CatalogWriteRepository {
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
                             ) THEN EXCLUDED.lifecycle ELSE packages.lifecycle END,
+                            search_keywords = CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM package_versions newer
+                                 WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
+                            ) THEN EXCLUDED.search_keywords ELSE packages.search_keywords END,
+                            registry_tier = CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM package_versions newer
+                                 WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
+                            ) THEN EXCLUDED.registry_tier ELSE packages.registry_tier END,
                             updated_at = CASE WHEN NOT EXISTS (
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
@@ -100,6 +108,10 @@ public class CatalogWriteRepository {
         .param("verification", display.verification())
         .param("supportLevel", display.supportLevel())
         .param("lifecycle", display.lifecycle())
+        .param(
+            "searchKeywords",
+            display.keywords() == null ? new String[0] : display.keywords().toArray(String[]::new))
+        .param("registryTier", RegistryTaxonomy.tier(manifest))
         .param("publishedAt", java.sql.Timestamp.from(manifest.release().publishedAt()))
         .query(UUID.class)
         .single();
@@ -155,6 +167,21 @@ public class CatalogWriteRepository {
     }
   }
 
+  private void replaceCategories(UUID packageId, String[] categories) {
+    jdbc.sql("DELETE FROM package_categories WHERE package_id = :packageId")
+        .param("packageId", packageId)
+        .update();
+    jdbc.sql(
+            """
+            INSERT INTO package_categories (package_id, category_slug)
+            SELECT :packageId, selected.category_slug
+              FROM unnest(CAST(:categories AS text[])) selected(category_slug)
+            """)
+        .param("packageId", packageId)
+        .param("categories", categories)
+        .update();
+  }
+
   private void replaceApmAccess(UUID packageId, List<String> apmIds) {
     jdbc.sql("DELETE FROM package_apm_access WHERE package_id = :packageId")
         .param("packageId", packageId)
@@ -204,14 +231,18 @@ public class CatalogWriteRepository {
                             :documentationRoot, :artifactRepository, :artifactPath,
                             :sourceRepository, :sourceCommit, :sourceTag,
                             :terraformConstraint, :publishedAt,
-                            :prerelease, :deprecated, :revoked, false
+                            :prerelease, :deprecated, :revoked, NOT :revoked
                         )
                         ON CONFLICT (package_id, version) DO UPDATE SET
                             documentation_digest = EXCLUDED.documentation_digest,
                             documentation_root = EXCLUDED.documentation_root,
+                            source_repository = EXCLUDED.source_repository,
+                            source_commit = EXCLUDED.source_commit,
+                            source_tag = EXCLUDED.source_tag,
+                            published_at = EXCLUDED.published_at,
                             deprecated = EXCLUDED.deprecated,
                             revoked = EXCLUDED.revoked,
-                            active = false
+                            active = NOT EXCLUDED.revoked
                         RETURNING id
                         """)
         .param("packageId", packageId)
@@ -242,18 +273,21 @@ public class CatalogWriteRepository {
             jdbc.sql(
                     """
                         INSERT INTO documentation_pages (
-                            package_version_id, path, title, content_type, s3_key, digest, size_bytes
+                            package_version_id, path, title, content_type, storage_key,
+                            digest, size_bytes, content
                         ) VALUES (
-                            :versionId, :path, :title, :contentType, :s3Key, :digest, :sizeBytes
+                            :versionId, :path, :title, :contentType, :storageKey,
+                            :digest, :sizeBytes, :content
                         )
                         """)
                 .param("versionId", versionId)
                 .param("path", document.path())
                 .param("title", document.title())
                 .param("contentType", document.stored().contentType())
-                .param("s3Key", document.stored().key())
+                .param("storageKey", document.stored().key())
                 .param("digest", document.stored().digest())
                 .param("sizeBytes", document.stored().sizeBytes())
+                .param("content", document.stored().content())
                 .update());
   }
 
@@ -300,7 +334,7 @@ public class CatalogWriteRepository {
             """
                         INSERT INTO approvals (
                             package_version_id, approval_type, decision, decided_by, decided_at,
-                            policy_version, justification, evidence_s3_uri
+                            policy_version, justification, evidence_uri
                         ) VALUES (
                             :versionId, 'registry', 'approved', 'registry-ingestion', :decidedAt,
                             :policyVersion, 'Governed catalog manifest accepted', :evidence
@@ -315,88 +349,17 @@ public class CatalogWriteRepository {
         .update();
   }
 
-  private void enqueueSearchDocument(UUID packageId, UUID versionId, CatalogManifestV1 manifest) {
-    var latestVersionId =
-        jdbc.sql(
-                """
-                        SELECT id
-                          FROM package_versions
-                         WHERE package_id = :packageId AND NOT revoked
-                         ORDER BY published_at DESC, created_at DESC
-                         LIMIT 1
-                        """)
-            .param("packageId", packageId)
-            .query(UUID.class)
-            .single();
-    if (!latestVersionId.equals(versionId)) {
-      jdbc.sql(
-              """
-                            UPDATE package_versions
-                               SET active = EXISTS (
-                                   SELECT 1 FROM search_outbox
-                                    WHERE aggregate_id = :packageId AND status = 'completed'
-                               )
-                             WHERE id = :versionId
-                            """)
-          .param("packageId", packageId)
-          .param("versionId", versionId)
-          .update();
-      return;
-    }
-    var payload =
-        Map.<String, Object>ofEntries(
-            Map.entry("id", manifest.publicId()),
-            Map.entry("kind", manifest.packageKind().jsonValue()),
-            Map.entry("namespace", manifest.identity().namespace()),
-            Map.entry("name", manifest.identity().name()),
-            Map.entry("target", manifest.targetOrEmpty()),
-            Map.entry("title", manifest.display().title()),
-            Map.entry("description", manifest.display().description()),
-            Map.entry(
-                "keywords",
-                manifest.display().keywords() == null ? List.of() : manifest.display().keywords()),
-            Map.entry(
-                "owners",
-                manifest.display().owners() == null ? List.of() : manifest.display().owners()),
-            Map.entry("latest_version", manifest.identity().version()),
-            Map.entry("lifecycle", manifest.display().lifecycle()),
-            Map.entry("verification", manifest.display().verification()),
-            Map.entry("risk_tier", manifest.display().riskTier()),
-            Map.entry("support_level", manifest.display().supportLevel()),
-            Map.entry("terraform_compatible", true),
-            Map.entry("apm_ids", manifest.access().apmIds()),
-            Map.entry("published_at", manifest.release().publishedAt().toString()),
-            Map.entry("updated_at", java.time.Instant.now().toString()));
+  private void activateVersion(UUID packageId, CatalogManifestV1 manifest) {
     jdbc.sql(
             """
-                        INSERT INTO search_outbox (
-                            aggregate_type, aggregate_id, package_version_id,
-                            index_name, document_id, payload
-                        ) VALUES (
-                            'package', :packageId, :versionId,
-                            'private-registry-packages-write', :documentId, CAST(:payload AS jsonb)
-                        )
-                        ON CONFLICT (index_name, document_id) DO UPDATE SET
-                            aggregate_id = EXCLUDED.aggregate_id,
-                            package_version_id = EXCLUDED.package_version_id,
-                            payload = EXCLUDED.payload,
-                            revision = search_outbox.revision + 1,
-                            status = 'pending', attempts = 0, available_at = now(),
-                            claimed_at = NULL, completed_at = NULL, last_error = NULL,
-                            updated_at = now()
-                        """)
+            UPDATE package_versions
+               SET active = NOT revoked
+             WHERE package_id = :packageId
+            """)
         .param("packageId", packageId)
-        .param("versionId", versionId)
-        .param("documentId", manifest.publicId())
-        .param("payload", json(payload))
         .update();
-  }
-
-  private String json(Map<String, Object> payload) {
-    try {
-      return objectMapper.writeValueAsString(payload);
-    } catch (JacksonException exception) {
-      throw new IllegalStateException("Unable to serialize search document", exception);
+    if (!manifest.release().revoked()) {
+      activationNotifier.notifyChanged(manifest.publicId(), manifest.identity().version());
     }
   }
 

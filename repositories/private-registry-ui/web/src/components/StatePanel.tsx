@@ -3,7 +3,6 @@ import {
   LockKeyIcon,
   MagnifyingGlassIcon,
   ShieldWarningIcon,
-  SignInIcon,
   WifiSlashIcon,
 } from "@phosphor-icons/react";
 
@@ -11,7 +10,6 @@ type StateKind =
   | "loading"
   | "empty"
   | "no-access"
-  | "expired"
   | "revoked"
   | "identity-error"
   | "api-error"
@@ -20,7 +18,7 @@ type StateKind =
 const copy: Record<StateKind, { title: string; description: string }> = {
   loading: {
     title: "Loading your registry",
-    description: "We’re confirming your access and finding approved packages.",
+    description: "We’re finding providers and modules available to you.",
   },
   empty: {
     title: "No packages match these filters",
@@ -30,11 +28,6 @@ const copy: Record<StateKind, { title: string; description: string }> = {
     title: "No registry access yet",
     description:
       "You’re signed in, but none of your Entra groups currently grant access to a registry APM.",
-  },
-  expired: {
-    title: "Your session has expired",
-    description:
-      "Sign in again to refresh your Entra group memberships and registry access.",
   },
   revoked: {
     title: "Registry access was revoked",
@@ -54,7 +47,7 @@ const copy: Record<StateKind, { title: string; description: string }> = {
   "not-found": {
     title: "Package not found",
     description:
-      "The package may not exist, or it may not be approved for your current APM context.",
+      "The package may not exist or may not be available to your account.",
   },
 };
 
@@ -71,7 +64,6 @@ export function StatePanel({
     loading: ArrowClockwiseIcon,
     empty: MagnifyingGlassIcon,
     "no-access": LockKeyIcon,
-    expired: SignInIcon,
     revoked: ShieldWarningIcon,
     "identity-error": WifiSlashIcon,
     "api-error": WifiSlashIcon,
@@ -84,7 +76,7 @@ export function StatePanel({
       </span>
       <h1>{copy[kind].title}</h1>
       <p>{copy[kind].description}</p>
-      {action ? (
+      {action !== undefined ? (
         <button
           className="button button-primary"
           type="button"

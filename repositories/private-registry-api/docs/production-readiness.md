@@ -1,16 +1,14 @@
 # Production readiness checklist
 
 - [ ] Fixture mode disabled and blocked in production.
-- [ ] Aurora, S3, OpenSearch, JFrog, SQS, identity, and authorization adapters complete.
-- [ ] OpenAPI compatibility verified against the pinned UI.
+- [ ] PostgreSQL, JFrog, identity, and authorization adapters verified.
+- [ ] OpenAPI compatibility verified against the UI.
 - [ ] Package/event schemas validated in release and ingestion pipelines.
-- [ ] Three-AZ ECS/API and OpenSearch topology verified.
-- [ ] Database backup, point-in-time recovery, snapshot copy, and restore tested.
-- [ ] S3 replication/Object Lock requirements tested.
-- [ ] Queue retry, DLQ, redrive, duplicate delivery, and poison message tests pass.
-- [ ] Reconciliation dry-run and repair tests pass.
+- [ ] PostgreSQL backup, point-in-time recovery, snapshot copy, and restore tested.
+- [ ] Database queue retry, dead-letter inspection, duplicate delivery, stale-claim recovery, and poison-message tests pass.
+- [ ] Incremental and full reconciliation tests pass.
+- [ ] Search relevance, authorization, and `pg_trgm`/GIN query plans meet latency goals.
 - [ ] ALB JWT signature and authorization tests pass.
 - [ ] Penetration, dependency, image, IaC, secret, and license scans pass.
 - [ ] Load test meets approved p95 and availability goals.
-- [ ] DR Region activation and Route 53 failover exercised.
-- [ ] JFrog remains usable during complete catalog outage.
+- [ ] JFrog remains usable during a complete catalog outage; catalog reads remain usable during a JFrog outage.

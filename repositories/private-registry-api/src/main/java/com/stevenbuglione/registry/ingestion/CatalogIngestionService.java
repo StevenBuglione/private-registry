@@ -2,6 +2,7 @@ package com.stevenbuglione.registry.ingestion;
 
 import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import com.stevenbuglione.registry.eventing.CatalogArtifactChanged;
+import com.stevenbuglione.registry.eventing.EventingProperties;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class CatalogIngestionService {
   private final DocumentStore documents;
   private final CatalogWriteRepository catalog;
   private final IngestionProperties properties;
+  private final EventingProperties eventing;
 
   public CatalogIngestionService(
       ArtifactoryGateway artifactory,
@@ -30,17 +32,19 @@ public class CatalogIngestionService {
       IngestionEventRepository events,
       DocumentStore documents,
       CatalogWriteRepository catalog,
-      IngestionProperties properties) {
+      IngestionProperties properties,
+      EventingProperties eventing) {
     this.artifactory = artifactory;
     this.objectMapper = objectMapper;
     this.events = events;
     this.documents = documents;
     this.catalog = catalog;
     this.properties = properties;
+    this.eventing = eventing;
   }
 
   public Outcome accept(CatalogArtifactChanged event) {
-    if (!events.claim(event)) {
+    if (!events.claim(event, eventing.claimTimeout())) {
       return Outcome.DUPLICATE;
     }
     try {
@@ -75,7 +79,7 @@ public class CatalogIngestionService {
             manifestLocation.repository(),
             manifestLocation.path(),
             properties.maximumManifestBytes());
-    var actualManifestDigest = S3DocumentStore.sha256(bytes);
+    var actualManifestDigest = ContentDigest.sha256(bytes);
     if (metadata.sha256() != null
         && !metadata.sha256().isBlank()
         && !actualManifestDigest.equals(prefixDigest(metadata.sha256()))) {
@@ -154,7 +158,7 @@ public class CatalogIngestionService {
             manifest.registry().repository(),
             manifest.registry().artifactPath(),
             properties.maximumArtifactBytes());
-    var actualDigest = S3DocumentStore.sha256(artifact);
+    var actualDigest = ContentDigest.sha256(artifact);
     if (metadata.sha256() != null
         && !metadata.sha256().isBlank()
         && !actualDigest.equals(prefixDigest(metadata.sha256()))) {

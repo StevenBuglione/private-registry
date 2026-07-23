@@ -157,7 +157,7 @@ public class CatalogController {
 
   private static CatalogQuery query(@Nullable String q, @Nullable PackageKind kind, int limit) {
     return new CatalogQuery(
-        new CatalogQuery.Criteria(q, kind, null, null, null, null, null, "updated", null, limit));
+        new CatalogQuery.Criteria(q, kind, null, null, null, "updated", null, limit, null));
   }
 
   static List<String> splitPath(@Nullable String path) {

@@ -44,7 +44,6 @@ repositories {
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.0"))
     implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
-    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
 
     constraints {
         implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.24") {
@@ -80,16 +79,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.security:spring-security-oauth2-jose")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
+    implementation("org.apache.groovy:groovy")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
-    implementation("org.opensearch.client:opensearch-java:3.9.0")
-    implementation("org.apache.httpcomponents.client5:httpclient5")
     implementation("com.github.ben-manes.caffeine:caffeine")
-    implementation("software.amazon.awssdk:eventbridge")
-    implementation("software.amazon.awssdk:s3")
-    implementation("software.amazon.awssdk:sqs")
 
     compileOnly("org.jspecify:jspecify:1.0.0")
     compileOnly("org.checkerframework:checker-qual:4.2.1")
@@ -111,7 +107,6 @@ dependencies {
     testCompileOnly("org.checkerframework:checker-qual:4.2.1")
     testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
-    testImplementation("org.testcontainers:testcontainers-localstack")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
@@ -335,6 +330,44 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
                 minimum = coveredRatio(baselineBranchCovered, baselineBranchMissed)
             }
         }
+        rule {
+            element = "CLASS"
+            includes =
+                listOf(
+                    "com.stevenbuglione.registry.catalog.JdbcCatalogService",
+                    "com.stevenbuglione.registry.catalog.CatalogPackageEnricher",
+                    "com.stevenbuglione.registry.catalog.CatalogRowMapper",
+                )
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.70")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.40")
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes =
+                listOf(
+                    "com.stevenbuglione.registry.catalog.CatalogQueryBuilder",
+                    "com.stevenbuglione.registry.catalog.CatalogQueryFilters",
+                    "com.stevenbuglione.registry.catalog.CatalogCursorCodec",
+                )
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.70")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.50")
+            }
+        }
     }
 }
 
@@ -399,7 +432,10 @@ pitest {
 
 val nullMarkedProductionPackages =
     listOf(
+        "administration",
+        "analytics",
         "artifactory",
+        "audit",
         "catalog",
         "config",
         "eventing",
@@ -410,6 +446,7 @@ val nullMarkedProductionPackages =
         "security",
         "security.identity",
         "seed",
+        "storage",
         "web",
     )
 

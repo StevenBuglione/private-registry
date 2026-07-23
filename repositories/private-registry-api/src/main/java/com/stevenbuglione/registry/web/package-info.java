@@ -1,7 +1,16 @@
 /** HTTP adapters for the authenticated catalog and operational endpoints. */
 @ApplicationModule(
     displayName = "Web API",
-    allowedDependencies = {"artifactory", "catalog", "health", "model", "security::identity"})
+    allowedDependencies = {
+      "administration",
+      "analytics",
+      "audit",
+      "catalog",
+      "health",
+      "model",
+      "security::identity",
+      "storage"
+    })
 @NullMarked
 package com.stevenbuglione.registry.web;
 

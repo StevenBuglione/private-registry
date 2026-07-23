@@ -30,6 +30,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: ${{ env.ACT != 'true' }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: ${{ env.ACT != 'true' }}
+          GITLEAKS_ENABLE_SUMMARY: ${{ env.ACT != 'true' }}
 
   container:
     name: Container security and SBOM
@@ -46,14 +49,33 @@ jobs:
         run: docker build --tag private-registry-api:security-scan repositories/private-registry-api
 
       - name: Generate CycloneDX image SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: private-registry-api:security-scan
           format: cyclonedx-json
           output-file: api-image.cdx.json
           upload-artifact: false
 
+      - name: Install Trivy under act
+        if: ${{ env.ACT == 'true' }}
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
+        with:
+          version: v0.70.0
+          cache: true
+
+      - name: Scan image for high-severity vulnerabilities under act
+        if: ${{ env.ACT == 'true' }}
+        run: >-
+          trivy image
+          --format sarif
+          --output trivy-api-image.sarif
+          --exit-code 1
+          --ignore-unfixed
+          --severity HIGH,CRITICAL
+          private-registry-api:security-scan
+
       - name: Scan image for high-severity vulnerabilities
+        if: ${{ env.ACT != 'true' }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
@@ -67,7 +89,7 @@ jobs:
 
       - name: Upload Trivy findings to code scanning
         if: >-
-          ${{ always() &&
+          ${{ always() && env.ACT != 'true' &&
               (github.event_name != 'pull_request' ||
                github.event.pull_request.head.repo.fork == false) }}
         uses: github/codeql-action/upload-sarif@v4

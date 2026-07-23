@@ -9,10 +9,8 @@ private-registry/
 │   │   ├── src/main/java/             Java 25 API, identity, JFrog, eventing, ingestion
 │   │   ├── src/main/resources/        configuration, migrations, curated seed manifest
 │   │   ├── src/test/java/             backend unit/integration/architecture tests
-│   │   ├── infrastructure/terraform/  production platform and isolated Entra test root
-│   │   ├── deploy/                    LocalStack initialization
-│   │   ├── opensearch/                index templates
-│   │   └── compose.yaml               complete local acceptance stack
+│   │   ├── infrastructure/terraform/  PostgreSQL-centered platform and isolated Entra test root
+│   │   └── compose.yaml               PostgreSQL-only stateful local acceptance stack
 │   └── private-registry-ui/
 │       ├── web/src/                   first-party React application
 │       ├── public/assets/              Registry and provider assets

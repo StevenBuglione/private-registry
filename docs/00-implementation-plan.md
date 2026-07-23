@@ -1,23 +1,11 @@
 # Implementation plan
 
-## Product outcome
+The Registry is a first-party React UI plus one Java 25 Spring Modulith application. PostgreSQL is its only stateful application service.
 
-Deliver an authenticated internal Registry where engineers can search the provider and module versions authorized for their APM groups, read normalized documentation and governance metadata, and copy JFrog-backed install configuration. JFrog continues serving package bytes independently when the catalog is unavailable.
-
-## Runtime layers
-
-1. **Package data plane:** three governed JFrog local repositories created and accessed only through the official Java client.
-2. **Identity plane:** ALB Entra OIDC in production; Spring-managed Entra OAuth2 locally; delegated Graph group checks mapped to APM access.
-3. **Event plane:** signed JFrog webhook intake to EventBridge and SQS with DLQ.
-4. **Ingestion plane:** reconcile current JFrog metadata/digests, normalize docs to S3, transact PostgreSQL plus search outbox, then activate deterministic OpenSearch documents.
-5. **Catalog plane:** Java 25 Spring MVC on virtual threads with authorization-filtered search, details, docs, governance, counts, and SSE.
-6. **UI plane:** a first-party React application visually grounded in the Terraform Registry utility layout and using only internal branding/data.
-
-## Acceptance gates
-
-- Curated JFrog catalog has at least 12 providers and 30 modules with required versions, platforms, properties, and digests.
-- APM-A, APM-B, administrator, and no-entitlement identities receive the correct catalog without unauthorized response metadata.
-- Duplicate/out-of-order events are idempotent; unsafe content is quarantined; retries, DLQ, outbox recovery, and reconciliation are verified.
-- Webhook-to-searchable/UI-visible latency meets P95 <= 5 seconds and P99 <= 30 seconds.
-- Gradle, UI, Compose, security, branding, accessibility, responsive browser, and console/network checks pass.
-- Scoped changes are committed and pushed only after the complete audit is green.
+1. **Identity plane:** real Entra OIDC, server-side sessions, delegated Graph membership, and fail-closed APM authorization.
+2. **Artifact plane:** governed provider/module bytes in JFrog, accessed only through the official JFrog Java Client.
+3. **Catalog plane:** package metadata, documentation, governance, full-text/trigram search, and UI settings in PostgreSQL.
+4. **Event plane:** signed JFrog webhook intake to an idempotent PostgreSQL queue with retries, stale-claim recovery, and a dead-letter view.
+5. **Update plane:** Java worker re-reads current JFrog state, validates content, activates it transactionally, and emits PostgreSQL notifications for authorized SSE refresh.
+6. **Recovery plane:** 15-minute incremental and nightly full reconciliation, plus startup repair in Compose.
+7. **Delivery plane:** PostgreSQL, combined API/worker, and UI in Docker Compose; production Terraform does not create application S3 buckets, OpenSearch, SQS, or EventBridge.

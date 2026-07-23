@@ -1,5 +1,7 @@
 # Claude Deployment Handoff
 
+> Historical handoff. Do not follow its former multi-service adapter sequence; ADR 0007 and `CLAUDE.md` are authoritative.
+
 Use this file as the implementation-agent contract.
 
 ## Objective

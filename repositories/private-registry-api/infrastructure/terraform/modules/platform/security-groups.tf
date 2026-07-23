@@ -132,28 +132,6 @@ resource "aws_vpc_security_group_egress_rule" "database_all" {
   ip_protocol       = "-1"
 }
 
-resource "aws_security_group" "opensearch" {
-  name_prefix = "${local.name}-opensearch-"
-  description = "OpenSearch domain"
-  vpc_id      = aws_vpc.this.id
-  tags        = merge(local.common_tags, { Name = "${local.name}-opensearch" })
-  lifecycle { create_before_destroy = true }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "opensearch_from_services" {
-  security_group_id            = aws_security_group.opensearch.id
-  referenced_security_group_id = aws_security_group.services.id
-  from_port                    = 443
-  to_port                      = 443
-  ip_protocol                  = "tcp"
-}
-
-resource "aws_vpc_security_group_egress_rule" "opensearch_all" {
-  security_group_id = aws_security_group.opensearch.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1"
-}
-
 resource "aws_security_group" "endpoints" {
   name_prefix = "${local.name}-endpoints-"
   description = "Interface VPC endpoints"

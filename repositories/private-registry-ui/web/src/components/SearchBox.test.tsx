@@ -1,47 +1,39 @@
-import axe from "axe-core";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RegistryProvider } from "../registry-context";
+import { RegistryProvider } from "../registry-provider";
 import type { PackageSummary, RegistrySession } from "../types";
 import { SearchBox } from "./SearchBox";
 
 const packages: PackageSummary[] = [
   {
     kind: "provider",
+    registryTier: "official",
     namespace: "platform",
     name: "aws",
     version: "6.5.0",
-    description: "Approved AWS provider",
+    description: "AWS provider",
     provider: "AWS",
-    owner: "Platform Engineering",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
     verified: true,
     updatedAt: "2026-07-21T12:00:00Z",
-    apmIds: ["APM0001042"],
   },
   {
     kind: "module",
+    registryTier: "community",
     namespace: "platform",
     name: "vpc",
     target: "aws",
     version: "1.4.0",
-    description: "Approved network module",
+    description: "Network module",
     provider: "AWS",
-    owner: "Platform Engineering",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
     verified: true,
     updatedAt: "2026-07-21T12:00:00Z",
-    apmIds: ["APM0001042"],
   },
 ];
 
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/catalog", () => ({
   useCatalogSuggestions: () => ({
     data: {
       items: packages,
@@ -62,7 +54,9 @@ const session: RegistrySession = {
 };
 
 describe("SearchBox", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
   it("shows grouped authorized provider and module suggestions", async () => {
     const user = userEvent.setup();
@@ -76,7 +70,7 @@ describe("SearchBox", () => {
 
     await user.type(
       screen.getByRole("textbox", {
-        name: "Search approved providers and modules",
+        name: "Search providers and modules",
       }),
       "aws",
     );
@@ -94,5 +88,73 @@ describe("SearchBox", () => {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(result.violations).toEqual([]);
+  });
+
+  it("clears the query and closes suggestions from the clear control", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox compact />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    const input = screen.getByRole("textbox", {
+      name: "Search providers and modules",
+    });
+    await user.type(input, "aws");
+
+    expect(
+      screen.getByRole("region", { name: "Search suggestions" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
+    expect(
+      screen.queryByRole("region", { name: "Search suggestions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear search" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes suggestions after a package result is selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox compact />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    await user.type(
+      screen.getByRole("textbox", {
+        name: "Search providers and modules",
+      }),
+      "aws",
+    );
+    await user.click(screen.getByRole("link", { name: /platform \/ aws/i }));
+
+    expect(
+      screen.queryByRole("region", { name: "Search suggestions" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("submits a normalized query through the explicit search contract", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox initialValue="  aws  " onSearch={onSearch} />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(onSearch).toHaveBeenCalledWith("aws");
   });
 });

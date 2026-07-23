@@ -63,7 +63,14 @@ class CatalogManifestV1Test {
     var mapper = new ObjectMapper();
     var symbol =
         new CatalogManifestV1.Symbol(
-            "input", "cidrs", null, null, "list(string)", "[\"10.0.0.0/8\"]", false, false);
+            "input",
+            "cidrs",
+            null,
+            "variables.tf",
+            "list(string)",
+            "[\"10.0.0.0/8\"]",
+            false,
+            false);
 
     var json = mapper.writeValueAsString(symbol);
     var decoded = mapper.readValue(json, CatalogManifestV1.Symbol.class);
@@ -76,7 +83,8 @@ class CatalogManifestV1Test {
   @Test
   void quarantinesDuplicateAndUnsafeSymbols() {
     var duplicate =
-        new CatalogManifestV1.Symbol("input", "region", null, null, null, null, true, false);
+        new CatalogManifestV1.Symbol(
+            "input", "region", null, "variables.tf", null, null, true, false);
     assertThatThrownBy(
             () -> manifest(List.of("APM0000001"), List.of(duplicate, duplicate)).validate())
         .isInstanceOf(QuarantineException.class)
@@ -93,11 +101,23 @@ class CatalogManifestV1Test {
 
     var legacyKind =
         new CatalogManifestV1.Symbol(
-            "datasource", "identity", null, null, null, null, false, false);
+            "datasource", "identity", null, "data-sources/identity.md", null, null, false, false);
     assertThatThrownBy(() -> manifest(List.of("APM0000001"), List.of(legacyKind)).validate())
         .isInstanceOf(QuarantineException.class)
         .extracting(exception -> ((QuarantineException) exception).code())
         .isEqualTo("invalid_symbol_kind");
+  }
+
+  @Test
+  void acceptsSameSymbolNameInDifferentModuleChildren() {
+    var first =
+        new CatalogManifestV1.Symbol(
+            "input", "enabled", null, "modules/one/variables.tf", "bool", "true", false, false);
+    var second =
+        new CatalogManifestV1.Symbol(
+            "input", "enabled", null, "modules/two/variables.tf", "bool", "true", false, false);
+
+    manifest(List.of("APM0000001"), List.of(first, second)).validate();
   }
 
   @Test
@@ -160,7 +180,9 @@ class CatalogManifestV1Test {
             "enterprise-verified",
             "approved",
             "high",
-            "restricted"),
+            "restricted",
+            "official",
+            List.of("public-cloud")),
         new CatalogManifestV1.RegistryLocation(
             "artifacts.example.invalid",
             "iac-provider-release-local",

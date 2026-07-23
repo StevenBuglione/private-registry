@@ -110,14 +110,6 @@ variable "api_image_tag" {
   type    = string
   default = "not-deployed"
 }
-variable "indexer_image_tag" {
-  type    = string
-  default = "not-deployed"
-}
-variable "reconciler_image_tag" {
-  type    = string
-  default = "not-deployed"
-}
 variable "migrations_image_tag" {
   type    = string
   default = "not-deployed"
@@ -129,10 +121,6 @@ variable "ui_desired_count" {
 variable "api_desired_count" {
   type    = number
   default = 3
-}
-variable "indexer_desired_count" {
-  type    = number
-  default = 2
 }
 variable "ui_min_count" {
   type    = number
@@ -149,14 +137,6 @@ variable "api_min_count" {
 variable "api_max_count" {
   type    = number
   default = 30
-}
-variable "indexer_min_count" {
-  type    = number
-  default = 2
-}
-variable "indexer_max_count" {
-  type    = number
-  default = 50
 }
 variable "fargate_platform_version" {
   type    = string
@@ -218,81 +198,6 @@ variable "is_dr_region" {
 variable "primary_region" {
   type    = string
   default = null
-}
-
-variable "opensearch_engine_version" {
-  type    = string
-  default = "OpenSearch_2.17"
-}
-variable "opensearch_data_instance_type" {
-  type    = string
-  default = "r7g.large.search"
-}
-variable "opensearch_data_instance_count" {
-  type    = number
-  default = 6
-}
-variable "opensearch_master_instance_type" {
-  type    = string
-  default = "m7g.large.search"
-}
-variable "opensearch_ebs_volume_size" {
-  type    = number
-  default = 100
-}
-variable "opensearch_zone_awareness_count" {
-  type    = number
-  default = 3
-}
-
-variable "documentation_retention_days" {
-  type    = number
-  default = 2555
-}
-variable "quarantine_retention_days" {
-  type    = number
-  default = 90
-}
-variable "audit_object_lock_enabled" {
-  type    = bool
-  default = false
-}
-variable "audit_object_lock_retention_days" {
-  type    = number
-  default = 2555
-}
-variable "force_destroy_buckets" {
-  type    = bool
-  default = false
-}
-
-variable "ingestion_visibility_timeout_seconds" {
-  type    = number
-  default = 900
-}
-variable "ingestion_retention_seconds" {
-  type    = number
-  default = 1209600
-}
-variable "ingestion_max_receive_count" {
-  type    = number
-  default = 5
-}
-variable "dlq_retention_seconds" {
-  type    = number
-  default = 1209600
-}
-variable "event_publisher_principal_arns" {
-  type    = list(string)
-  default = []
-}
-variable "reconciliation_schedule_expression" {
-  type    = string
-  default = "rate(15 minutes)"
-}
-variable "full_reconciliation_schedule_expression" {
-  type    = string
-  default = "cron(0 3 * * ? *)"
 }
 
 variable "alarm_notification_email" {

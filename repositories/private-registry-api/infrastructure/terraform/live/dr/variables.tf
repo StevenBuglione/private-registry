@@ -81,11 +81,6 @@ variable "support_url" {
   type    = string
   default = ""
 }
-variable "event_publisher_principal_arns" {
-  type    = list(string)
-  default = []
-}
-
 variable "deploy_application_services" {
   type    = bool
   default = false
@@ -95,14 +90,6 @@ variable "ui_image_tag" {
   default = "not-deployed"
 }
 variable "api_image_tag" {
-  type    = string
-  default = "not-deployed"
-}
-variable "indexer_image_tag" {
-  type    = string
-  default = "not-deployed"
-}
-variable "reconciler_image_tag" {
   type    = string
   default = "not-deployed"
 }
@@ -117,10 +104,6 @@ variable "ui_desired_count" {
 variable "api_desired_count" {
   type    = number
   default = 3
-}
-variable "indexer_desired_count" {
-  type    = number
-  default = 2
 }
 variable "ui_min_count" {
   type    = number
@@ -137,14 +120,6 @@ variable "api_min_count" {
 variable "api_max_count" {
   type    = number
   default = 30
-}
-variable "indexer_min_count" {
-  type    = number
-  default = 2
-}
-variable "indexer_max_count" {
-  type    = number
-  default = 50
 }
 
 variable "aurora_engine_version" {
@@ -188,34 +163,6 @@ variable "primary_region" {
   default = null
 }
 
-variable "opensearch_engine_version" {
-  type    = string
-  default = "OpenSearch_2.17"
-}
-variable "opensearch_data_instance_type" {
-  type    = string
-  default = "r7g.large.search"
-}
-variable "opensearch_data_instance_count" {
-  type    = number
-  default = 6
-}
-variable "opensearch_master_instance_type" {
-  type    = string
-  default = "m7g.large.search"
-}
-variable "opensearch_ebs_volume_size" {
-  type    = number
-  default = 100
-}
-variable "audit_object_lock_enabled" {
-  type    = bool
-  default = false
-}
-variable "force_destroy_buckets" {
-  type    = bool
-  default = false
-}
 variable "backup_copy_destination_vault_arn" {
   type    = string
   default = null

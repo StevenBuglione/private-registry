@@ -136,6 +136,40 @@
             "restricted"
           ]
         },
+        "tier": {
+          "enum": [
+            "official",
+            "partner",
+            "partner-premier",
+            "community"
+          ]
+        },
+        "categories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "asset-management",
+              "cloud-automation",
+              "communication-messaging",
+              "container-orchestration",
+              "ci-cd",
+              "data-management",
+              "database",
+              "infrastructure",
+              "logging-monitoring",
+              "networking",
+              "platform",
+              "security-authentication",
+              "utility",
+              "vcs",
+              "web-services",
+              "hashicorp-platform",
+              "infrastructure-management",
+              "public-cloud"
+            ]
+          }
+        },
         "replacementSource": {
           "type": "string",
           "maxLength": 512

@@ -1,60 +1,39 @@
 # Production adapter implementation
 
-The Java 25 Spring Boot starter isolates external systems behind focused services. Complete the remaining production adapters before enabling application services in production.
+The Java 25 Spring Boot service intentionally has two external adapters: PostgreSQL for all application state and the official JFrog Artifactory Java Client for governed artifact access.
 
-## Aurora store
+## PostgreSQL adapter
 
-Use a maintained PostgreSQL driver and:
-
-- connect only through RDS Proxy with TLS verification;
-- use separate application and migration users;
-- cap connection pools below proxy/database limits;
-- wrap package/version/document metadata changes in transactions;
-- acquire idempotency rows before ingestion work;
-- use statement timeouts and context cancellation;
-- avoid storing full Markdown bodies in Aurora;
-- expose dependency-specific readiness without leaking details.
-
-## S3 document store
-
-- SSE-KMS on every write;
-- checksum validation on upload/download;
-- normalized deterministic keys;
-- versioning and retention policies;
-- no public ACLs or presigned URLs in the browser path;
-- bounded decompression and file counts;
-- reject path traversal and symbolic links;
-- quarantine invalid bundles with event/error metadata.
-
-## OpenSearch adapter
-
-- use SigV4 and VPC-only access;
-- query aliases, never concrete index names from API handlers;
-- filter visibility before returning results;
-- use `search_after` cursors rather than deep offset pagination;
-- exact-name and namespace boosts before documentation body matches;
-- use bulk indexing and deterministic document IDs;
-- support blue/green index rebuild and atomic alias switch.
+- Connect through the platform's managed PostgreSQL endpoint with TLS verification.
+- Use separate application and migration users and bounded Hikari pools.
+- Keep package, version, document, authorization, event, DLQ, and audit changes transactional.
+- Use `tsvector`/GIN and `pg_trgm` indexes for authorized catalog search.
+- Claim queue rows with `FOR UPDATE SKIP LOCKED`; never hold a transaction open while calling JFrog.
+- Recover abandoned processing claims and retain terminal failures for operator inspection.
+- Use `LISTEN`/`NOTIFY` only as a low-latency wake-up signal; tables remain the durable source of truth.
+- Back up and restore the database as one consistent unit.
 
 ## JFrog client
 
-- read-only token from Secrets Manager or workload identity integration;
-- PrivateLink/private routing;
-- verify artifact SHA-256 and catalog manifest digest;
-- enforce allowed repositories and maximum content sizes;
-- treat JFrog properties as evidence, not user-supplied display HTML;
-- do not proxy module/provider archives to browsers.
+- Use only the official Artifactory Java Client; architecture tests reject alternate Artifactory HTTP clients.
+- Use a read-only token for runtime ingestion and a separate publishing identity for seeding.
+- Verify artifact and manifest SHA-256 values, repository allowlists, and content-size limits.
+- Reject unsafe archives and invalid UTF-8 documentation before database activation.
+- Treat JFrog properties as governance evidence, never as trusted HTML.
+- Keep JFrog out of API readiness so existing catalog reads remain available during an outage.
 
 ## Identity and authorization
 
-Verify the ALB `x-amzn-oidc-data` JWT signature with the ALB public key endpoint, expected signer ARN, issuer, audience, expiration, and nonce/state protections in the ALB flow. Map immutable IdP group identifiers to roles from centrally managed configuration. Enforce visibility, package scope, and sensitive audit/security field access in repository queries and handlers.
+Verify the ALB `x-amzn-oidc-data` JWT signature with the expected signer ARN, issuer, client ID, expiration, and matching identity header. Local Compose uses the same real Entra application through Spring OAuth2. Resolve configured APM memberships through Microsoft Graph, keep delegated tokens server-side, fail closed on Graph errors, and apply the resulting `AccessContext` to every catalog query.
 
 ## Worker semantics
 
-- at-least-once SQS delivery;
-- idempotency key uniqueness in Aurora;
-- heartbeat/visibility extension for long work;
-- delete only after completion;
-- classify retryable versus terminal failures;
-- terminal validation failures go to quarantine and then DLQ;
-- include correlation/event IDs in every log, metric, and audit record.
+- Idempotency is enforced by both the transport event ID and a canonical SHA-256
+  key over the artifact action, repository, path, occurrence time, and sorted
+  properties. Replayed deliveries therefore collapse without suppressing a later
+  legitimate change to the same artifact.
+- Transient failures use bounded retries and database timestamps for backoff.
+- Validation and quarantine failures enter the PostgreSQL dead-letter view immediately.
+- Processing claims older than the recovery threshold become retryable.
+- Reconciliation repairs missed webhooks and older database rows.
+- Correlation and event IDs are retained with every queue row and ingestion record.

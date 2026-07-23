@@ -1,88 +1,9 @@
-# Events, Ingestion, and Reconciliation
+# Events and ingestion
 
-## Event contract
+JFrog sends a signed JSON webhook to `/internal/webhooks/jfrog`. The API validates signature, origin, subscription, repository/path allowlist, content type, and size before inserting the normalized event into PostgreSQL.
 
-All events use EventBridge with:
+`catalog_event_queue.event_id` is unique. A duplicate delivery returns the original publication identity without creating duplicate work. Consumers claim available rows with `FOR UPDATE SKIP LOCKED`, allowing any API replica to work safely.
 
-```text
-source: private-registry.release
-detail-type: PackagePromoted | PackageDeprecated | PackageRevoked
-detail.schemaVersion: 1
-```
+Processing re-reads current artifact metadata, properties, manifest, documentation, and archives through the official JFrog Java Client. It verifies digests, immutable versions, APM assignments, schemas, archive safety, and UTF-8 documentation before one PostgreSQL activation transaction.
 
-The event includes package identity, version, JFrog repository/path, package digest, manifest location/digest, publication timestamp, source commit, and correlation ID.
-
-## Ingestion queue
-
-Use a standard SQS queue because ordering across unrelated packages is unnecessary. Idempotency handles duplicate delivery. Configure:
-
-- long polling;
-- KMS encryption;
-- visibility timeout greater than maximum expected processing time;
-- message retention long enough for incident recovery;
-- DLQ with a higher retention period;
-- alarm on any DLQ message;
-- alarm on oldest message age and backlog.
-
-## Idempotency
-
-Recommended key:
-
-```text
-{kind}/{namespace}/{name}/{target-or-provider}/{version}/{packageDigest}
-```
-
-The indexer inserts an ingestion record with a unique constraint before side effects. Replays either resume an incomplete state machine or return success for an already completed event.
-
-## Processing state machine
-
-```text
-received
- -> validated
- -> jfrog_verified
- -> documentation_downloaded
- -> normalized
- -> authoritative_data_committed
- -> search_indexed
- -> completed
-```
-
-Failures record stage, reason, retryability, correlation ID, and evidence location. Do not delete the queue message until completion.
-
-## Security controls
-
-- validate JSON Schema before network access;
-- reject unexpected repositories and hostnames;
-- verify package and manifest digests;
-- enforce archive/file limits;
-- reject symlinks and traversal;
-- sanitize Markdown;
-- never execute package examples;
-- use a read-only JFrog credential;
-- use quarantine for failed or suspicious content.
-
-## Reconciliation
-
-Incremental reconciliation runs every 15 minutes and full reconciliation runs nightly. It compares:
-
-```text
-JFrog package versions
-JFrog documentation bundles
-Aurora package versions
-S3 normalized documents
-OpenSearch records
-```
-
-Detect:
-
-- JFrog versions missing from catalog;
-- catalog versions missing from JFrog;
-- digest mismatch;
-- missing or invalid documentation;
-- missing owner/approval/security metadata;
-- stale latest-version selection;
-- missing or extra search records;
-- revoked versions still searchable;
-- broken source/support links.
-
-Default mode is report-only. Repair mode is an explicit operator action with change record and immutable audit output.
+Transient failures use timestamp-based bounded backoff. Terminal validation failures and exhausted retries use `dead_letter` status and appear in `catalog_event_dead_letters`. Claims abandoned by a crashed worker are recovered. Incremental and full reconciliation repair lost webhook hints.

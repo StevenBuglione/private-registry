@@ -1,0 +1,208 @@
+name: UI quality gate
+
+on:
+  pull_request:
+    paths:
+      - 'repositories/private-registry-ui/**'
+      - '.github/workflows/ui-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'repositories/private-registry-ui/**'
+      - '.github/workflows/ui-quality.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ui-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  SKIP_INSTALL_SIMPLE_GIT_HOOKS: '1'
+
+defaults:
+  run:
+    working-directory: repositories/private-registry-ui/web
+
+jobs:
+  quality:
+    name: Static analysis, tests, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: repositories/private-registry-ui/web/pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run formatting, type, semantic, CSS, architecture, and dead-code gates
+        run: pnpm quality:static
+
+      - name: Run unit, component, accessibility, and coverage gates
+        run: pnpm test:ci
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Enforce JavaScript bundle budget
+        run: pnpm bundle:check
+
+      - name: Audit production dependency graph
+        run: pnpm audit:prod
+
+      - name: Upload quality evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-quality-reports-${{ github.run_id }}
+          path: |
+            repositories/private-registry-ui/web/coverage/**
+            repositories/private-registry-ui/web/dist/**
+          if-no-files-found: error
+          retention-days: 14
+
+  browser:
+    name: Chromium journeys and rendered accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: repositories/private-registry-ui/web/pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm test:e2e:install
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Run Playwright and axe checks
+        run: pnpm test:e2e
+
+      - name: Upload browser evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-browser-reports-${{ github.run_id }}
+          path: |
+            repositories/private-registry-ui/web/playwright-report/**
+            repositories/private-registry-ui/web/test-results/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  performance:
+    name: Lighthouse budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: repositories/private-registry-ui/web/pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm test:e2e:install
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Enforce Lighthouse scores and performance budgets
+        run: pnpm lighthouse
+
+      - name: Upload Lighthouse report
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-lighthouse-reports-${{ github.run_id }}
+          path: repositories/private-registry-ui/web/reports/lighthouse/**
+          if-no-files-found: error
+          retention-days: 14
+
+  sonarqube:
+    name: Optional SonarQube new-code gate
+    needs: quality
+    if: >-
+      ${{ vars.SONAR_ENABLED == 'true' &&
+          vars.SONAR_HOST_URL != '' &&
+          vars.SONAR_UI_PROJECT_KEY != '' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.fork == false) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: repositories/private-registry-ui/web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.10.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate coverage input
+        run: pnpm test:ci
+
+      - name: Analyze with SonarQube
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: repositories/private-registry-ui/web
+          args: >-
+            -Dsonar.projectKey=${{ vars.SONAR_UI_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true

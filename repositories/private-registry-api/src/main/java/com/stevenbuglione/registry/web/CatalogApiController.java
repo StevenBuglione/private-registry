@@ -40,14 +40,15 @@ public class CatalogApiController {
       Authentication authentication,
       @RequestParam(required = false) @Nullable String q,
       @RequestParam(required = false) @Nullable String kind,
+      @RequestParam(required = false) @Nullable String namespace,
       @RequestParam(required = false) @Nullable String provider,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId,
-      @RequestParam(required = false) @Nullable String lifecycle,
-      @RequestParam(required = false) @Nullable String approval,
-      @RequestParam(required = false) @Nullable String risk,
+      @RequestParam(required = false) @Nullable String tier,
+      @RequestParam(required = false) @Nullable String category,
       @RequestParam(defaultValue = "updated") String sort,
       @RequestParam(required = false) @Nullable String cursor,
+      @RequestParam(required = false) @Nullable Integer page,
       @RequestParam(defaultValue = "25") int limit) {
+    validatePagination(cursor, page);
     var context = identities.accessContext(authentication);
     return catalog.findPackages(
         context,
@@ -56,13 +57,22 @@ public class CatalogApiController {
                 q,
                 PackageKind.from(kind),
                 provider,
-                apmId,
-                lifecycle,
-                approval,
-                risk,
+                tier,
+                category,
                 sort,
                 cursor,
-                limit)));
+                limit,
+                namespace),
+            page));
+  }
+
+  private static void validatePagination(@Nullable String cursor, @Nullable Integer page) {
+    if (cursor != null && page != null) {
+      throw new IllegalArgumentException("cursor and page cannot be combined");
+    }
+    if (page != null && (page < 1 || page > 10_000)) {
+      throw new IllegalArgumentException("page must be between 1 and 10000");
+    }
   }
 
   @GetMapping("/counts")
@@ -77,9 +87,8 @@ public class CatalogApiController {
   public ResponseEntity<?> packageResource(
       Authentication authentication,
       @PathVariable String path,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId,
       @RequestParam(name = "path", required = false) @Nullable String documentPath) {
-    var context = identities.accessContext(authentication).scopedToApm(apmId);
+    var context = identities.accessContext(authentication);
     var route = PackageRoute.parse(path);
     return switch (route.resource()) {
       case "summary" ->
@@ -87,8 +96,6 @@ public class CatalogApiController {
       case "versions" ->
           ResponseEntity.ok(
               catalog.getPackage(context, route.packageId(), route.version()).versions());
-      case "governance" ->
-          ResponseEntity.ok(catalog.getGovernance(context, route.packageId(), route.version()));
       case "documentation" -> {
         var requestedPath = safeDocumentPath(documentPath, route.defaultDocument());
         var document =
@@ -121,16 +128,13 @@ public class CatalogApiController {
   }
 
   @GetMapping(path = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public SseEmitter events(
-      Authentication authentication,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId) {
-    return notifier.subscribe(identities.accessContext(authentication).scopedToApm(apmId));
+  public SseEmitter events(Authentication authentication) {
+    return notifier.subscribe(identities.accessContext(authentication));
   }
 
   private static final class PackageRoute {
 
-    private static final List<String> RESOURCES =
-        List.of("versions", "documentation", "governance");
+    private static final List<String> RESOURCES = List.of("versions", "documentation");
     private final String packageId;
     private final @Nullable String version;
     private final String resource;

@@ -1,5 +1,5 @@
-import axe from "axe-core";
 import { render } from "@testing-library/react";
+import axe from "axe-core";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import type { PackageSummary } from "../types";
@@ -7,18 +7,14 @@ import { PackageTable } from "./PackageTable";
 
 const item: PackageSummary = {
   kind: "provider",
+  registryTier: "official",
   namespace: "hashicorp",
   name: "azurerm",
   version: "4.36.0",
   description: "Manage Microsoft Azure resources.",
   provider: "Azure",
-  owner: "Cloud Platform",
-  approval: "approved",
-  lifecycle: "approved",
-  risk: "low",
   verified: true,
   updatedAt: "2026-07-21T18:00:00Z",
-  apmIds: ["APM0001042"],
 };
 
 describe("PackageTable", () => {

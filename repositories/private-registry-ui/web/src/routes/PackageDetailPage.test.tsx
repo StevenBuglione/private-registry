@@ -1,6 +1,6 @@
-import axe from "axe-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import {
   MemoryRouter,
   Route,
@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RegistryProvider } from "../registry-context";
+import { RegistryProvider } from "../registry-provider";
 import type { PackageDetail, PackageKind, RegistrySession } from "../types";
 import { PackageDetailPage } from "./PackageDetailPage";
 
@@ -22,20 +22,37 @@ afterEach(() => {
 
 const moduleDetail: PackageDetail = {
   kind: "module",
+  registryTier: "partner",
   namespace: "platform",
   name: "vpc",
   target: "aws",
   version: "2.4.1",
   versions: ["2.4.1"],
-  description: "Approved VPC module.",
+  examples: [{ name: "complete", path: "examples/complete" }],
+  submodules: [{ name: "network", path: "modules/network" }],
+  description: "VPC module.",
   provider: "aws",
-  owner: "Cloud Platform",
-  approval: "approved",
-  lifecycle: "approved",
-  risk: "low",
   verified: true,
   updatedAt: "2026-07-22T12:00:00Z",
-  apmIds: ["APM0000001"],
+  publishedAt: "2025-04-02T00:00:00Z",
+  sourceRepository: "https://github.com/platform/terraform-aws-vpc",
+  sourceTag: "v2.4.1",
+  downloadStatisticsByVersion: {
+    "2.4.1": {
+      allTime: 314_159,
+      week: 2_718,
+      month: 8_154,
+      year: 81_540,
+      observedAt: "2026-07-22T12:00:00Z",
+    },
+  },
+  downloadStatistics: {
+    allTime: 552_494,
+    week: 13_101,
+    month: 39_613,
+    year: 294_700,
+    observedAt: "2026-07-22T12:00:00Z",
+  },
   documentation: "# VPC Module\n\nModule readme.",
   symbols: [
     {
@@ -71,6 +88,26 @@ const moduleDetail: PackageDetail = {
       path: "resources/aws_vpc.this",
       provider: "aws",
     },
+    {
+      kind: "submodule",
+      name: "network",
+      path: "modules/network",
+    },
+    {
+      kind: "input",
+      name: "subnet_count",
+      description: "Number of subnets.",
+      path: "modules/network/variables.tf",
+      type: "number",
+      defaultValue: "3",
+      required: false,
+    },
+    {
+      kind: "output",
+      name: "subnet_ids",
+      description: "Created subnet IDs.",
+      path: "modules/network/outputs.tf",
+    },
   ],
 };
 
@@ -83,18 +120,10 @@ const providerDetail: PackageDetail = {
   version: "6.8.0",
   versions: ["6.8.0", "6.7.0"],
   description: "AWS infrastructure provider.",
+  sourceRepository: "https://github.com/hashicorp/terraform-provider-aws",
   documentation: "# AWS Provider\n\nProvider overview.",
   artifactRepository: "iac-provider-release-local",
   artifactPath: "hashicorp/aws/6.8.0/provider.zip",
-  governance: {
-    owner: "Cloud Platform",
-    support: "supported",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
-    sourceRepository: "https://github.com/hashicorp/terraform-provider-aws",
-    apmIds: ["APM0000001"],
-  },
   symbols: [
     {
       kind: "guide",
@@ -123,7 +152,7 @@ const providerDetail: PackageDetail = {
   ],
 };
 
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/catalog", () => ({
   usePackage: (identity: { kind: PackageKind }) => ({
     data: identity.kind === "module" ? moduleDetail : providerDetail,
     isPending: false,
@@ -142,20 +171,21 @@ vi.mock("../hooks", () => ({
       "data-sources/aws_vpc.md": "# aws_vpc Data Source\n\nReads a VPC.",
       "guides/authentication.md": "# Authentication\n\nConfigure credentials.",
       "functions/arn_parse.md": "# arn_parse Function\n\nParses an ARN.",
+      "modules/network/README.md":
+        "# Network submodule\n\nCreates the VPC network.",
+      "examples/complete/README.md":
+        "# Complete example\n\nRuns the complete configuration.",
     };
     return {
-      data: documentPath ? documents[documentPath] : initial,
+      data:
+        documentPath !== undefined && documentPath.length > 0
+          ? documents[documentPath]
+          : initial,
       isPending: false,
       isError: false,
       refetch: vi.fn(),
     };
   },
-  usePackageGovernance: () => ({
-    data: undefined,
-    isPending: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
   useCatalogPage: () => ({
     data: { items: [moduleDetail], total: 7 },
     isPending: false,
@@ -187,7 +217,12 @@ function LocationProbe() {
 function BackButton() {
   const navigate = useNavigate();
   return (
-    <button type="button" onClick={() => navigate(-1)}>
+    <button
+      type="button"
+      onClick={() => {
+        void navigate(-1);
+      }}
+    >
       Browser back
     </button>
   );
@@ -218,22 +253,109 @@ function renderDetail(kind: PackageKind, initialEntry: string) {
   );
 }
 
+function renderModuleChildDetail(
+  childKind: "submodule" | "example",
+  initialEntry: string,
+) {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <RegistryProvider session={session}>
+        <Routes>
+          <Route
+            path={`/modules/:namespace/:name/:target/:version/${childKind === "submodule" ? "submodules" : "examples"}/:moduleChild`}
+            element={
+              <PackageDetailPage kind="module" moduleChildKind={childKind} />
+            }
+          />
+        </Routes>
+      </RegistryProvider>
+    </MemoryRouter>,
+  );
+}
+
 describe("PackageDetailPage symbol-driven views", () => {
+  it("links module breadcrumbs to browse, namespace, and current module routes", () => {
+    renderDetail("module", "/modules/platform/vpc/aws/2.4.1");
+
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Breadcrumb" }),
+    );
+    expect(breadcrumbs.getByRole("link", { name: "Modules" })).toHaveAttribute(
+      "href",
+      "/browse/modules",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "platform" })).toHaveAttribute(
+      "href",
+      "/namespaces/platform",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "vpc" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1",
+    );
+    expect(
+      breadcrumbs.queryByRole("link", { name: "v2.4.1" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links provider breadcrumbs to browse, namespace, and latest provider routes", () => {
+    renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
+
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Breadcrumb" }),
+    );
+    expect(
+      breadcrumbs.getByRole("link", { name: "Providers" }),
+    ).toHaveAttribute("href", "/browse/providers");
+    expect(
+      breadcrumbs.getByRole("link", { name: "hashicorp" }),
+    ).toHaveAttribute("href", "/namespaces/hashicorp");
+    expect(breadcrumbs.getByRole("link", { name: "aws" })).toHaveAttribute(
+      "href",
+      "/providers/hashicorp/aws",
+    );
+    expect(
+      breadcrumbs.queryByRole("link", { name: "v6.8.0" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("matches the provider overview information architecture with truthful private metadata", () => {
     renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
 
     expect(
-      screen.getByRole("heading", { name: "Approved aws modules" }),
+      screen.getByRole("heading", { name: "Top downloaded aws modules" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Showing 1 - 1 of 7 available modules"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Provider Versions" }),
+      screen.getByRole("heading", { name: "Provider Downloads" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("This week:")).toBeInTheDocument();
+    expect(screen.getAllByText("13,101")).toHaveLength(2);
     expect(screen.getByRole("link", { name: "View Source" })).toHaveAttribute(
       "href",
       "https://github.com/hashicorp/terraform-provider-aws",
+    );
+    const providerLinks = within(
+      screen.getByRole("navigation", { name: "Provider links" }),
+    );
+    expect(providerLinks.getAllByRole("link")).toHaveLength(7);
+    for (const name of [
+      "Source Code",
+      "Using providers",
+      "Try HCP Terraform",
+      "View tutorials",
+      "Register for a workshop",
+      "Post a forum question",
+      "Report Issue",
+    ]) {
+      expect(providerLinks.getByRole("link", { name })).toBeInTheDocument();
+    }
+    expect(
+      providerLinks.getByRole("link", { name: "Report Issue" }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/hashicorp/terraform-provider-aws/issues",
     );
     expect(
       screen.getByText(/source\s*=\s*"hashicorp\/aws"/),
@@ -251,6 +373,21 @@ describe("PackageDetailPage symbol-driven views", () => {
     );
 
     const inputs = screen.getByRole("region", { name: "Optional Inputs" });
+    expect(screen.getAllByText("552,494")).toHaveLength(2);
+    expect(
+      screen.getByRole("option", { name: "All versions" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Download statistics version" }),
+      "2.4.1",
+    );
+    expect(screen.getByText("314,159")).toBeInTheDocument();
+    expect(screen.getByText("April 2, 2025")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Examples/ }));
+    expect(screen.getByRole("menuitem", { name: /complete/ })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1/examples/complete",
+    );
     expect(within(inputs).getByText("cidr_block")).toBeInTheDocument();
     expect(within(inputs).getByText("10.0.0.0/16")).toBeInTheDocument();
     expect(
@@ -273,15 +410,69 @@ describe("PackageDetailPage symbol-driven views", () => {
     await user.click(screen.getByRole("button", { name: "Resources (1)" }));
     const resource = screen.getByText("aws_vpc.this").closest("li");
     expect(resource).not.toBeNull();
-    expect(within(resource!).getByText("aws")).toBeInTheDocument();
+    if (resource === null) throw new Error("Expected a resource list item");
+    expect(within(resource).getByText("aws")).toBeInTheDocument();
     expect(
-      within(resource!).getByText("resources/aws_vpc.this"),
+      within(resource).getByText("resources/aws_vpc.this"),
     ).toBeInTheDocument();
 
     const result = await axe.run(container, {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(result.violations).toEqual([]);
+  });
+
+  it("routes module submodules and examples to Registry-rendered child pages", async () => {
+    const user = userEvent.setup();
+    renderDetail("module", "/modules/platform/vpc/aws/2.4.1");
+
+    await user.click(screen.getByRole("button", { name: "Submodules" }));
+    expect(screen.getByRole("menuitem", { name: "network" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1/submodules/network",
+    );
+    await user.click(screen.getByRole("button", { name: "Examples" }));
+    expect(screen.getByRole("menuitem", { name: "complete" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1/examples/complete",
+    );
+  });
+
+  it("renders submodule metadata and documentation without leaving Registry", () => {
+    renderModuleChildDetail(
+      "submodule",
+      "/modules/platform/vpc/aws/2.4.1/submodules/network",
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Submodule: network" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Return to module vpc" }),
+    ).toHaveAttribute("href", "/modules/platform/vpc/aws/2.4.1");
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Module submodule" }),
+    );
+    expect(breadcrumbs.getByRole("link", { name: "Modules" })).toHaveAttribute(
+      "href",
+      "/browse/modules",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "platform" })).toHaveAttribute(
+      "href",
+      "/namespaces/platform",
+    );
+    expect(
+      screen.getByRole("button", { name: "Change submodule" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Inputs (1)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Network submodule" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/platform\/vpc\/aws\/\/modules\/network/),
+    ).toBeInTheDocument();
   });
 
   it("filters and loads selected provider documents with history navigation", async () => {
@@ -310,7 +501,12 @@ describe("PackageDetailPage symbol-driven views", () => {
     expect(
       view.queryByRole("button", { name: "arn_parse" }),
     ).not.toBeInTheDocument();
-    await user.click(view.getAllByRole("button", { name: "aws_vpc" })[0]);
+    const vpcButtons = view.getAllByRole("button", { name: "aws_vpc" });
+    const firstVpcButton = vpcButtons[0];
+    expect(firstVpcButton).toBeDefined();
+    if (firstVpcButton === undefined)
+      throw new Error("Expected an aws_vpc button");
+    await user.click(firstVpcButton);
 
     expect(
       await view.findByRole("heading", { name: "aws_vpc Resource" }),

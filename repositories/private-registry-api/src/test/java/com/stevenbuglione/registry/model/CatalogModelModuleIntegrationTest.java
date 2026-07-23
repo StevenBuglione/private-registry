@@ -11,10 +11,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @ApplicationModuleTest
 @TestPropertySource(
-    properties =
-        "spring.autoconfigure.exclude="
-            + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
-            + "org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration")
+    properties = {
+      "spring.autoconfigure.exclude="
+          + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
+          + "org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration",
+      "springdoc.api-docs.enabled=false",
+      "springdoc.swagger-ui.enabled=false"
+    })
 class CatalogModelModuleIntegrationTest {
 
   private final ApplicationContext applicationContext;

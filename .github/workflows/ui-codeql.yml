@@ -1,0 +1,45 @@
+name: UI CodeQL
+
+on:
+  pull_request:
+    paths:
+      - 'repositories/private-registry-ui/**'
+      - '.github/workflows/ui-codeql.yml'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '43 2 * * 3'
+  workflow_dispatch:
+
+concurrency:
+  group: ui-codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}

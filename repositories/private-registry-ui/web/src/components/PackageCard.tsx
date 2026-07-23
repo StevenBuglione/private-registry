@@ -8,7 +8,13 @@ import type { PackageSummary } from "../types";
 import { formatRelativeDate, packageHref } from "../utils";
 import { PackageIcon } from "./PackageIcon";
 
-export function PackageCard({ item }: { item: PackageSummary }) {
+export function PackageCard({
+  item,
+  compactProvider = false,
+}: {
+  item: PackageSummary;
+  compactProvider?: boolean;
+}) {
   if (item.kind === "module") {
     return (
       <Link className="package-card module-card" to={packageHref(item)}>
@@ -33,11 +39,14 @@ export function PackageCard({ item }: { item: PackageSummary }) {
   }
 
   return (
-    <Link className="package-card provider-card" to={packageHref(item)}>
+    <Link
+      className={`package-card provider-card ${compactProvider ? "provider-card-compact" : ""}`}
+      to={packageHref(item)}
+    >
       <PackageIcon kind={item.kind} name={item.name} />
       <div className="provider-card-content">
         <strong>{providerDisplayName(item.name)}</strong>
-        <span>by {item.owner}</span>
+        <span>by {publisherDisplayName(item.namespace)}</span>
         <small>
           Docs <ArrowSquareOutIcon size={13} />
         </small>
@@ -50,6 +59,10 @@ export function PackageCard({ item }: { item: PackageSummary }) {
       ) : null}
     </Link>
   );
+}
+
+function publisherDisplayName(namespace: string): string {
+  return namespace.toLowerCase() === "hashicorp" ? "HashiCorp" : namespace;
 }
 
 function providerDisplayName(name: string): string {

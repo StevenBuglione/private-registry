@@ -1,9 +1,10 @@
 package com.stevenbuglione.registry.artifactory;
 
 import com.stevenbuglione.registry.config.ArtifactoryProperties;
-import java.io.ByteArrayInputStream;
+import com.stevenbuglione.registry.storage.ArtifactStorageStatus;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -12,13 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.jfrog.artifactory.client.Artifactory;
+import org.jfrog.artifactory.client.ArtifactoryRequest;
+import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
 import org.jfrog.artifactory.client.model.RepoPath;
 import org.jfrog.artifactory.client.model.repository.settings.impl.GenericRepositorySettingsImpl;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
-public class ArtifactoryGateway {
+public class ArtifactoryGateway implements ArtifactStorageStatus {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(ArtifactoryGateway.class);
+  private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private final Artifactory client;
   private final ArtifactoryProperties properties;
@@ -28,10 +37,12 @@ public class ArtifactoryGateway {
     this.properties = properties;
   }
 
+  @Override
   public boolean ping() {
     return client.system().ping();
   }
 
+  @Override
   public Status status() {
     var reachable = ping();
     var repositories =
@@ -40,14 +51,17 @@ public class ArtifactoryGateway {
                 repository(properties.moduleRepository()),
                 repository(properties.providerRepository()))
             : List.of(
-                new RepositoryStatus(properties.moduleRepository(), "authentication-required"),
-                new RepositoryStatus(properties.providerRepository(), "authentication-required"));
+                new ArtifactStorageStatus.RepositoryStatus(
+                    properties.moduleRepository(), "authentication-required"),
+                new ArtifactStorageStatus.RepositoryStatus(
+                    properties.providerRepository(), "authentication-required"));
     return new Status(reachable, properties.url().toString(), repositories);
   }
 
-  private RepositoryStatus repository(String key) {
+  private ArtifactStorageStatus.RepositoryStatus repository(String key) {
     var repository = client.repository(key).get();
-    return new RepositoryStatus(repository.getKey(), repository.getRclass().toString());
+    return new ArtifactStorageStatus.RepositoryStatus(
+        repository.getKey(), repository.getRclass().toString());
   }
 
   /**
@@ -88,6 +102,40 @@ public class ArtifactoryGateway {
         immutableProperties(properties));
   }
 
+  /** Reads Artifactory's authoritative download counter through the official JFrog client. */
+  public ArtifactDownloadStatistics downloadStatistics(String repositoryKey, String path) {
+    validateArtifactLocation(repositoryKey, path);
+    var apiPath =
+        "/api/storage/"
+            + encodePathSegment(repositoryKey)
+            + "/"
+            + java.util.Arrays.stream(path.split("/", -1))
+                .map(ArtifactoryGateway::encodePathSegment)
+                .collect(java.util.stream.Collectors.joining("/"));
+    try {
+      var request =
+          new ArtifactoryRequestImpl()
+              .method(ArtifactoryRequest.Method.GET)
+              .apiUrl(apiPath)
+              .addQueryParam("stats", "")
+              .responseType(ArtifactoryRequest.ContentType.JSON);
+      var artifactoryResponse = client.restCall(request);
+      if (!artifactoryResponse.isSuccessResponse()) {
+        throw new IOException(
+            "Artifactory returned " + artifactoryResponse.getStatusLine().getStatusCode());
+      }
+      var response = JSON.readValue(artifactoryResponse.getRawBody(), FileStatisticsResponse.class);
+      var lastDownloadedAt =
+          response.lastDownloaded() > 0 ? Instant.ofEpochMilli(response.lastDownloaded()) : null;
+      return new ArtifactDownloadStatistics(
+          Math.max(0, response.downloadCount()), lastDownloadedAt, Instant.now());
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
+          "Unable to read Artifactory download statistics for " + repositoryKey + "/" + path,
+          exception);
+    }
+  }
+
   public byte[] download(String repositoryKey, String path, long maximumBytes) {
     validateArtifactLocation(repositoryKey, path);
     if (maximumBytes < 1) {
@@ -109,10 +157,24 @@ public class ArtifactoryGateway {
       String repositoryKey, String path, byte[] content, Map<String, ?> artifactProperties) {
     validateArtifactLocation(repositoryKey, path);
     Objects.requireNonNull(content, "content");
-    var upload = client.repository(repositoryKey).upload(path, new ByteArrayInputStream(content));
-    applyProperties(upload, artifactProperties);
-    var file = upload.withSize(content.length).doUpload();
-    return metadata(repositoryKey, path, file, artifactProperties);
+    @Nullable Path temporary = null;
+    try {
+      temporary = Files.createTempFile("registry-jfrog-upload-", ".tmp");
+      Files.write(temporary, content);
+      return upload(repositoryKey, path, temporary, artifactProperties);
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
+          "Unable to prepare repeatable Artifactory upload body", exception);
+    } finally {
+      if (temporary != null) {
+        try {
+          Files.deleteIfExists(temporary);
+        } catch (IOException exception) {
+          LOGGER.warn(
+              "Unable to remove temporary Artifactory upload body {}", temporary, exception);
+        }
+      }
+    }
   }
 
   /** Uploads a repeatable file body using the official JFrog Java Client. */
@@ -222,9 +284,9 @@ public class ArtifactoryGateway {
     }
   }
 
-  public record Status(boolean reachable, String url, List<RepositoryStatus> repositories) {}
-
-  public record RepositoryStatus(String key, String repositoryClass) {}
+  private static String encodePathSegment(String value) {
+    return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+  }
 
   public record ArtifactMetadata(
       String repository,
@@ -235,6 +297,16 @@ public class ArtifactoryGateway {
       Map<String, List<String>> properties) {}
 
   public record ArtifactLocation(String repository, String path) {}
+
+  public record ArtifactDownloadStatistics(
+      long downloadCount, @Nullable Instant lastDownloadedAt, Instant observedAt) {}
+
+  record FileStatisticsResponse(
+      long downloadCount,
+      long lastDownloaded,
+      @Nullable String lastDownloadedBy,
+      long remoteDownloadCount,
+      long remoteLastDownloaded) {}
 
   public static final class ArtifactTooLargeException extends RuntimeException {
     private static final long serialVersionUID = 1L;

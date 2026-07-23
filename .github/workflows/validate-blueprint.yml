@@ -16,6 +16,11 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: registry-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      REGISTRY_POSTGRES_PORT: '15432'
+      REGISTRY_API_PORT: '18080'
+      REGISTRY_UI_PORT: '13000'
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -26,6 +31,9 @@ jobs:
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.8'
+      - name: Restore Terraform executable permission under act
+        if: ${{ env.ACT }}
+        run: chmod +x "${TERRAFORM_CLI_PATH}/terraform"
       - name: Create non-secret CI Compose environment
         working-directory: repositories/private-registry-api
         run: |
@@ -46,15 +54,15 @@ jobs:
       - name: Validate
         env:
           SKIP_JAVA_VALIDATION: 'true'
-        run: ./scripts/validate-blueprint.sh
+        run: bash ./scripts/validate-blueprint.sh
       - name: Start and smoke-test the complete Compose stack
         id: compose
         working-directory: repositories/private-registry-api
         run: |
           docker compose -f compose.yaml -f compose.ci.yaml up --build --wait
-          curl --fail --silent --show-error http://localhost:8080/health/ready
-          curl --fail --silent --show-error http://localhost:3000/config/runtime.json
-          curl --fail --silent --show-error 'http://localhost:3000/registry/docs/search?q=vpc'
+          curl --fail --silent --show-error http://localhost:18080/health/ready
+          curl --fail --silent --show-error http://localhost:13000/config/runtime.json
+          curl --fail --silent --show-error 'http://localhost:13000/registry/docs/search?q=vpc'
       - name: Capture Compose diagnostics
         if: failure() && steps.compose.outcome == 'failure'
         working-directory: repositories/private-registry-api

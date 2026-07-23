@@ -1,7 +1,7 @@
 /** Readiness reporting for the API and background workers. */
 @ApplicationModule(
     displayName = "Health",
-    allowedDependencies = {"artifactory", "eventing"})
+    allowedDependencies = {"eventing", "storage"})
 @NullMarked
 package com.stevenbuglione.registry.health;
 

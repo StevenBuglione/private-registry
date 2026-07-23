@@ -7,8 +7,8 @@
 | `02-repository-model.md` | Two-repository model and exact project structures |
 | `03-aws-services.md` | AWS account and resource inventory |
 | `04-networking-identity.md` | VPC, DNS, PrivateLink, OIDC, and authorization |
-| `05-data-search.md` | Aurora, S3, and OpenSearch data model |
-| `06-events-ingestion.md` | Events, SQS, idempotency, indexing, and reconciliation |
+| `05-data-search.md` | PostgreSQL data, documents, authorization, and search model |
+| `06-events-ingestion.md` | PostgreSQL queue, idempotency, dead letters, and reconciliation |
 | `07-jfrog.md` | JFrog topology, package identity, publishing, and promotion |
 | `08-ui.md` | First-party Registry UI behavior and verification |
 | `09-api.md` | Compatibility API, enterprise API, workers, and security |
@@ -32,6 +32,6 @@
 - [24 — Claude deployment handoff](24-claude-deployment-handoff.md)
 - [25 — Compatibility API map](25-compatibility-api-map.md)
 - [26 — Work breakdown](26-work-breakdown.md)
-- [27 — ECS service/task contracts](27-service-contracts.md)
+- [27 — Service contracts](27-service-contracts.md)
 - [28 — Operating model and ownership](28-operations-ownership.md)
 - [29 — Delivery effort and team plan](29-effort-and-delivery.md)

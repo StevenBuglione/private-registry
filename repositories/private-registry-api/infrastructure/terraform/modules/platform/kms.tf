@@ -37,11 +37,11 @@ data "aws_iam_policy_document" "kms_logs" {
   }
 }
 
-data "aws_iam_policy_document" "kms_queue" {
+data "aws_iam_policy_document" "kms_notifications" {
   source_policy_documents = [data.aws_iam_policy_document.kms_base.json]
 
   statement {
-    sid    = "AllowEventDeliveryServices"
+    sid    = "AllowAlarmDeliveryServices"
     effect = "Allow"
     actions = [
       "kms:Decrypt",
@@ -53,8 +53,6 @@ data "aws_iam_policy_document" "kms_queue" {
       type = "Service"
       identifiers = [
         "cloudwatch.amazonaws.com",
-        "events.amazonaws.com",
-        "scheduler.amazonaws.com",
         "sns.amazonaws.com"
       ]
     }
@@ -92,17 +90,17 @@ resource "aws_kms_alias" "logs" {
   target_key_id = aws_kms_key.logs.key_id
 }
 
-resource "aws_kms_key" "queue" {
-  description             = "${local.name} event, queue, and alarm encryption"
+resource "aws_kms_key" "notifications" {
+  description             = "${local.name} alarm notification encryption"
   deletion_window_in_days = 30
   enable_key_rotation     = true
-  policy                  = data.aws_iam_policy_document.kms_queue.json
+  policy                  = data.aws_iam_policy_document.kms_notifications.json
   tags                    = local.common_tags
 }
 
-resource "aws_kms_alias" "queue" {
-  name          = "alias/${local.name}-queue"
-  target_key_id = aws_kms_key.queue.key_id
+resource "aws_kms_alias" "notifications" {
+  name          = "alias/${local.name}-notifications"
+  target_key_id = aws_kms_key.notifications.key_id
 }
 
 resource "aws_kms_key" "backup" {

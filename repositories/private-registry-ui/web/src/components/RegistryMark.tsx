@@ -1,23 +1,24 @@
-import { useState } from "react";
-import { StackIcon } from "@phosphor-icons/react";
-
 export function RegistryMark({ compact = false }: { compact?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return (
-      <span className="brand-mark-fallback" aria-hidden="true">
-        <StackIcon size={compact ? 24 : 28} weight="regular" />
-      </span>
-    );
-  }
   return (
-    <img
-      className={compact ? "brand-mark compact" : "brand-mark"}
-      src="/assets/registry-mark.png"
-      alt=""
-      width={compact ? 28 : 34}
-      height={compact ? 28 : 34}
-      onError={() => setFailed(true)}
-    />
+    <span
+      className={compact ? "brand-mark-frame compact" : "brand-mark-frame"}
+      aria-hidden="true"
+    >
+      <img alt="" src="/assets/registry-mark.svg" />
+    </span>
+  );
+}
+
+export function RegistryBrand() {
+  return (
+    <>
+      <RegistryMark />
+      <span className="brand-wordmark">
+        <small>Oremus Labs</small>
+        <strong>Terraform</strong>
+      </span>
+      <span className="brand-separator" aria-hidden="true" />
+      <span className="brand-product-name">Registry</span>
+    </>
   );
 }

@@ -2,7 +2,6 @@ import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
 import type { PackageSummary } from "../types";
 import { formatRelativeDate, packageHref } from "../utils";
-import { ApprovalBadge, LifecycleBadge } from "./Badges";
 import { PackageIcon } from "./PackageIcon";
 
 export function PackageTable({
@@ -15,15 +14,13 @@ export function PackageTable({
   return (
     <div className={compact ? "package-table compact" : "package-table"}>
       <table>
-        <caption className="sr-only">Approved registry packages</caption>
+        <caption className="sr-only">Registry packages</caption>
         <thead>
           <tr>
             <th scope="col">Name</th>
             <th scope="col">Type</th>
             <th scope="col">Provider</th>
             {!compact ? <th scope="col">Description</th> : null}
-            <th scope="col">Lifecycle</th>
-            <th scope="col">Status</th>
             <th scope="col">Updated</th>
             <th scope="col">
               <span className="sr-only">Open</span>
@@ -50,12 +47,6 @@ export function PackageTable({
               {!compact ? (
                 <td className="description-cell">{item.description}</td>
               ) : null}
-              <td>
-                <LifecycleBadge value={item.lifecycle} />
-              </td>
-              <td>
-                <ApprovalBadge value={item.approval} verified={item.verified} />
-              </td>
               <td className="updated-cell">
                 {formatRelativeDate(item.updatedAt)}
               </td>

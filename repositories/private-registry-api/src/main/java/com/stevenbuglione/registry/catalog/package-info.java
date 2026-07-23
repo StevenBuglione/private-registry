@@ -1,7 +1,7 @@
 /** Catalog queries, authorized document access, and catalog change subscriptions. */
 @ApplicationModule(
     displayName = "Catalog",
-    allowedDependencies = {"eventing", "model", "security::identity"})
+    allowedDependencies = {"audit", "eventing", "model", "security::identity"})
 @NullMarked
 package com.stevenbuglione.registry.catalog;
 

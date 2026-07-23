@@ -35,8 +35,7 @@ class CleanArchitectureTest {
               "com.fasterxml.jackson..",
               "tools.jackson..",
               "software.amazon..",
-              "org.jfrog..",
-              "org.opensearch..");
+              "org.jfrog..");
 
   @ArchTest
   static final ArchRule controllersMustNotReachRepositories =
@@ -61,7 +60,12 @@ class CleanArchitectureTest {
           .that()
           .haveSimpleNameEndingWith("Repository")
           .should()
-          .resideInAnyPackage("..catalog..", "..ingestion..", "..security.identity..");
+          .resideInAnyPackage(
+              "..administration..",
+              "..audit..",
+              "..catalog..",
+              "..ingestion..",
+              "..security.identity..");
 
   @ArchTest
   static final ArchRule webAdaptersMustNotReachBackgroundProcessing =
@@ -71,6 +75,15 @@ class CleanArchitectureTest {
           .should()
           .dependOnClassesThat()
           .resideInAnyPackage("..ingestion..", "..seed..");
+
+  @ArchTest
+  static final ArchRule webAdaptersMustUseArtifactStoragePorts =
+      noClasses()
+          .that()
+          .resideInAPackage("..web..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..artifactory..");
 
   @ArchTest
   static final ArchRule productionCodeMustNotUseAutowiredFields =

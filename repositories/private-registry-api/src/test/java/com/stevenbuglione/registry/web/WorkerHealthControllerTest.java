@@ -20,10 +20,7 @@ class WorkerHealthControllerTest {
     var dependencies =
         Map.of(
             "postgresql", "up",
-            "opensearch", "up",
-            "artifactory", "down",
-            "sqs", "up",
-            "s3", "up");
+            "artifactory", "down");
     when(health.check())
         .thenReturn(new WorkerDependencyHealthService.WorkerHealthReport(false, dependencies));
 

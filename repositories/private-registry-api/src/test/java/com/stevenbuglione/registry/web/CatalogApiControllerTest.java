@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,10 +17,10 @@ import com.stevenbuglione.registry.catalog.CatalogPage;
 import com.stevenbuglione.registry.catalog.CatalogQuery;
 import com.stevenbuglione.registry.catalog.CatalogService;
 import com.stevenbuglione.registry.catalog.NotFoundException;
+import com.stevenbuglione.registry.config.CatalogPackageJsonMixin;
 import com.stevenbuglione.registry.config.PackageKindJsonMixin;
 import com.stevenbuglione.registry.config.SearchResultJsonMixin;
 import com.stevenbuglione.registry.config.SymbolJsonMixin;
-import com.stevenbuglione.registry.model.Governance;
 import com.stevenbuglione.registry.model.PackageKind;
 import com.stevenbuglione.registry.model.SearchResult;
 import com.stevenbuglione.registry.model.Symbol;
@@ -55,9 +56,14 @@ class CatalogApiControllerTest {
 
   @BeforeEach
   void setUp() {
-    when(identities.accessContext(nullable(Authentication.class))).thenReturn(accessContext);
+    lenient()
+        .when(identities.accessContext(nullable(Authentication.class)))
+        .thenReturn(accessContext);
     var json =
         JsonMapper.builder()
+            .addMixIn(
+                com.stevenbuglione.registry.model.CatalogPackage.class,
+                CatalogPackageJsonMixin.class)
             .addMixIn(PackageKind.class, PackageKindJsonMixin.class)
             .addMixIn(SearchResult.class, SearchResultJsonMixin.class)
             .addMixIn(Symbol.class, SymbolJsonMixin.class)
@@ -71,7 +77,7 @@ class CatalogApiControllerTest {
   }
 
   @Test
-  void forwardsAllCatalogFiltersWithTheAccessContext() throws Exception {
+  void forwardsTerraformRegistryFiltersWithTheAccessContext() throws Exception {
     var module = TestCatalogFixtures.module();
     var summary =
         new com.stevenbuglione.registry.model.CatalogPackage(
@@ -87,6 +93,7 @@ class CatalogApiControllerTest {
             module.supportLevel(),
             module.lifecycle(),
             module.verification(),
+            module.registryTier(),
             module.riskTier(),
             module.sourceAddress(),
             module.updatedAt(),
@@ -99,29 +106,34 @@ class CatalogApiControllerTest {
             get("/api/v1/catalog/packages")
                 .queryParam("q", "vpc")
                 .queryParam("kind", "module")
-                .queryParam("provider", "aws")
-                .queryParam("apm_id", "APM0000001")
-                .queryParam("lifecycle", "approved")
-                .queryParam("approval", "approved")
-                .queryParam("risk", "medium")
+                .queryParam("namespace", "Azure")
+                .queryParam("provider", "aws,azurerm")
+                .queryParam("tier", "partner")
+                .queryParam("category", "public-cloud,networking")
                 .queryParam("sort", "name")
+                .queryParam("page", "2")
                 .queryParam("limit", "30"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.total").value(17))
         .andExpect(jsonPath("$.next_cursor").value("next"))
         .andExpect(jsonPath("$.items[0].id").value("module/cloud-platform/vpc/aws"))
-        .andExpect(jsonPath("$.items[0].symbols").isEmpty());
+        .andExpect(jsonPath("$.items[0].symbols").isEmpty())
+        .andExpect(jsonPath("$.items[0].owners").doesNotExist())
+        .andExpect(jsonPath("$.items[0].supportLevel").doesNotExist())
+        .andExpect(jsonPath("$.items[0].lifecycle").doesNotExist())
+        .andExpect(jsonPath("$.items[0].riskTier").doesNotExist());
 
     var query = ArgumentCaptor.forClass(CatalogQuery.class);
     verify(catalog).findPackages(eq(accessContext), query.capture());
-    assertThat(query.getValue())
-        .extracting(
-            CatalogQuery::q,
-            CatalogQuery::provider,
-            CatalogQuery::apmId,
-            CatalogQuery::sort,
-            CatalogQuery::limit)
-        .containsExactly("vpc", "aws", "APM0000001", "name", 30);
+    assertThat(query.getValue().q()).isEqualTo("vpc");
+    assertThat(query.getValue().namespace()).isEqualTo("Azure");
+    assertThat(query.getValue().providers()).containsExactly("aws", "azurerm");
+    assertThat(query.getValue().tiers()).containsExactly("partner");
+    assertThat(query.getValue().categories()).containsExactly("public-cloud", "networking");
+    assertThat(query.getValue().sort()).isEqualTo("name");
+    assertThat(query.getValue().limit()).isEqualTo(30);
+    assertThat(query.getValue().page()).isEqualTo(2);
+    assertThat(query.getValue().offset()).isEqualTo(30);
   }
 
   @Test
@@ -133,6 +145,18 @@ class CatalogApiControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("not_found"))
         .andExpect(jsonPath("$.error.message").value("Package not found"));
+  }
+
+  @Test
+  void rejectsInvalidOrAmbiguousPageRequests() throws Exception {
+    mvc.perform(
+            get("/api/v1/catalog/packages").queryParam("page", "2").queryParam("cursor", "opaque"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("bad_request"));
+
+    mvc.perform(get("/api/v1/catalog/packages").queryParam("page", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("bad_request"));
   }
 
   @Test
@@ -201,36 +225,23 @@ class CatalogApiControllerTest {
   }
 
   @Test
-  void routesVersionedGovernanceAndUnversionedDocumentation() throws Exception {
+  void routesUnversionedDocumentation() throws Exception {
     var provider = TestCatalogFixtures.provider();
-    var governance =
-        new Governance(
-            provider.id(),
-            provider.owners(),
-            provider.supportLevel(),
-            provider.lifecycle(),
-            provider.riskTier(),
-            provider.verification(),
-            List.of(),
-            provider.sourceAddress(),
-            "= 3.8.0",
-            null,
-            null,
-            null);
-    when(catalog.getGovernance(accessContext, provider.id(), "3.8.0")).thenReturn(governance);
     when(catalog.readDocument(accessContext, provider.id(), null, "index.md"))
         .thenReturn(new CatalogService.DocumentContent("# Latest docs", "text/markdown"));
 
-    mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/governance"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.packageId").value(provider.id()))
-        .andExpect(jsonPath("$.versionConstraint").value("= 3.8.0"));
     mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/documentation"))
         .andExpect(status().isOk())
         .andExpect(content().string("# Latest docs"));
 
-    verify(catalog).getGovernance(accessContext, provider.id(), "3.8.0");
     verify(catalog).readDocument(accessContext, provider.id(), null, "index.md");
+  }
+
+  @Test
+  void rejectsNonRegistryGovernanceSubresources() throws Exception {
+    mvc.perform(get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0/governance"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("bad_request"));
   }
 
   @Test
@@ -246,34 +257,16 @@ class CatalogApiControllerTest {
   }
 
   @Test
-  void scopesDetailRequestsToTheSelectedApm() throws Exception {
-    var scoped = new AccessContext("user", Set.of("APM0000001"), false);
+  void ignoresClientSuppliedApmAndUsesTheAuthenticatedAccessContext() throws Exception {
     var module = TestCatalogFixtures.module();
-    when(catalog.getPackage(scoped, module.id(), "2.4.1")).thenReturn(module);
+    when(catalog.getPackage(accessContext, module.id(), "2.4.1")).thenReturn(module);
 
     mvc.perform(
             get("/api/v1/catalog/packages/module/cloud-platform/vpc/aws/2.4.1")
                 .queryParam("apm_id", "APM0000001"))
         .andExpect(status().isOk());
 
-    verify(catalog).getPackage(scoped, module.id(), "2.4.1");
-  }
-
-  @Test
-  void unknownSelectedApmFailsClosedWithTheSameNotFoundResponse() throws Exception {
-    var emptyContext = new AccessContext("user", Set.of(), false);
-    var id = "provider/platform/cloud";
-    when(catalog.getPackage(emptyContext, id, "3.8.0"))
-        .thenThrow(new NotFoundException("Package not found"));
-
-    mvc.perform(
-            get("/api/v1/catalog/packages/provider/platform/cloud/3.8.0")
-                .queryParam("apm_id", "APM9999999"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.error.code").value("not_found"))
-        .andExpect(jsonPath("$.error.message").value("Package not found"));
-
-    verify(catalog).getPackage(emptyContext, id, "3.8.0");
+    verify(catalog).getPackage(accessContext, module.id(), "2.4.1");
   }
 
   @Test

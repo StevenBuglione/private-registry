@@ -1,5 +1,7 @@
 # Work breakdown
 
+> Historical blueprint breakdown. Eventing/search/storage tasks in this document are superseded by ADR 0007.
+
 ## UI
 
 - Maintain the first-party React application and local assets.

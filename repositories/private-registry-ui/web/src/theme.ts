@@ -9,8 +9,8 @@ export function initializeTheme(): Theme {
 }
 
 export function currentTheme(): Theme {
-  const theme = document.documentElement.dataset.theme;
-  return theme === "dark" ? "dark" : preferredTheme();
+  const theme = document.documentElement.dataset["theme"];
+  return theme === "light" || theme === "dark" ? theme : preferredTheme();
 }
 
 export function saveTheme(theme: Theme) {
@@ -27,7 +27,7 @@ function preferredTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset["theme"] = theme;
   document.documentElement.style.colorScheme = theme;
   document
     .querySelector('meta[name="theme-color"]')

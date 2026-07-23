@@ -22,10 +22,13 @@ final class TestCatalogFixtures {
             "fixtures/modules/vpc/2.4.1",
             "iac-module-release-local",
             "cloud-platform/vpc/aws/2.4.1.zip",
+            "https://github.com/cloud-platform/terraform-aws-vpc",
             "8d08f7f",
+            "v2.4.1",
             false,
             false,
-            false);
+            false,
+            null);
     return new CatalogPackage(
         "module/cloud-platform/vpc/aws",
         PackageKind.MODULE,
@@ -39,6 +42,7 @@ final class TestCatalogFixtures {
         "supported",
         "approved",
         "enterprise-verified",
+        "community",
         "medium",
         "artifacts.example.invalid/iac-modules-virtual__cloud-platform/vpc/aws",
         published,
@@ -75,10 +79,13 @@ final class TestCatalogFixtures {
             "fixtures/providers/cloud/3.8.0",
             "iac-provider-release-local",
             "platform/cloud/3.8.0/terraform-provider-cloud_3.8.0_linux_amd64.zip",
+            "https://github.com/platform/terraform-provider-cloud",
             "7f5aa91",
+            "v3.8.0",
             false,
             false,
-            false);
+            false,
+            null);
     return new CatalogPackage(
         "provider/platform/cloud",
         PackageKind.PROVIDER,
@@ -92,6 +99,7 @@ final class TestCatalogFixtures {
         "supported",
         "approved",
         "enterprise-verified",
+        "partner",
         "low",
         "artifacts.example.invalid/iac-providers-virtual/platform/cloud",
         published,

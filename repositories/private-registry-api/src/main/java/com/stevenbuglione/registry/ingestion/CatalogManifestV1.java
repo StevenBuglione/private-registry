@@ -18,7 +18,38 @@ import tools.jackson.databind.annotation.JsonNaming;
 public final class CatalogManifestV1 {
 
   private static final Set<String> SYMBOL_KINDS =
-      Set.of("input", "output", "resource", "data-source", "function", "guide", "dependency");
+      Set.of(
+          "input",
+          "output",
+          "resource",
+          "data-source",
+          "function",
+          "guide",
+          "dependency",
+          "example",
+          "submodule");
+  private static final Set<String> REGISTRY_TIERS =
+      Set.of("official", "partner", "partner-premier", "community");
+  private static final Set<String> REGISTRY_CATEGORIES =
+      Set.of(
+          "asset-management",
+          "cloud-automation",
+          "communication-messaging",
+          "container-orchestration",
+          "ci-cd",
+          "data-management",
+          "database",
+          "infrastructure",
+          "logging-monitoring",
+          "networking",
+          "platform",
+          "security-authentication",
+          "utility",
+          "vcs",
+          "web-services",
+          "hashicorp-platform",
+          "infrastructure-management",
+          "public-cloud");
   private final int schemaVersion;
   private final String kind;
   private final Identity identity;
@@ -150,10 +181,24 @@ public final class CatalogManifestV1 {
   }
 
   public void validate() {
+    validateSchemaVersion();
+    var packageKind = packageKind();
+    validateRequiredSections();
+    validateIdentity(packageKind);
+    validateDisplay();
+    validateRegistrySourceAndRelease();
+    validateAccess();
+    validateDocuments();
+    validateSymbols();
+  }
+
+  private void validateSchemaVersion() {
     if (schemaVersion != 1) {
       throw new QuarantineException("unsupported_manifest_schema", "Manifest schema must be 1");
     }
-    var packageKind = packageKind();
+  }
+
+  private void validateRequiredSections() {
     require(identity, "identity");
     require(display, "display");
     require(registry, "registry");
@@ -161,6 +206,9 @@ public final class CatalogManifestV1 {
     require(source, "source");
     require(release, "release");
     require(access, "access");
+  }
+
+  private void validateIdentity(PackageKind packageKind) {
     requireText(identity.namespace(), "identity.namespace");
     requireText(identity.name(), "identity.name");
     requireText(identity.version(), "identity.version");
@@ -169,6 +217,9 @@ public final class CatalogManifestV1 {
     } else if (identity.target() != null && !identity.target().isBlank()) {
       throw new QuarantineException("invalid_provider_target", "Providers cannot declare a target");
     }
+  }
+
+  private void validateDisplay() {
     requireText(display.title(), "display.title");
     requireText(display.description(), "display.description");
     requireText(display.supportLevel(), "display.supportLevel");
@@ -176,6 +227,39 @@ public final class CatalogManifestV1 {
     requireText(display.lifecycle(), "display.lifecycle");
     requireText(display.riskTier(), "display.riskTier");
     requireText(display.visibility(), "display.visibility");
+    validateRegistryTier();
+    validateRegistryCategories();
+  }
+
+  private void validateRegistryTier() {
+    if (display.tier() != null && !REGISTRY_TIERS.contains(display.tier())) {
+      throw new QuarantineException(
+          "invalid_registry_tier", "display.tier is not part of the Registry vocabulary");
+    }
+  }
+
+  private void validateRegistryCategories() {
+    if (display.categories() == null) {
+      return;
+    }
+    var categories = new HashSet<String>();
+    display.categories().forEach(category -> validateRegistryCategory(category, categories));
+  }
+
+  private static void validateRegistryCategory(String category, Set<String> categories) {
+    requireText(category, "display.categories");
+    if (!REGISTRY_CATEGORIES.contains(category)) {
+      throw new QuarantineException(
+          "invalid_registry_category",
+          "display.categories contains a value outside the Registry vocabulary");
+    }
+    if (!categories.add(category)) {
+      throw new QuarantineException(
+          "duplicate_registry_category", "display.categories must be unique");
+    }
+  }
+
+  private void validateRegistrySourceAndRelease() {
     requireText(registry.repository(), "registry.repository");
     requireSafePath(registry.artifactPath(), "registry.artifactPath");
     requireText(source.repository(), "source.repository");
@@ -186,37 +270,54 @@ public final class CatalogManifestV1 {
     requireText(release.documentationDigest(), "release.documentationDigest");
     requireDigest(release.documentationDigest(), "release.documentationDigest");
     require(release.publishedAt(), "release.publishedAt");
+  }
+
+  private void validateAccess() {
     if (access.apmIds() == null || access.apmIds().isEmpty()) {
       throw new QuarantineException(
           "missing_apm_assignment", "At least one APM assignment is required");
     }
     access.apmIds().forEach(apmId -> requireText(apmId, "access.apmIds"));
-    if (documents != null) {
-      documents.forEach(
-          document -> {
-            requireSafePath(document.path(), "documents.path");
-            requireSafePath(document.artifactPath(), "documents.artifactPath");
-            requireDigest(document.digest(), "documents.digest");
-          });
+  }
+
+  private void validateDocuments() {
+    if (documents == null) {
+      return;
     }
-    if (symbols != null) {
-      var identities = new HashSet<String>();
-      symbols.forEach(
-          symbol -> {
-            requireText(symbol.kind(), "symbols.kind");
-            requireText(symbol.name(), "symbols.name");
-            if (!SYMBOL_KINDS.contains(symbol.kind())) {
-              throw new QuarantineException(
-                  "invalid_symbol_kind", "Symbol kind is not part of the Registry vocabulary");
-            }
-            requireOptionalSafePath(symbol.path(), "symbols.path");
-            requireOptionalText(symbol.type(), "symbols.type");
-            if (!identities.add(symbol.kind() + "\u0000" + symbol.name())) {
-              throw new QuarantineException(
-                  "duplicate_symbol",
-                  "Symbol kind and name must be unique within a package version");
-            }
-          });
+    documents.forEach(
+        document -> {
+          requireSafePath(document.path(), "documents.path");
+          requireSafePath(document.artifactPath(), "documents.artifactPath");
+          requireDigest(document.digest(), "documents.digest");
+        });
+  }
+
+  private void validateSymbols() {
+    if (symbols == null) {
+      return;
+    }
+    var identities = new HashSet<String>();
+    symbols.forEach(symbol -> validateSymbol(symbol, identities));
+  }
+
+  private static void validateSymbol(Symbol symbol, Set<String> identities) {
+    requireText(symbol.kind(), "symbols.kind");
+    requireText(symbol.name(), "symbols.name");
+    if (!SYMBOL_KINDS.contains(symbol.kind())) {
+      throw new QuarantineException(
+          "invalid_symbol_kind", "Symbol kind is not part of the Registry vocabulary");
+    }
+    requireSafePath(symbol.path(), "symbols.path");
+    requireOptionalText(symbol.type(), "symbols.type");
+    if (!identities.add(
+        symbol.kind()
+            + "\u0000"
+            + symbol.name()
+            + "\u0000"
+            + Objects.toString(symbol.path(), ""))) {
+      throw new QuarantineException(
+          "duplicate_symbol",
+          "Symbol kind, name, and path must be unique within a package version");
     }
   }
 
@@ -264,12 +365,6 @@ public final class CatalogManifestV1 {
     }
   }
 
-  private static void requireOptionalSafePath(@Nullable String value, String field) {
-    if (value != null) {
-      requireSafePath(value, field);
-    }
-  }
-
   private static void requireOptionalText(@Nullable String value, String field) {
     if (value != null && value.isBlank()) {
       throw new QuarantineException("invalid_manifest", field + " cannot be blank");
@@ -298,7 +393,9 @@ public final class CatalogManifestV1 {
       String verification,
       String lifecycle,
       String riskTier,
-      String visibility) {}
+      String visibility,
+      @Nullable String tier,
+      @Nullable List<String> categories) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
@@ -351,7 +448,7 @@ public final class CatalogManifestV1 {
       String kind,
       String name,
       @Nullable String description,
-      @Nullable String path,
+      String path,
       @Nullable String type,
       @JsonProperty("default_value") @Nullable String defaultValue,
       boolean required,

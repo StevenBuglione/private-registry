@@ -1,37 +1,22 @@
-# Claude Instructions — API and Terraform Repository
+# Repository instructions
 
 ## Before coding or deploying
 
-1. Read the root blueprint documentation copied with this repository handoff.
-2. Read `docs/project-structure.md`, `docs/architecture.md`, `docs/compatibility-contract.md`, `docs/adapter-implementation.md`, and `docs/deployment-runbook.md`.
-3. Replace no placeholders until the corresponding values are approved.
-4. Keep JFrog as the package data plane. Do not add package-download proxy endpoints.
-5. Keep all browser authorization in the API, not the UI.
+1. Read `docs/project-structure.md`, `docs/architecture.md`, `docs/compatibility-contract.md`, `docs/adapter-implementation.md`, and `docs/deployment-runbook.md`.
+2. Keep JFrog as the package data plane and use the official Artifactory Java Client for every Artifactory operation.
+3. Keep PostgreSQL as the only stateful application service. Do not introduce a separate search engine, object store, message queue, or event bus.
+4. Keep all catalog authorization in the API, never in UI-only filtering.
+5. Preserve server-side Entra sessions and never expose delegated Graph tokens to the browser.
 
 ## Implementation order
 
-1. Synchronize the pinned upstream OpenAPI contract and implement explicit compatibility DTOs/tests.
-2. Extend the PostgreSQL catalog implementation behind `CatalogService` for Aurora IAM authentication.
-3. Add production S3 document reads while retaining local Flyway fixtures only in the `local` profile.
-4. Add OpenSearch indexing/query behind a focused Spring service using the configured Java client.
-5. Add a read-only JFrog client behind a focused Spring service.
-6. Implement SQS event handling with idempotency and partial-failure recovery.
-7. Implement reconciliation and repair modes.
-8. Implement ALB OIDC assertion verification and role mapping.
-9. Keep the `local` profile and permit-all security setting out of production task definitions.
-10. Add integration, authorization, failure-injection, load, backup, and DR tests.
+1. Keep the OpenAPI compatibility contract and DTO tests synchronized.
+2. Put durable metadata, documents, search, queue, dead-letter, reconciliation, and audit state in PostgreSQL.
+3. Validate JFrog artifacts, checksums, governance properties, and archive safety before activation.
+4. Use PostgreSQL `FOR UPDATE SKIP LOCKED` for concurrent workers and `LISTEN`/`NOTIFY` only for low-latency signals.
+5. Keep webhook processing idempotent and reconciliation capable of repairing missed events.
+6. Verify ALB OIDC assertions and delegated Graph membership fail closed.
+7. Keep the local permit-all profile out of production task definitions.
+8. Run the complete local and pull-request quality gates before publishing changes.
 
-## Deployment order
-
-1. Bootstrap Terraform state.
-2. Plan/apply foundation with application services disabled.
-3. Configure JFrog repositories and private connectivity.
-4. Build and push immutable images.
-5. Run migrations.
-6. Install OpenSearch templates/aliases.
-7. Enable application services.
-8. Run synthetic module/provider installation and portal tests.
-9. Connect governed release pipelines to EventBridge.
-10. Exercise queue redrive, restore, and regional failover before production.
-
-Never store secrets, private keys, account IDs, internal DNS names, or real endpoints in source control. Use GitHub OIDC, IAM roles, Secrets Manager, and environment-protected workflows.
+Never store secrets, private keys, account IDs, internal DNS names, or real endpoints in source control.

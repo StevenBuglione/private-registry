@@ -27,6 +27,9 @@ public class EntitlementConfigurationInitializer implements ApplicationRunner {
   @Override
   @Transactional
   public void run(ApplicationArguments arguments) {
+    if (properties.apmGroupMappings().isBlank() && properties.adminGroupId().isBlank()) {
+      return;
+    }
     jdbc.sql(
             """
                         UPDATE identity_group_entitlements

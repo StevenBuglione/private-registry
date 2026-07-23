@@ -1,5 +1,7 @@
 # Configuration Matrix
 
+> Historical blueprint matrix. ADR 0007 and the checked-in Compose/Terraform configuration are authoritative for the PostgreSQL-only stateful runtime.
+
 ## GitHub repository configuration
 
 | Repository | Setting | Required value or source |

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { RuntimeConfig } from "./types";
 
 const defaults: RuntimeConfig = {
@@ -17,12 +18,15 @@ export async function loadRuntimeConfig(): Promise<RuntimeConfig> {
     });
     if (!response.ok) return current;
 
-    const raw = (await response.json()) as Record<string, unknown>;
+    const payload: unknown = await response.json();
+    const parsed = z.record(z.string(), z.unknown()).safeParse(payload);
+    if (!parsed.success) return current;
+    const raw = parsed.data;
     current = {
-      apiBaseUrl: cleanBase(raw.apiBaseUrl, defaults.apiBaseUrl),
-      jfrogHostname: stringValue(raw.jfrogHostname),
-      environment: stringValue(raw.environment) || defaults.environment,
-      supportUrl: stringValue(raw.supportUrl),
+      apiBaseUrl: cleanBase(raw["apiBaseUrl"], defaults.apiBaseUrl),
+      jfrogHostname: stringValue(raw["jfrogHostname"]),
+      environment: stringValue(raw["environment"]) || defaults.environment,
+      supportUrl: stringValue(raw["supportUrl"]),
     };
   } catch {
     // Local Vite development intentionally runs without a generated config file.

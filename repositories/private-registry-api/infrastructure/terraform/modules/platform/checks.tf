@@ -5,22 +5,14 @@ check "three_availability_zones" {
   }
 }
 
-check "opensearch_standby_topology" {
-  assert {
-    condition     = var.opensearch_zone_awareness_count == 3 && var.opensearch_data_instance_count >= 3 && var.opensearch_data_instance_count % 3 == 0
-    error_message = "OpenSearch Multi-AZ with Standby requires three zones and a data-node count divisible by three."
-  }
-}
-
 check "production_capacity" {
   assert {
     condition = var.environment != "prod" || (
       var.aurora_instance_count >= 3 &&
       var.ui_desired_count >= 3 &&
-      var.api_desired_count >= 3 &&
-      var.indexer_desired_count >= 2
+      var.api_desired_count >= 3
     )
-    error_message = "Production requires at least three Aurora instances, three UI tasks, three API tasks, and two indexer tasks."
+    error_message = "Production requires at least three Aurora instances, three UI tasks, and three combined API/worker tasks."
   }
 }
 
@@ -30,19 +22,10 @@ check "immutable_image_tags" {
       for tag in [
         var.ui_image_tag,
         var.api_image_tag,
-        var.indexer_image_tag,
-        var.reconciler_image_tag,
         var.migrations_image_tag
       ] : length(trimspace(tag)) >= 7 && tag != "not-deployed"
     ])
     error_message = "Application deployment requires immutable non-placeholder image tags, normally Git commit SHAs."
-  }
-}
-
-check "audit_bucket_safety" {
-  assert {
-    condition     = !(var.audit_object_lock_enabled && var.force_destroy_buckets)
-    error_message = "Object Lock and force_destroy_buckets cannot be enabled together."
   }
 }
 

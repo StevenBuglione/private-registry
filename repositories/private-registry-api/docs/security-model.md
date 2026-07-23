@@ -7,7 +7,7 @@
 - ECS tasks use distinct IAM roles and private subnets;
 - GitHub uses OIDC roles constrained by repository/ref/environment;
 - JFrog publishing, catalog reading, and end-user download permissions are separate;
-- Aurora/S3 are authoritative; OpenSearch is rebuildable and never trusted for authorization alone.
+- PostgreSQL is authoritative for catalog, document, search, queue, dead-letter, and audit state; JFrog is authoritative for governed package bytes.
 
 ## Required controls
 

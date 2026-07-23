@@ -16,6 +16,7 @@ public record CatalogPackage(
     String supportLevel,
     String lifecycle,
     String verification,
+    String registryTier,
     String riskTier,
     String sourceAddress,
     Instant updatedAt,

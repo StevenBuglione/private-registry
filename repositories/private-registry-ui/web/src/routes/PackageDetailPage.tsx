@@ -1,55 +1,60 @@
-import {
-  ArrowSquareOutIcon,
-  CaretRightIcon,
-  CheckIcon,
-  ClipboardIcon,
-  CubeIcon,
-  FileTextIcon,
-  InfoIcon,
-  LinkSimpleIcon,
-  ListIcon,
-  MagnifyingGlassIcon,
-  ShieldCheckIcon,
-  WarningIcon,
-} from "@phosphor-icons/react";
-import { Children, useMemo, useState, type ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
+import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
-import { ApiError } from "../api";
-import { ApprovalBadge } from "../components/Badges";
+import { ApiError } from "../api/client";
+import { VerificationBadge } from "../components/Badges";
 import { PackageIcon } from "../components/PackageIcon";
 import { StatePanel } from "../components/StatePanel";
+import {
+  buildInstallSnippet,
+  buildModuleChildInstallSnippet,
+  buildProviderConfigurationSnippet,
+  capitalize,
+  hasRootModuleConfiguration,
+  InstallPanel,
+  MarkdownDocument,
+  ModuleChildHeader,
+  type ModuleChildKind,
+  ModuleChildMenu,
+  ModuleDownloadsCard,
+  ModuleFacts,
+  ModuleRootConfigurationNotice,
+  ModuleTabContent,
+  moduleChildHref,
+  moduleRootHref,
+  moduleTabCount,
+  namespaceHref,
+  PackageHeaderActions,
+  ProviderDocumentation,
+  ProviderFacts,
+  ProviderOverview,
+  providerLatestHref,
+  safeExternalUrl,
+  symbolsForModuleView,
+} from "../features/package-detail";
 import {
   useCatalogPage,
   usePackage,
   usePackageDocumentation,
-  usePackageGovernance,
-} from "../hooks";
-import { useRegistry } from "../registry-context";
-import { runtimeConfig } from "../runtime-config";
-import type {
-  GovernanceRecord,
-  PackageDetail,
-  PackageKind,
-  PackageSummary,
-  PackageSymbol,
-} from "../types";
-import { formatRelativeDate, packageHref } from "../utils";
+} from "../hooks/catalog";
+import type { PackageKind } from "../types";
+import { hasText, packageHref } from "../utils";
 
-export function PackageDetailPage({ kind }: { kind: PackageKind }) {
+export function PackageDetailPage({
+  kind,
+  moduleChildKind,
+}: {
+  kind: PackageKind;
+  moduleChildKind?: ModuleChildKind;
+}) {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { selectedApmId } = useRegistry();
   const identity = {
     kind,
-    namespace: params.namespace ?? "",
-    name: params.name ?? "",
-    target: kind === "module" ? params.target : undefined,
-    version: params.version,
-    apmId: selectedApmId,
+    namespace: params["namespace"] ?? "",
+    name: params["name"] ?? "",
+    target: kind === "module" ? params["target"] : undefined,
+    version: params["version"],
   };
   const defaultTab = kind === "provider" ? "overview" : "readme";
   const tab = searchParams.get("tab") ?? defaultTab;
@@ -57,18 +62,25 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     kind === "provider" && tab === "documentation"
       ? (searchParams.get("doc") ?? undefined)
       : undefined;
+  const moduleChildName = params["moduleChild"];
+  const moduleChildDocumentPath =
+    kind === "module" &&
+    moduleChildKind !== undefined &&
+    hasText(moduleChildName)
+      ? `${moduleChildKind === "submodule" ? "modules" : "examples"}/${moduleChildName}/README.md`
+      : undefined;
   const detail = usePackage(identity);
   const documentation = usePackageDocumentation(
     identity,
-    detail.data?.documentation,
-    documentPath,
+    moduleChildDocumentPath === undefined
+      ? detail.data?.documentation
+      : undefined,
+    documentPath ?? moduleChildDocumentPath,
   );
-  const governance = usePackageGovernance(identity, detail.data?.governance);
   const related = useCatalogPage({
     kind: "module",
     provider: detail.data?.provider,
-    apmId: selectedApmId,
-    approval: "approved",
+    sort: "downloads",
     limit: 4,
   });
 
@@ -86,24 +98,29 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
       <div className="source-container">
         <StatePanel
           kind={notFound ? "not-found" : "api-error"}
-          action={notFound ? undefined : () => void detail.refetch()}
+          {...(notFound ? {} : { action: () => void detail.refetch() })}
         />
       </div>
     );
   }
 
   const item = detail.data;
+  const moduleViewSymbols =
+    kind === "module"
+      ? symbolsForModuleView(item.symbols, moduleChildKind, moduleChildName)
+      : item.symbols;
   const docs =
     documentation.data ??
-    (documentPath ? undefined : item.documentation) ??
+    (hasText(documentPath) || hasText(moduleChildDocumentPath)
+      ? undefined
+      : item.documentation) ??
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
-  const governanceData = governance.data ?? item.governance;
-  const installSnippet = buildInstallSnippet(
-    item,
-    runtimeConfig().jfrogHostname,
-  );
+  const installSnippet =
+    moduleChildKind === undefined || !hasText(moduleChildName)
+      ? buildInstallSnippet(item)
+      : buildModuleChildInstallSnippet(item, moduleChildKind, moduleChildName);
   const providerSnippet = buildProviderConfigurationSnippet(item);
-  const sourceRepository = safeExternalUrl(governanceData?.sourceRepository);
+  const sourceRepository = safeExternalUrl(item.sourceRepository);
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", value);
@@ -113,112 +130,137 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   const selectDocument = (path?: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", "documentation");
-    if (path) next.set("doc", path);
+    if (hasText(path)) next.set("doc", path);
     else next.delete("doc");
     setSearchParams(next);
   };
   const changeVersion = (version: string) => {
-    const destination = packageHref({ ...item, version });
+    const destination =
+      moduleChildKind === undefined || !hasText(moduleChildName)
+        ? packageHref({ ...item, version })
+        : moduleChildHref(
+            item,
+            version,
+            moduleChildKind === "submodule" ? "submodules" : "examples",
+            moduleChildName,
+          );
     const query = searchParams.toString();
-    navigate(query ? `${destination}?${query}` : destination);
+    void navigate(query ? `${destination}?${query}` : destination);
   };
   const showDocumentation = kind === "provider" && tab === "documentation";
 
   return (
-    <div className={`detail-page ${kind}-detail-page`}>
-      <header className="package-source-header source-container">
-        <nav className="source-breadcrumbs" aria-label="Breadcrumb">
-          <Link to={kind === "provider" ? "/providers" : "/modules"}>
-            {kind === "provider" ? "Providers" : "Modules"}
-          </Link>
-          <CaretRightIcon size={12} />
-          <span>{item.namespace}</span>
-          <CaretRightIcon size={12} />
-          <span>{item.name}</span>
-          <CaretRightIcon size={12} />
-          <span>v{item.version}</span>
-        </nav>
-        <div className="package-title-row">
-          <PackageIcon
-            kind={kind}
-            name={kind === "module" ? item.provider : item.name}
-            size="large"
-          />
-          <div>
-            <div className="package-name-line">
-              <h1>{item.name}</h1>
-              <ApprovalBadge value={item.approval} verified={item.verified} />
+    <div
+      className={`detail-page ${kind}-detail-page${
+        moduleChildKind === undefined ? "" : " module-child-detail-page"
+      }`}
+    >
+      {kind === "module" &&
+      moduleChildKind !== undefined &&
+      hasText(moduleChildName) ? (
+        <ModuleChildHeader
+          item={item}
+          childKind={moduleChildKind}
+          childName={moduleChildName}
+          requestedVersion={params["version"] ?? item.version}
+          sourceRepository={sourceRepository}
+        />
+      ) : (
+        <header className="package-source-header source-container">
+          <nav className="source-breadcrumbs" aria-label="Breadcrumb">
+            <Link
+              to={kind === "provider" ? "/browse/providers" : "/browse/modules"}
+            >
+              {kind === "provider" ? "Providers" : "Modules"}
+            </Link>
+            <CaretRightIcon size={12} />
+            <Link to={namespaceHref(item.namespace)}>{item.namespace}</Link>
+            <CaretRightIcon size={12} />
+            <Link
+              to={
+                kind === "provider"
+                  ? providerLatestHref(item)
+                  : moduleRootHref(item, params["version"] ?? item.version)
+              }
+            >
+              {item.name}
+            </Link>
+            <CaretRightIcon size={12} />
+            <span>v{item.version}</span>
+          </nav>
+          <div className="package-title-row">
+            <PackageIcon
+              kind={kind}
+              name={kind === "module" ? item.provider : item.name}
+              size="large"
+            />
+            <div>
+              <div className="package-name-line">
+                <h1>{item.name}</h1>
+                {item.registryTier === "official" ? (
+                  <VerificationBadge label="Official" />
+                ) : item.registryTier === "partner" ||
+                  item.registryTier === "partner-premier" ? (
+                  <VerificationBadge
+                    label={
+                      item.registryTier === "partner-premier"
+                        ? "Partner Premier"
+                        : "Partner"
+                    }
+                    tone="partner"
+                  />
+                ) : null}
+              </div>
+              {kind === "provider" ? (
+                <span>
+                  {item.namespace}/{item.name}
+                </span>
+              ) : null}
             </div>
-            <span>
-              {item.namespace}/{item.name}
-              {item.target ? `/${item.target}` : ""}
-            </span>
           </div>
-          <div className="package-header-actions">
-            <label className="version-select">
-              <span>Version</span>
-              <select
-                aria-label={`${kind === "provider" ? "Provider" : "Module"} version`}
-                value={item.version}
-                onChange={(event) => changeVersion(event.target.value)}
-              >
-                {item.versions.map((version) => (
-                  <option key={version} value={version}>
-                    Version {version}
-                    {version === item.versions[0] ? " (latest)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {sourceRepository ? (
-              <a
-                className="view-source-button"
-                href={sourceRepository}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ArrowSquareOutIcon size={16} /> View Source
-              </a>
-            ) : null}
-          </div>
-        </div>
-        <p className="package-description">{item.description}</p>
-        <div className="package-facts">
           {kind === "module" ? (
-            <span className="package-provider-fact">
-              Provider:
-              <PackageIcon kind="provider" name={item.provider} size="small" />
-              <strong>{item.provider}</strong>
+            <span className="module-package-address">
+              {item.namespace}/{item.name}
+              {hasText(item.target) ? `/${item.target}` : ""}
             </span>
           ) : null}
-          <span>
-            Versions: <strong>{item.versions.length}</strong>
-          </span>
-          <span>
-            Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
-          </span>
-          {sourceRepository ? (
-            <span>
-              Source code:{" "}
-              <a href={sourceRepository} target="_blank" rel="noreferrer">
-                {item.namespace}/{item.name}
-              </a>
-            </span>
+          <p className="package-description">{item.description}</p>
+          {kind === "module" ? (
+            <ModuleFacts item={item} sourceRepository={sourceRepository} />
+          ) : (
+            <ProviderFacts item={item} sourceRepository={sourceRepository} />
+          )}
+          <PackageHeaderActions
+            kind={kind}
+            item={item}
+            sourceRepository={sourceRepository}
+            onVersionChange={changeVersion}
+          />
+          {kind === "module" &&
+          (item.submodules.length > 0 || item.examples.length > 0) ? (
+            <div className="module-child-menus">
+              {item.submodules.length > 0 ? (
+                <ModuleChildMenu
+                  label="Submodules"
+                  items={item.submodules}
+                  item={item}
+                  version={params["version"] ?? item.version}
+                  variant="submodules"
+                />
+              ) : null}
+              {item.examples.length > 0 ? (
+                <ModuleChildMenu
+                  label="Examples"
+                  items={item.examples}
+                  item={item}
+                  version={params["version"] ?? item.version}
+                  variant="examples"
+                />
+              ) : null}
+            </div>
           ) : null}
-          <span>
-            Lifecycle: <strong>{item.lifecycle}</strong>
-          </span>
-          <span>
-            Published: <strong>{formatCalendarDate(item.updatedAt)}</strong>
-          </span>
-          <span>
-            Risk: <strong>{item.risk}</strong>
-          </span>
-        </div>
-        {kind === "provider" ? (
-          <span className="package-category">{capitalize(item.lifecycle)}</span>
-        ) : null}
-      </header>
+        </header>
+      )}
 
       <nav
         className="package-tabs source-container"
@@ -229,41 +271,48 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             <button
               className={tab === "overview" ? "active" : ""}
               type="button"
-              onClick={() => setTab("overview")}
+              onClick={() => {
+                setTab("overview");
+              }}
             >
               Overview
             </button>
             <button
               className={tab === "documentation" ? "active" : ""}
               type="button"
-              onClick={() => setTab("documentation")}
+              onClick={() => {
+                setTab("documentation");
+              }}
             >
               Documentation
             </button>
           </>
         ) : (
-          ["readme", "inputs", "outputs", "dependencies", "resources"].map(
-            (value) => (
-              <button
-                key={value}
-                className={tab === value ? "active" : ""}
-                type="button"
-                aria-label={
-                  value === "readme"
-                    ? "Readme"
-                    : `${capitalize(value)} (${moduleTabCount(item.symbols, value)})`
-                }
-                onClick={() => setTab(value)}
-              >
-                {capitalize(value)}
-                {value !== "readme" ? (
-                  <span className="tab-count">
-                    {moduleTabCount(item.symbols, value)}
-                  </span>
-                ) : null}
-              </button>
-            ),
-          )
+          (moduleChildKind === "example"
+            ? ["readme", "inputs", "outputs"]
+            : ["readme", "inputs", "outputs", "dependencies", "resources"]
+          ).map((value) => (
+            <button
+              key={value}
+              className={tab === value ? "active" : ""}
+              type="button"
+              aria-label={
+                value === "readme"
+                  ? "Readme"
+                  : `${capitalize(value)} (${String(moduleTabCount(moduleViewSymbols, value))})`
+              }
+              onClick={() => {
+                setTab(value);
+              }}
+            >
+              {capitalize(value)}
+              {value !== "readme" ? (
+                <span className="tab-count">
+                  {moduleTabCount(moduleViewSymbols, value)}
+                </span>
+              ) : null}
+            </button>
+          ))
         )}
       </nav>
 
@@ -285,34 +334,45 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
               item={item}
               modules={related.data?.items ?? []}
               moduleTotal={related.data?.total ?? 0}
+              modulesPending={related.isPending}
               snippet={providerSnippet}
-              governance={governanceData}
-              selectedApmId={selectedApmId}
               sourceRepository={sourceRepository}
             />
           ) : (
             <div className="source-container package-overview-grid module-overview-grid">
               <main>
                 {kind === "module" ? (
-                  <ModuleTabContent
-                    tab={tab}
-                    docs={docs}
-                    symbols={item.symbols}
-                  />
+                  <>
+                    {moduleChildKind === undefined &&
+                    tab === "readme" &&
+                    !hasRootModuleConfiguration(item.symbols) &&
+                    item.submodules.length > 0 ? (
+                      <ModuleRootConfigurationNotice
+                        version={item.version}
+                        submoduleCount={item.submodules.length}
+                      />
+                    ) : null}
+                    <ModuleTabContent
+                      tab={tab}
+                      docs={docs}
+                      symbols={moduleViewSymbols}
+                    />
+                  </>
                 ) : (
                   <MarkdownDocument docs={docs} className="source-readme" />
                 )}
               </main>
               <aside
                 className="source-install-sidebar"
-                aria-label="Installation and governance"
+                aria-label="Installation"
               >
+                {kind === "module" && moduleChildKind === undefined ? (
+                  <ModuleDownloadsCard
+                    statistics={item.downloadStatistics}
+                    statisticsByVersion={item.downloadStatisticsByVersion}
+                  />
+                ) : null}
                 <InstallPanel snippet={installSnippet} kind={kind} />
-                <GovernanceCard
-                  item={item}
-                  governance={governanceData}
-                  selectedApmId={selectedApmId}
-                />
               </aside>
             </div>
           )}
@@ -320,1118 +380,4 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
       )}
     </div>
   );
-}
-
-function ProviderOverview({
-  item,
-  modules,
-  moduleTotal,
-  snippet,
-  governance,
-  selectedApmId,
-  sourceRepository,
-}: {
-  item: PackageDetail;
-  modules: PackageSummary[];
-  moduleTotal: number;
-  snippet: string;
-  governance?: GovernanceRecord;
-  selectedApmId?: string;
-  sourceRepository?: string;
-}) {
-  const supportUrl = safeExternalUrl(runtimeConfig().supportUrl);
-  return (
-    <div className="source-container provider-overview-grid">
-      <main>
-        <div className="content-title-row provider-modules-heading">
-          <h2>
-            <CubeIcon size={20} /> Approved {item.name} modules
-          </h2>
-          <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
-            View all modules <CaretRightIcon size={14} />
-          </Link>
-        </div>
-        <p className="provider-overview-intro">
-          Modules are self-contained packages of Terraform configurations that
-          are managed as a group.
-        </p>
-        {modules.length ? (
-          <>
-            <p className="provider-module-count">
-              Showing 1 - {modules.length} of{" "}
-              {Math.max(moduleTotal, modules.length)} available modules
-            </p>
-            <div className="provider-module-list">
-              {modules.map((module) => (
-                <Link
-                  className="provider-module-row"
-                  key={`${module.namespace}-${module.name}-${module.target}`}
-                  to={packageHref(module)}
-                >
-                  <PackageIcon kind="module" name={module.provider} />
-                  <div>
-                    <h3>
-                      <span>{module.namespace}</span>
-                      <b>/</b>
-                      {module.name}
-                    </h3>
-                    <p>{module.description}</p>
-                    <small>
-                      {formatRelativeDate(module.updatedAt)}
-                      <span>v{module.version}</span>
-                    </small>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </>
-        ) : (
-          <StatePanel kind="empty" />
-        )}
-        <InstallPanel
-          snippet={snippet}
-          kind="provider"
-          artifactLabel={
-            item.artifactRepository && item.artifactPath
-              ? `${item.artifactRepository}/${item.artifactPath}`
-              : item.artifactRepository
-          }
-        />
-      </main>
-      <aside
-        className="provider-overview-sidebar"
-        aria-label="Provider details"
-      >
-        <section className="provider-helpful-links">
-          <h2>Helpful Links</h2>
-          <nav aria-label="Provider links">
-            {sourceRepository ? (
-              <a href={sourceRepository} target="_blank" rel="noreferrer">
-                Source Code <ArrowSquareOutIcon size={14} />
-              </a>
-            ) : null}
-            <Link to="?tab=documentation">
-              Provider Documentation <CaretRightIcon size={14} />
-            </Link>
-            <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
-              Approved Modules <CaretRightIcon size={14} />
-            </Link>
-            {supportUrl ? (
-              <a href={supportUrl} target="_blank" rel="noreferrer">
-                Registry Support <ArrowSquareOutIcon size={14} />
-              </a>
-            ) : null}
-          </nav>
-        </section>
-        <section className="provider-versions-card">
-          <header>
-            <h2>Provider Versions</h2>
-            <span>{item.versions.length}</span>
-          </header>
-          <ul>
-            {item.versions.map((version, index) => (
-              <li key={version}>
-                <span>Version {version}</span>
-                {index === 0 ? <strong>Latest</strong> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-        <GovernanceCard
-          item={item}
-          governance={governance}
-          selectedApmId={selectedApmId}
-        />
-      </aside>
-    </div>
-  );
-}
-
-function GovernanceCard({
-  item,
-  governance,
-  selectedApmId,
-}: {
-  item: PackageDetail;
-  governance?: GovernanceRecord;
-  selectedApmId?: string;
-}) {
-  return (
-    <section className="source-governance-card">
-      <h2>
-        <ShieldCheckIcon size={18} /> Governance
-      </h2>
-      <dl>
-        <div>
-          <dt>Owner</dt>
-          <dd>{governance?.owner ?? item.owner}</dd>
-        </div>
-        <div>
-          <dt>Support</dt>
-          <dd>{governance?.support ?? "Internal support"}</dd>
-        </div>
-        <div>
-          <dt>APM access</dt>
-          <dd>
-            {(governance?.apmIds.length ? governance.apmIds : item.apmIds).join(
-              ", ",
-            ) ||
-              selectedApmId ||
-              "Administrator"}
-          </dd>
-        </div>
-      </dl>
-    </section>
-  );
-}
-
-function ProviderDocumentation({
-  docs,
-  packageName,
-  symbols,
-  selectedPath,
-  pending,
-  failed,
-  onRetry,
-  onSelect,
-}: {
-  docs: string;
-  packageName: string;
-  symbols: PackageSymbol[];
-  selectedPath?: string;
-  pending: boolean;
-  failed: boolean;
-  onRetry: () => void;
-  onSelect: (path?: string) => void;
-}) {
-  const [browseOpen, setBrowseOpen] = useState(false);
-  const [filter, setFilter] = useState("");
-  const groups = useMemo(
-    () => providerDocumentGroups(symbols, filter),
-    [filter, symbols],
-  );
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
-    const selectedGroup = providerDocumentGroups(symbols, "").find((group) =>
-      group.sections.some((section) =>
-        section.items.some((symbol) => symbol.path === selectedPath),
-      ),
-    );
-    if (!selectedGroup) return new Set();
-    const selectedSection = selectedGroup.sections.find((section) =>
-      section.items.some((symbol) => symbol.path === selectedPath),
-    );
-    return new Set([
-      selectedGroup.label,
-      ...(selectedSection
-        ? [documentSectionKey(selectedGroup.label, selectedSection.label)]
-        : []),
-    ]);
-  });
-  const headings = extractMarkdownHeadings(docs).filter(
-    (heading) => heading.level > 1,
-  );
-  const matchingDocumentCount = groups.reduce(
-    (count, group) =>
-      count +
-      group.sections.reduce(
-        (sectionCount, section) => sectionCount + section.items.length,
-        0,
-      ),
-    0,
-  );
-  const autoExpandedGroups = useMemo(() => {
-    if (filter.trim()) {
-      return new Set(
-        groups.flatMap((group) => [
-          group.label,
-          ...group.sections
-            .filter((section) => section.items.length > 0)
-            .map((section) => documentSectionKey(group.label, section.label)),
-        ]),
-      );
-    }
-    return undefined;
-  }, [filter, groups]);
-  const isGroupExpanded = (label: string) =>
-    (autoExpandedGroups ?? expandedGroups).has(label);
-  const select = (path?: string) => {
-    onSelect(path);
-    setBrowseOpen(false);
-  };
-  const toggleGroup = (label: string) => {
-    setExpandedGroups((current) => {
-      const next = new Set(current);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  };
-  return (
-    <div className="provider-docs-layout source-container">
-      <button
-        className="mobile-docs-button"
-        type="button"
-        onClick={() => setBrowseOpen((value) => !value)}
-        aria-expanded={browseOpen}
-      >
-        <ListIcon size={18} /> Browse {packageName} documentation
-      </button>
-      <aside
-        className={`provider-docs-nav ${browseOpen ? "is-open" : ""}`}
-        aria-label="Provider documentation navigation"
-      >
-        <div className="provider-docs-nav-header">
-          <strong>{packageName} documentation</strong>
-          <label className="docs-filter">
-            <MagnifyingGlassIcon size={15} />
-            <input
-              aria-label="Filter documentation"
-              placeholder="Filter"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className={!selectedPath ? "active" : ""}
-            aria-current={!selectedPath ? "page" : undefined}
-            onClick={() => select()}
-          >
-            {packageName} provider
-          </button>
-          {filter.trim() ? (
-            <span className="docs-result-count">
-              {matchingDocumentCount} matching result
-              {matchingDocumentCount === 1 ? "" : "s"}
-            </span>
-          ) : null}
-        </div>
-        {groups.map((group) => (
-          <section className="docs-nav-group" key={group.label}>
-            <h2>
-              <button
-                type="button"
-                className="docs-group-toggle"
-                aria-expanded={isGroupExpanded(group.label)}
-                onClick={() => toggleGroup(group.label)}
-              >
-                <CaretRightIcon
-                  className={isGroupExpanded(group.label) ? "expanded" : ""}
-                  size={13}
-                />
-                {group.label}
-              </button>
-            </h2>
-            {isGroupExpanded(group.label)
-              ? group.sections.map((section) => {
-                  const sectionKey = documentSectionKey(
-                    group.label,
-                    section.label,
-                  );
-                  const flattened =
-                    group.sections.length === 1 &&
-                    section.label === group.label;
-                  return (
-                    <div className="docs-nav-section" key={sectionKey}>
-                      {!flattened ? (
-                        <button
-                          type="button"
-                          className="docs-section-toggle"
-                          aria-expanded={isGroupExpanded(sectionKey)}
-                          onClick={() => toggleGroup(sectionKey)}
-                        >
-                          <CaretRightIcon
-                            className={
-                              isGroupExpanded(sectionKey) ? "expanded" : ""
-                            }
-                            size={12}
-                          />
-                          {section.label}
-                        </button>
-                      ) : null}
-                      {flattened || isGroupExpanded(sectionKey)
-                        ? section.items.map((symbol) => (
-                            <button
-                              type="button"
-                              key={`${symbol.kind}-${symbol.name}-${symbol.path}`}
-                              className={
-                                selectedPath === symbol.path ? "active" : ""
-                              }
-                              aria-current={
-                                selectedPath === symbol.path
-                                  ? "page"
-                                  : undefined
-                              }
-                              title={symbol.description}
-                              onClick={() => {
-                                setExpandedGroups(
-                                  new Set([group.label, sectionKey]),
-                                );
-                                select(symbol.path);
-                              }}
-                            >
-                              {displayProviderSymbolName(packageName, symbol)}
-                            </button>
-                          ))
-                        : null}
-                    </div>
-                  );
-                })
-              : null}
-          </section>
-        ))}
-        {filter &&
-        groups.every((group) =>
-          group.sections.every((section) => section.items.length === 0),
-        ) ? (
-          <p className="docs-filter-empty">No documentation matches.</p>
-        ) : null}
-      </aside>
-      {pending ? (
-        <div className="documentation documentation-loading skeleton" />
-      ) : failed ? (
-        <div className="documentation">
-          <StatePanel kind="api-error" action={onRetry} />
-        </div>
-      ) : (
-        <MarkdownDocument docs={docs} />
-      )}
-      <aside className="on-this-page" aria-label="On this page">
-        <strong>
-          <FileTextIcon size={15} /> On this page
-        </strong>
-        {headings.slice(0, 10).map((heading) => (
-          <a
-            key={`${heading.level}-${heading.id}`}
-            className={`heading-level-${heading.level}`}
-            href={`#${heading.id}`}
-          >
-            {heading.title}
-          </a>
-        ))}
-      </aside>
-    </div>
-  );
-}
-
-function ModuleTabContent({
-  tab,
-  docs,
-  symbols,
-}: {
-  tab: string;
-  docs: string;
-  symbols: PackageSymbol[];
-}) {
-  if (tab === "readme")
-    return <MarkdownDocument docs={docs} className="source-readme" />;
-
-  const items = symbolsForModuleTab(symbols, tab);
-  const title = capitalize(tab);
-  if (!items.length)
-    return (
-      <section className="module-symbol-panel">
-        <div className="symbol-panel-heading">
-          <h2>{title}</h2>
-          <span>0</span>
-        </div>
-        <p className="symbol-empty">
-          No declared {tab} metadata is published for this module version.
-        </p>
-      </section>
-    );
-
-  if (tab === "inputs") return <InputDefinitions symbols={items} />;
-  if (tab === "outputs") return <OutputDefinitions symbols={items} />;
-  return <SymbolList title={title} symbols={items} />;
-}
-
-function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
-  const required = symbols.filter((symbol) => symbol.required);
-  const optional = symbols.filter((symbol) => !symbol.required);
-  return (
-    <section className="module-symbol-panel">
-      {required.length ? (
-        <DefinitionSection
-          title="Required Inputs"
-          description="These variables must be set in the module block when using this module."
-          symbols={required}
-          showDefault={false}
-        />
-      ) : null}
-      {optional.length ? (
-        <DefinitionSection
-          title="Optional Inputs"
-          description="These variables have default values and don't have to be set to use this module. You may set these variables to override their default values."
-          symbols={optional}
-          showDefault
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function OutputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
-  return (
-    <section className="module-symbol-panel">
-      <DefinitionSection
-        title="Outputs"
-        description="Values exported for use by other configurations."
-        symbols={symbols}
-        showDefault={false}
-        showType={false}
-      />
-    </section>
-  );
-}
-
-function DefinitionSection({
-  title,
-  description,
-  symbols,
-  showDefault,
-  showType = true,
-}: {
-  title: string;
-  description: string;
-  symbols: PackageSymbol[];
-  showDefault: boolean;
-  showType?: boolean;
-}) {
-  return (
-    <section className="module-definition-section" aria-label={title}>
-      <h2>{title}</h2>
-      <p>
-        {title === "Required Inputs" ? (
-          <>
-            These variables must be set in the <code>module</code> block when
-            using this module.
-          </>
-        ) : (
-          description
-        )}
-      </p>
-      <dl className="module-definition-list">
-        {symbols.map((symbol) => (
-          <div key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
-            <dt>
-              <strong>{symbol.name}</strong>
-              <DefinitionCopyButton value={symbol.name} />
-              {showType ? (
-                <code className="definition-type">
-                  {symbol.type ?? "Unknown"}
-                </code>
-              ) : null}
-              {symbol.sensitive ? (
-                <span className="definition-sensitive">Sensitive</span>
-              ) : null}
-            </dt>
-            <dd>
-              <p>
-                <em>Description:</em>{" "}
-                {cleanSymbolDescription(symbol.description)}
-              </p>
-              {showDefault ? (
-                <p>
-                  <em>Default:</em>{" "}
-                  <code>{formatDefaultValue(symbol.defaultValue)}</code>
-                </p>
-              ) : null}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function DefinitionCopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-  };
-  return (
-    <button
-      className="definition-copy"
-      type="button"
-      aria-label={`Copy ${value}`}
-      title={copied ? "Copied" : `Copy ${value}`}
-      onClick={() => void copy()}
-    >
-      {copied ? <CheckIcon size={13} /> : <ClipboardIcon size={13} />}
-    </button>
-  );
-}
-
-function SymbolList({
-  title,
-  symbols,
-}: {
-  title: string;
-  symbols: PackageSymbol[];
-}) {
-  return (
-    <section className="module-symbol-panel">
-      <div className="symbol-panel-heading">
-        <div>
-          <h2>{title}</h2>
-          <p>
-            {title === "Dependencies"
-              ? "External providers and modules required by this version."
-              : "Infrastructure objects declared by this module version."}
-          </p>
-        </div>
-        <span>{symbols.length}</span>
-      </div>
-      <ul className="symbol-list">
-        {symbols.map((symbol) => {
-          const dependency = title === "Dependencies";
-          const source = dependency
-            ? (symbol.source ?? symbol.description)
-            : symbol.path;
-          return (
-            <li key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
-              <div>
-                <code>{symbol.name}</code>
-                <span className="symbol-kind">
-                  {symbolKindLabel(symbol.kind)}
-                </span>
-              </div>
-              <p>
-                {dependency
-                  ? dependencyDescription(symbol)
-                  : cleanSymbolDescription(symbol.description)}
-              </p>
-              <dl>
-                <div>
-                  <dt>{dependency ? "Kind" : "Provider"}</dt>
-                  <dd>
-                    {dependency
-                      ? dependencyKind(symbol)
-                      : resourceProvider(symbol)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{dependency ? "Source" : "Declared in"}</dt>
-                  <dd>{source ?? "Unknown"}</dd>
-                </div>
-                {dependency && symbol.defaultValue !== undefined ? (
-                  <div>
-                    <dt>Version</dt>
-                    <dd>{formatDefaultValue(symbol.defaultValue)}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-function dependencyDescription(symbol: PackageSymbol): string {
-  const kind = normalizeSymbolKind(symbol.kind);
-  if (symbol.type === "provider" || kind.includes("provider"))
-    return `Provider requirement for ${symbol.source ?? symbol.description ?? symbol.name}.`;
-  if (symbol.type === "module" || kind.includes("module"))
-    return `Module dependency on ${symbol.source ?? symbol.description ?? symbol.name}.`;
-  return symbol.description ?? "External dependency declared by this module.";
-}
-
-function dependencyKind(symbol: PackageSymbol): string {
-  if (symbol.type) return capitalize(symbol.type);
-  const kind = normalizeSymbolKind(symbol.kind);
-  if (kind.includes("provider")) return "Provider";
-  if (kind.includes("module")) return "Module";
-  return "Dependency";
-}
-
-function resourceProvider(symbol: PackageSymbol): string {
-  if (symbol.provider) return symbol.provider;
-  const resourceType = symbol.type ?? symbol.name.split(".")[0];
-  const separator = resourceType.indexOf("_");
-  return separator > 0 ? resourceType.slice(0, separator) : resourceType;
-}
-
-function MarkdownDocument({
-  docs,
-  className = "",
-}: {
-  docs: string;
-  className?: string;
-}) {
-  return (
-    <article className={`documentation ${className}`.trim()} id="overview">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
-        components={{
-          h1: ({ children }) => <h1 id={slugText(children)}>{children}</h1>,
-          h2: ({ children }) => {
-            const id = slugText(children);
-            return (
-              <h2 id={id}>
-                <a className="heading-self-link" href={`#${id}`}>
-                  {children}
-                  <LinkSimpleIcon aria-hidden="true" size={15} />
-                </a>
-              </h2>
-            );
-          },
-          h3: ({ children }) => {
-            const id = slugText(children);
-            return (
-              <h3 id={id}>
-                <a className="heading-self-link" href={`#${id}`}>
-                  {children}
-                  <LinkSimpleIcon aria-hidden="true" size={14} />
-                </a>
-              </h3>
-            );
-          },
-          p: MarkdownParagraph,
-          pre: MarkdownPre,
-        }}
-      >
-        {docs}
-      </ReactMarkdown>
-    </article>
-  );
-}
-
-function MarkdownParagraph({ children }: { children?: ReactNode }) {
-  const parts = Children.toArray(children);
-  const leading = typeof parts[0] === "string" ? parts[0] : "";
-  const isInfo = /^\s*->\s*/.test(leading);
-  const isWarning = /^\s*~>\s*/.test(leading);
-  if (!isInfo && !isWarning) return <p>{children}</p>;
-  const rest = [leading.replace(/^\s*(?:->|~>)\s*/, ""), ...parts.slice(1)];
-  return (
-    <aside
-      className={`docs-callout ${isWarning ? "warning" : "info"}`}
-      role="note"
-    >
-      {isWarning ? (
-        <WarningIcon aria-hidden="true" size={18} weight="fill" />
-      ) : (
-        <InfoIcon aria-hidden="true" size={18} weight="fill" />
-      )}
-      <p>{rest}</p>
-    </aside>
-  );
-}
-
-function MarkdownPre({ children }: { children?: ReactNode }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(reactNodeText(children));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  };
-  return (
-    <div className="markdown-code-block">
-      <button type="button" onClick={() => void copy()}>
-        {copied ? <CheckIcon size={14} /> : <ClipboardIcon size={14} />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <pre>{children}</pre>
-    </div>
-  );
-}
-
-function reactNodeText(node: ReactNode): string {
-  return Children.toArray(node)
-    .map((child) => {
-      if (typeof child === "string" || typeof child === "number") {
-        return String(child);
-      }
-      if (
-        child &&
-        typeof child === "object" &&
-        "props" in child &&
-        child.props &&
-        typeof child.props === "object" &&
-        "children" in child.props
-      ) {
-        return reactNodeText(child.props.children as ReactNode);
-      }
-      return "";
-    })
-    .join("");
-}
-
-function moduleTabCount(symbols: PackageSymbol[], tab: string): number {
-  return symbolsForModuleTab(symbols, tab).length;
-}
-
-function symbolsForModuleTab(
-  symbols: PackageSymbol[],
-  tab: string,
-): PackageSymbol[] {
-  const accepted: Record<string, string[]> = {
-    inputs: ["input", "variable"],
-    outputs: ["output"],
-    dependencies: [
-      "dependency",
-      "module_dependency",
-      "provider_dependency",
-      "provider_requirement",
-    ],
-    resources: ["resource", "data_source", "datasource", "module_call"],
-  };
-  const kinds = accepted[tab] ?? [];
-  return symbols.filter((symbol) =>
-    kinds.includes(normalizeSymbolKind(symbol.kind)),
-  );
-}
-
-function providerDocumentGroups(symbols: PackageSymbol[], filter: string) {
-  const normalizedFilter = filter.trim().toLowerCase();
-  const matches = (symbol: PackageSymbol) =>
-    !normalizedFilter ||
-    `${symbol.name} ${symbol.description ?? ""}`
-      .toLowerCase()
-      .includes(normalizedFilter);
-  const filtered = symbols.filter(matches);
-  const guides = filtered.filter((symbol) =>
-    ["guide", "document", "overview"].includes(
-      normalizeSymbolKind(symbol.kind),
-    ),
-  );
-  const functions = filtered.filter(
-    (symbol) => normalizeSymbolKind(symbol.kind) === "function",
-  );
-  const categorySymbols = filtered.filter((symbol) =>
-    ["resource", "data_source", "datasource", "list_resource"].includes(
-      normalizeSymbolKind(symbol.kind),
-    ),
-  );
-  const categories = new Map<string, PackageSymbol[]>();
-  for (const symbol of categorySymbols) {
-    const category = providerServiceCategory(symbol.name);
-    categories.set(category, [...(categories.get(category) ?? []), symbol]);
-  }
-
-  const standalone = [
-    { label: "Guides", items: guides },
-    { label: "Functions", items: functions },
-  ]
-    .filter((group) => group.items.length > 0)
-    .map((group) => ({
-      label: group.label,
-      sections: [{ label: group.label, items: group.items }],
-    }));
-  const services = [...categories.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([label, items]) => ({
-      label,
-      sections: [
-        {
-          label: "Resources",
-          items: items.filter(
-            (symbol) => normalizeSymbolKind(symbol.kind) === "resource",
-          ),
-        },
-        {
-          label: "Data Sources",
-          items: items.filter((symbol) =>
-            ["data_source", "datasource"].includes(
-              normalizeSymbolKind(symbol.kind),
-            ),
-          ),
-        },
-        {
-          label: "List Resources",
-          items: items.filter(
-            (symbol) => normalizeSymbolKind(symbol.kind) === "list_resource",
-          ),
-        },
-      ].filter((section) => section.items.length > 0),
-    }));
-  return [...standalone, ...services];
-}
-
-function documentSectionKey(group: string, section: string) {
-  return `${group}::${section}`;
-}
-
-function providerServiceCategory(name: string): string {
-  const normalized = name
-    .toLowerCase()
-    .replace(/^azurerm_/, "")
-    .replaceAll("-", "_");
-  const categories: Array<[RegExp, string]> = [
-    [/^(resource_group|subscription|resource_provider)/, "Base"],
-    [/^(aad_b2c|aadb2c)/, "AAD B2C"],
-    [/^(api_management)/, "API Management"],
-    [/^(active_directory_domain)/, "Active Directory Domain Services"],
-    [/^(advisor)/, "Advisor"],
-    [/^(analysis_services)/, "Analysis Services"],
-    [/^(app_configuration)/, "App Configuration"],
-    [
-      /^(app_service|function_app|service_plan|static_web_app)/,
-      "App Service (Web Apps)",
-    ],
-    [/^(application_insights)/, "Application Insights"],
-    [/^(arc_|kubernetes_flux)/, "ArcKubernetes"],
-    [/^(authorization|role_|pim_|lighthouse)/, "Authorization"],
-    [/^(automation)/, "Automation"],
-    [/^(batch)/, "Batch"],
-    [/^(billing)/, "Billing"],
-    [/^(bot_)/, "Bot"],
-    [/^(cdn_|frontdoor)/, "CDN"],
-    [/^(chaos_)/, "Chaos Studio"],
-    [/^(cognitive_|ai_services)/, "Cognitive Services"],
-    [/^(communication_)/, "Communication"],
-    [
-      /^(linux_virtual_machine|windows_virtual_machine|virtual_machine|managed_disk|snapshot|image|gallery_)/,
-      "Compute",
-    ],
-    [/^(container_|kubernetes_|log_analytics_solution)/, "Container"],
-    [/^(cosmosdb_)/, "CosmosDB (DocumentDB)"],
-    [/^(cost_management_)/, "Cost Management"],
-    [/^(custom_provider)/, "Custom Providers"],
-    [/^(dashboard)/, "Dashboard"],
-    [/^(data_explorer|kusto_)/, "Data Explorer"],
-    [/^(data_factory)/, "Data Factory"],
-    [/^(data_share)/, "Data Share"],
-    [/^(database_migration)/, "Database Migration"],
-    [/^(mssql_|mysql_|postgresql_|mariadb_)/, "Database"],
-    [/^(databricks_)/, "Databricks"],
-    [/^(desktop_virtualization)/, "Desktop Virtualization"],
-    [/^(dev_center|dev_test)/, "Dev Center"],
-    [/^(digital_twins)/, "Digital Twins"],
-    [/^(dns_|private_dns)/, "DNS"],
-    [/^(eventgrid_|eventhub_|servicebus_|relay_)/, "Messaging"],
-    [/^(healthcare_)/, "Healthcare"],
-    [/^(iot_|iothub_)/, "IoT Hub"],
-    [/^(key_vault)/, "Key Vault"],
-    [/^(load_test)/, "Load Test"],
-    [/^(log_analytics)/, "Log Analytics"],
-    [/^(logic_app)/, "Logic App"],
-    [/^(machine_learning)/, "Machine Learning"],
-    [/^(maintenance_)/, "Maintenance"],
-    [/^(management_group|management_lock)/, "Management"],
-    [/^(maps_)/, "Maps"],
-    [/^(monitor_|monitoring_|action_group)/, "Monitor"],
-    [/^(netapp_)/, "NetApp"],
-    [
-      /^(virtual_network|subnet|network_|public_ip|private_endpoint|application_gateway|load_balancer|firewall|express_route|route_|traffic_manager|nat_gateway|bastion_)/,
-      "Network",
-    ],
-    [/^(policy_)/, "Policy"],
-    [/^(portal_)/, "Portal"],
-    [/^(powerbi_)/, "PowerBI"],
-    [/^(purview_)/, "Purview"],
-    [/^(recovery_services|backup_)/, "Recovery Services"],
-    [/^(redis_)/, "Redis"],
-    [/^(search_)/, "Search"],
-    [/^(security_center|sentinel_)/, "Security Center"],
-    [/^(service_fabric)/, "Service Fabric"],
-    [/^(spring_cloud)/, "Spring Cloud"],
-    [/^(storage_|storageaccount)/, "Storage"],
-    [/^(stream_analytics)/, "Stream Analytics"],
-    [/^(synapse_)/, "Synapse"],
-    [/^(template_|resource_deployment)/, "Template"],
-  ];
-  return (
-    categories.find(([pattern]) => pattern.test(normalized))?.[1] ?? "Other"
-  );
-}
-
-function normalizeSymbolKind(kind: string): string {
-  return kind
-    .trim()
-    .toLowerCase()
-    .replaceAll(/[\s-]+/g, "_");
-}
-
-function symbolKindLabel(kind: string): string {
-  return normalizeSymbolKind(kind).split("_").map(capitalize).join(" ");
-}
-
-function displayProviderSymbolName(
-  packageName: string,
-  symbol: PackageSymbol,
-): string {
-  const kind = normalizeSymbolKind(symbol.kind);
-  if (
-    ["resource", "data_source", "datasource"].includes(kind) &&
-    !symbol.name.startsWith(`${packageName}_`)
-  ) {
-    return `${packageName}_${symbol.name}`;
-  }
-  return symbol.name;
-}
-
-function formatDefaultValue(value: unknown): string {
-  if (value === undefined) return "Unknown";
-  if (typeof value === "string") return value || '""';
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-function cleanSymbolDescription(value?: string): string {
-  const description = value?.trim();
-  if (
-    !description ||
-    /^<<[A-Z_]+$/.test(description) ||
-    /^(?:optional|list|map|set|object)\s*\(/.test(description)
-  ) {
-    return "No description published.";
-  }
-  return description;
-}
-
-function extractMarkdownHeadings(markdown: string) {
-  return markdown
-    .split(/\r?\n/)
-    .map((line) => /^(#{1,3})\s+(.+?)\s*#*\s*$/.exec(line))
-    .filter((match): match is RegExpExecArray => match !== null)
-    .map((match) => {
-      const title = match[2].replaceAll(/[*_`[\]]/g, "").trim();
-      return { level: match[1].length, title, id: slugText(title) };
-    });
-}
-
-function slugText(value: unknown): string {
-  return String(value)
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/(^-|-$)/g, "");
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function formatCalendarDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
-}
-
-function safeExternalUrl(value?: string): string | undefined {
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    if (
-      !["https:", "http:"].includes(url.protocol) ||
-      url.hostname.endsWith(".invalid")
-    ) {
-      return undefined;
-    }
-    return url.toString();
-  } catch {
-    return undefined;
-  }
-}
-
-function InstallPanel({
-  snippet,
-  kind,
-  artifactLabel,
-}: {
-  snippet: string;
-  kind: PackageKind;
-  artifactLabel?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  };
-  return (
-    <section className="source-install-card">
-      <h2>
-        {kind === "provider"
-          ? "How to use this provider"
-          : "Provision instructions"}
-      </h2>
-      <p>
-        {kind === "provider" ? (
-          <>
-            To install this provider, copy and paste this code into your
-            Terraform configuration. Then, run <code>terraform init</code>.
-          </>
-        ) : (
-          <>
-            Copy and paste into your Terraform configuration, insert the
-            variables, and run <code>terraform init</code>:
-          </>
-        )}
-      </p>
-      {kind === "provider" ? <strong>Terraform 0.13+</strong> : null}
-      <pre>
-        <code>{snippet}</code>
-      </pre>
-      <button type="button" onClick={() => void copy()}>
-        {copied ? <CheckIcon size={16} /> : <ClipboardIcon size={16} />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-      {artifactLabel ? (
-        <small className="artifact-source-note">
-          Approved binary source: <code>{artifactLabel}</code>
-        </small>
-      ) : null}
-    </section>
-  );
-}
-
-function buildProviderConfigurationSnippet(item: PackageDetail): string {
-  return `terraform {
-  required_providers {
-    ${item.name} = {
-      source  = "${item.namespace}/${item.name}"
-      version = "${item.version}"
-    }
-  }
-}
-
-provider "${item.name}" {
-  # Configuration options
-}`;
-}
-
-function buildInstallSnippet(
-  item: NonNullable<ReturnType<typeof usePackage>["data"]>,
-  jfrogHostname: string,
-): string {
-  const jfrogBase = /^https?:\/\//i.test(jfrogHostname)
-    ? jfrogHostname.replace(/\/$/, "")
-    : `https://${jfrogHostname || "artifactory.internal"}`;
-  const artifactUrl =
-    item.artifactRepository && item.artifactPath
-      ? `${jfrogBase}/artifactory/${item.artifactRepository}/${item.artifactPath}`
-      : undefined;
-  if (item.kind === "provider") {
-    const source = `registry.terraform.io/${item.namespace}/${item.name}`;
-    const filename =
-      item.artifactPath?.split("/").at(-1) ??
-      `terraform-provider-${item.name}_${item.version}_linux_amd64.zip`;
-    const mirrorDirectory = `.terraform/providers/${source}`;
-    const download = artifactUrl
-      ? `mkdir -p "${mirrorDirectory}"\ncurl --fail --location --header "Authorization: Bearer $JFROG_ACCESS_TOKEN" "${artifactUrl}" --output "${mirrorDirectory}/${filename}"`
-      : `# Resolve the approved archive in Artifactory before installing ${source}.`;
-    const checksum = item.packageDigest?.replace(/^sha256:/, "");
-    return `${download}${
-      checksum
-        ? `\necho "${checksum}  ${mirrorDirectory}/${filename}" | sha256sum --check`
-        : ""
-    }\n\n# Add this mirror to ~/.terraformrc\nprovider_installation {\n  filesystem_mirror {\n    path    = ".terraform/providers"\n    include = ["${source}"]\n  }\n}\n\nterraform {\n  required_providers {\n    ${item.name} = {\n      source  = "${source}"\n      version = "${item.version}"\n    }\n  }\n}`;
-  }
-  const source =
-    artifactUrl ?? item.installSource ?? "ARTIFACTORY_URL_REQUIRED";
-  return `module "${item.name.replaceAll("-", "_")}" {\n  # The immutable version is pinned in the Artifactory path.\n  source = "${source}"\n}`;
 }

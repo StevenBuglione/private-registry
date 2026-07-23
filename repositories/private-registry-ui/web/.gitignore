@@ -1,4 +1,10 @@
 node_modules/
 dist/
 coverage/
+playwright-report/
+reports/
+test-results/
+.lighthouseci/
+.stryker-tmp/
+.eslintcache
 *.tsbuildinfo

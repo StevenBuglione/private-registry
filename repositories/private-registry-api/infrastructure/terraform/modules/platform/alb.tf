@@ -9,14 +9,7 @@ resource "aws_lb" "this" {
   preserve_host_header       = true
   idle_timeout               = var.alb_idle_timeout_seconds
 
-  access_logs {
-    bucket  = aws_s3_bucket.this["alb_logs"].id
-    prefix  = "alb"
-    enabled = true
-  }
-
-  tags       = local.common_tags
-  depends_on = [aws_s3_bucket_policy.alb_logs]
+  tags = local.common_tags
 }
 
 resource "aws_lb_target_group" "ui" {
