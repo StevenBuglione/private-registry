@@ -68,8 +68,20 @@ paths:
           schema: {type: string, enum: [module, provider]}
         - name: provider
           in: query
-          description: Module target or provider name.
-          schema: {type: string}
+          description: Comma-separated module targets. Values are combined with OR semantics.
+          schema: {type: string, example: aws,azure}
+        - name: tier
+          in: query
+          description: Comma-separated Registry tiers. Values are combined with OR semantics.
+          schema:
+            type: string
+            example: official,partner
+        - name: category
+          in: query
+          description: Comma-separated provider categories. Values are combined with OR semantics.
+          schema:
+            type: string
+            example: public-cloud,networking
         - $ref: '#/components/parameters/ApmId'
         - name: lifecycle
           in: query

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getCatalogPage,
   getHomepageSettings,
   getPackage,
   getPackageDocumentation,
@@ -20,6 +21,36 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("OpenAPI response normalization", () => {
+  it("sends multi-value browse filters to the catalog API", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ items: [], total: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getCatalogPage({
+      kind: "provider",
+      tier: "official,partner",
+      category: "public-cloud,networking",
+      provider: "aws,azure",
+      limit: 50,
+    });
+
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("Expected a catalog request");
+    const input = call[0];
+    const requestUrl =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+    const url = new URL(requestUrl, "http://registry.test");
+    expect(url.searchParams.get("tier")).toBe("official,partner");
+    expect(url.searchParams.get("category")).toBe("public-cloud,networking");
+    expect(url.searchParams.get("provider")).toBe("aws,azure");
+    expect(url.searchParams.get("limit")).toBe("50");
+  });
+
   it("preserves snake_case APM entitlements from the session", async () => {
     vi.stubGlobal(
       "fetch",

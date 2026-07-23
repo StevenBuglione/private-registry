@@ -306,7 +306,7 @@ describe("application composition", () => {
     renderWithRegistry(<HomePage />);
     expect(screen.getAllByText("1")).toHaveLength(2);
     expect(
-      screen.getByRole("link", { name: /AWSby Cloud Platform/i }),
+      screen.getByRole("link", { name: /AWSby HashiCorp/i }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
@@ -368,7 +368,7 @@ describe("application composition", () => {
     ).toHaveLength(1);
   });
 
-  it("updates catalog filters, sort order, pagination, and responsive controls", async () => {
+  it("updates Terraform-style module filters and cursor pagination", async () => {
     const user = userEvent.setup();
     hookMocks.useCatalogPage.mockReturnValue(
       queryResult({
@@ -377,14 +377,14 @@ describe("application composition", () => {
         nextCursor: "page-2",
       }),
     );
-    renderWithRegistry(<CatalogPage />, "/browse?q=cloud");
+    renderWithRegistry(<CatalogPage kind="module" />, "/modules?provider=aws");
 
-    expect(screen.getByText("42")).toBeVisible();
-    await user.selectOptions(screen.getByLabelText("Sort by"), "name");
-    await user.click(screen.getByRole("button", { name: "Filter Packages" }));
-    await user.click(screen.getByRole("checkbox", { name: "Providers" }));
-    await user.click(screen.getByRole("button", { name: /Next/i }));
-    expect(screen.getByText(/Showing 21/)).toBeVisible();
+    expect(screen.getByText("1–2 of 42")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Filter Modules" }));
+    expect(screen.getByRole("checkbox", { name: "AWS" })).toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "Azure" }));
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("10–11 of 42")).toBeVisible();
   });
 
   it("renders catalog loading, API failure, and empty results", () => {

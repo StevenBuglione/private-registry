@@ -160,7 +160,9 @@ class CatalogManifestV1Test {
             "enterprise-verified",
             "approved",
             "high",
-            "restricted"),
+            "restricted",
+            "official",
+            List.of("public-cloud")),
         new CatalogManifestV1.RegistryLocation(
             "artifacts.example.invalid",
             "iac-provider-release-local",

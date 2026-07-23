@@ -103,6 +103,8 @@ export interface CatalogQuery {
   q?: string | undefined;
   kind?: PackageKind | undefined;
   provider?: string | undefined;
+  tier?: string | undefined;
+  category?: string | undefined;
   apmId?: string | undefined;
   lifecycle?: Lifecycle | undefined;
   approval?: Approval | undefined;

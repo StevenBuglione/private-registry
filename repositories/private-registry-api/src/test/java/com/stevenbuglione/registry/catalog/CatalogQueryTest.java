@@ -1,7 +1,9 @@
 package com.stevenbuglione.registry.catalog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.stevenbuglione.registry.model.PackageKind;
 import org.junit.jupiter.api.Test;
 
 class CatalogQueryTest {
@@ -11,9 +13,23 @@ class CatalogQueryTest {
     var query =
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                "cloud", null, null, null, null, null, null, "relevance", null, 25));
+                "cloud",
+                null,
+                "aws,azurerm",
+                "official,partner",
+                "public-cloud,networking",
+                null,
+                null,
+                null,
+                null,
+                "relevance",
+                null,
+                25));
 
     assertThat(query.sort()).isEqualTo("relevance");
+    assertThat(query.providers()).containsExactly("aws", "azurerm");
+    assertThat(query.tiers()).containsExactly("official", "partner");
+    assertThat(query.categories()).containsExactly("public-cloud", "networking");
   }
 
   @Test
@@ -21,8 +37,30 @@ class CatalogQueryTest {
     var query =
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, "relevance", null, 25));
+                null, null, null, null, null, null, null, null, null, "relevance", null, 25));
 
     assertThat(query.sort()).isEqualTo("updated");
+  }
+
+  @Test
+  void rejectsNoneCombinedWithAProviderTier() {
+    var criteria =
+        new CatalogQuery.Criteria(
+            null,
+            PackageKind.PROVIDER,
+            null,
+            "none,official",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "updated",
+            null,
+            25);
+
+    assertThatThrownBy(() -> new CatalogQuery(criteria))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("tier none");
   }
 }

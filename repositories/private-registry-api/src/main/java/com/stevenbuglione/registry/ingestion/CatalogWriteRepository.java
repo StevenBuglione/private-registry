@@ -41,12 +41,12 @@ public class CatalogWriteRepository {
                         INSERT INTO packages (
                             kind, namespace, name, target, title, description, source_address,
                             visibility, risk_tier, verification, support_level, lifecycle,
-                            search_keywords
+                            search_keywords, registry_tier, categories
                         ) VALUES (
                             CAST(:kind AS package_kind), :namespace, :name, :target, :title, :description,
                             :sourceAddress, :visibility, :riskTier, :verification,
                             CAST(:supportLevel AS support_level), CAST(:lifecycle AS lifecycle_state),
-                            :searchKeywords
+                            :searchKeywords, :registryTier, :categories
                         )
                         ON CONFLICT (kind, namespace, name, target) DO UPDATE SET
                             title = CASE WHEN NOT EXISTS (
@@ -85,6 +85,14 @@ public class CatalogWriteRepository {
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
                             ) THEN EXCLUDED.search_keywords ELSE packages.search_keywords END,
+                            registry_tier = CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM package_versions newer
+                                 WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
+                            ) THEN EXCLUDED.registry_tier ELSE packages.registry_tier END,
+                            categories = CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM package_versions newer
+                                 WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
+                            ) THEN EXCLUDED.categories ELSE packages.categories END,
                             updated_at = CASE WHEN NOT EXISTS (
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
@@ -106,6 +114,8 @@ public class CatalogWriteRepository {
         .param(
             "searchKeywords",
             display.keywords() == null ? new String[0] : display.keywords().toArray(String[]::new))
+        .param("registryTier", RegistryTaxonomy.tier(manifest))
+        .param("categories", RegistryTaxonomy.categories(manifest))
         .param("publishedAt", java.sql.Timestamp.from(manifest.release().publishedAt()))
         .query(UUID.class)
         .single();

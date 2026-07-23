@@ -253,6 +253,8 @@ export async function getCatalogPage(
   addParam(params, "q", query.q);
   addParam(params, "kind", query.kind);
   addParam(params, "provider", query.provider);
+  addParam(params, "tier", query.tier);
+  addParam(params, "category", query.category);
   addParam(params, "apm_id", query.apmId);
   addParam(params, "lifecycle", query.lifecycle);
   addParam(params, "approval", query.approval);

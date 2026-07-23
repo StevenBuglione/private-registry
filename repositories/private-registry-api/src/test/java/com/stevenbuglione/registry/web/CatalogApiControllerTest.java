@@ -99,7 +99,9 @@ class CatalogApiControllerTest {
             get("/api/v1/catalog/packages")
                 .queryParam("q", "vpc")
                 .queryParam("kind", "module")
-                .queryParam("provider", "aws")
+                .queryParam("provider", "aws,azurerm")
+                .queryParam("tier", "partner")
+                .queryParam("category", "public-cloud,networking")
                 .queryParam("apm_id", "APM0000001")
                 .queryParam("lifecycle", "approved")
                 .queryParam("approval", "approved")
@@ -114,14 +116,13 @@ class CatalogApiControllerTest {
 
     var query = ArgumentCaptor.forClass(CatalogQuery.class);
     verify(catalog).findPackages(eq(accessContext), query.capture());
-    assertThat(query.getValue())
-        .extracting(
-            CatalogQuery::q,
-            CatalogQuery::provider,
-            CatalogQuery::apmId,
-            CatalogQuery::sort,
-            CatalogQuery::limit)
-        .containsExactly("vpc", "aws", "APM0000001", "name", 30);
+    assertThat(query.getValue().q()).isEqualTo("vpc");
+    assertThat(query.getValue().providers()).containsExactly("aws", "azurerm");
+    assertThat(query.getValue().tiers()).containsExactly("partner");
+    assertThat(query.getValue().categories()).containsExactly("public-cloud", "networking");
+    assertThat(query.getValue().apmId()).isEqualTo("APM0000001");
+    assertThat(query.getValue().sort()).isEqualTo("name");
+    assertThat(query.getValue().limit()).isEqualTo(30);
   }
 
   @Test

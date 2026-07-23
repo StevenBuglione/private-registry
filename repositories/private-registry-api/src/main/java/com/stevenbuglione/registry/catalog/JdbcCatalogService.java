@@ -127,7 +127,7 @@ public class JdbcCatalogService implements CatalogService {
         accessContext,
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, kind, null, null, null, null, null, "updated", null, 1)));
+                null, kind, null, null, null, null, null, null, null, "updated", null, 1)));
   }
 
   @Override
@@ -143,7 +143,7 @@ public class JdbcCatalogService implements CatalogService {
             accessContext,
             new CatalogQuery(
                 new CatalogQuery.Criteria(
-                    null, null, null, null, null, null, null, "updated", null, 1)));
+                    null, null, null, null, null, null, null, null, null, "updated", null, 1)));
     var parameters = new HashMap<>(filters.parameters());
     parameters.put("publicId", id);
     try {
@@ -369,52 +369,110 @@ public class JdbcCatalogService implements CatalogService {
     sql.append(
         " AND EXISTS (SELECT 1 FROM package_versions visible_version"
             + " WHERE visible_version.package_id = p.id AND visible_version.active AND NOT visible_version.revoked)");
-    if (!accessContext.registryAdmin()) {
-      if (accessContext.apmIds().isEmpty()) {
-        sql.append(" AND 1 = 0");
-      } else {
-        sql.append(
-            """
-                         AND EXISTS (
-                               SELECT 1
-                                 FROM package_apm_access visible_apm
-                                WHERE visible_apm.package_id = p.id
-                                  AND visible_apm.apm_id IN (:authorizedApmIds)
-                         )
-                        """);
-        parameters.put("authorizedApmIds", accessContext.apmIds());
-      }
+    appendAuthorizationFilter(sql, parameters, accessContext);
+    appendSelectedApmFilter(sql, parameters, query);
+    appendKindFilter(sql, parameters, query);
+    appendTextSearchFilter(sql, parameters, accessContext, query);
+    appendTaxonomyFilters(sql, parameters, query);
+    appendGovernanceFilters(sql, parameters, query);
+    return new QueryFilters(sql.toString(), parameters);
+  }
+
+  private static void appendAuthorizationFilter(
+      StringBuilder sql, Map<String, Object> parameters, AccessContext accessContext) {
+    if (accessContext.registryAdmin()) {
+      return;
     }
-    if (query.apmId() != null) {
-      sql.append(
-          """
+    if (accessContext.apmIds().isEmpty()) {
+      sql.append(" AND 1 = 0");
+      return;
+    }
+    sql.append(
+        """
                      AND EXISTS (
                            SELECT 1
-                             FROM package_apm_access selected_apm
-                            WHERE selected_apm.package_id = p.id
-                              AND selected_apm.apm_id = :selectedApmId
+                             FROM package_apm_access visible_apm
+                            WHERE visible_apm.package_id = p.id
+                              AND visible_apm.apm_id IN (:authorizedApmIds)
                      )
                     """);
-      parameters.put("selectedApmId", query.apmId());
+    parameters.put("authorizedApmIds", accessContext.apmIds());
+  }
+
+  private static void appendSelectedApmFilter(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
+    if (query.apmId() == null) {
+      return;
     }
-    if (query.kind() != null) {
-      sql.append(" AND p.kind = CAST(:kind AS package_kind)");
-      parameters.put("kind", query.kind().jsonValue());
+    sql.append(
+        """
+                 AND EXISTS (
+                       SELECT 1
+                         FROM package_apm_access selected_apm
+                        WHERE selected_apm.package_id = p.id
+                          AND selected_apm.apm_id = :selectedApmId
+                 )
+                """);
+    parameters.put("selectedApmId", query.apmId());
+  }
+
+  private static void appendKindFilter(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
+    if (query.kind() == null) {
+      return;
     }
-    if (query.q() != null) {
-      var matchingIds = catalogTextSearch.findPackageIds(accessContext, query, 10_000);
-      if (matchingIds.isEmpty()) {
-        sql.append(" AND 1 = 0");
-      } else {
-        sql.append(" AND (").append(PUBLIC_ID).append(") IN (:searchPackageIds)");
-        parameters.put("searchPackageIds", matchingIds);
-      }
-      parameters.put("query", query.q());
+    sql.append(" AND p.kind = CAST(:kind AS package_kind)");
+    parameters.put("kind", query.kind().jsonValue());
+  }
+
+  private void appendTextSearchFilter(
+      StringBuilder sql,
+      Map<String, Object> parameters,
+      AccessContext accessContext,
+      CatalogQuery query) {
+    if (query.q() == null) {
+      return;
     }
-    if (query.provider() != null) {
-      sql.append(" AND COALESCE(NULLIF(p.target, ''), p.name) = :provider");
-      parameters.put("provider", query.provider());
+    var matchingIds = catalogTextSearch.findPackageIds(accessContext, query, 10_000);
+    if (matchingIds.isEmpty()) {
+      sql.append(" AND 1 = 0");
+    } else {
+      sql.append(" AND (").append(PUBLIC_ID).append(") IN (:searchPackageIds)");
+      parameters.put("searchPackageIds", matchingIds);
     }
+    parameters.put("query", query.q());
+  }
+
+  private static void appendTaxonomyFilters(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
+    if (!query.providers().isEmpty()) {
+      sql.append(" AND COALESCE(NULLIF(p.target, ''), p.name) IN (:providers)");
+      parameters.put("providers", query.providers());
+    }
+    appendTierFilter(sql, parameters, query);
+    if (!query.categories().isEmpty()) {
+      sql.append(
+          " AND EXISTS (SELECT 1 FROM unnest(p.categories) category"
+              + " WHERE category IN (:registryCategories))");
+      parameters.put("registryCategories", query.categories());
+    }
+  }
+
+  private static void appendTierFilter(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
+    if (query.tiers().isEmpty()) {
+      return;
+    }
+    if (query.tiers().contains("none")) {
+      sql.append(" AND 1 = 0");
+      return;
+    }
+    sql.append(" AND p.registry_tier IN (:registryTiers)");
+    parameters.put("registryTiers", query.tiers());
+  }
+
+  private static void appendGovernanceFilters(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
     if (query.lifecycle() != null) {
       sql.append(" AND p.lifecycle::text = :lifecycle");
       parameters.put("lifecycle", query.lifecycle());
@@ -423,21 +481,21 @@ public class JdbcCatalogService implements CatalogService {
       sql.append(" AND p.risk_tier = :risk");
       parameters.put("risk", query.risk());
     }
-    if (query.approval() != null) {
-      sql.append(
-          """
-                     AND EXISTS (
-                           SELECT 1
-                             FROM package_versions approved_version
-                             JOIN approvals approval ON approval.package_version_id = approved_version.id
-                            WHERE approved_version.package_id = p.id
-                              AND approved_version.active
-                              AND approval.decision = :approval
-                     )
-                    """);
-      parameters.put("approval", query.approval());
+    if (query.approval() == null) {
+      return;
     }
-    return new QueryFilters(sql.toString(), parameters);
+    sql.append(
+        """
+                 AND EXISTS (
+                       SELECT 1
+                         FROM package_versions approved_version
+                         JOIN approvals approval ON approval.package_version_id = approved_version.id
+                        WHERE approved_version.package_id = p.id
+                          AND approved_version.active
+                          AND approval.decision = :approval
+                 )
+                """);
+    parameters.put("approval", query.approval());
   }
 
   private QueryFilters authorizationFilters(AccessContext accessContext) {
@@ -445,7 +503,7 @@ public class JdbcCatalogService implements CatalogService {
         accessContext,
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, "updated", null, 1)));
+                null, null, null, null, null, null, null, null, null, "updated", null, 1)));
   }
 
   private static String additionalPredicates(QueryFilters filters) {

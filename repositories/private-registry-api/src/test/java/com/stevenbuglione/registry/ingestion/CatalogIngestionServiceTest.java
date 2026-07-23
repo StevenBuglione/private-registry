@@ -453,7 +453,9 @@ class CatalogIngestionServiceTest {
             "enterprise-verified",
             "approved",
             "low",
-            "restricted"),
+            "restricted",
+            null,
+            null),
         new CatalogManifestV1.RegistryLocation(
             "jfrog.example", PROVIDER_REPOSITORY, "hashicorp/null", ARTIFACT_PATH, null),
         new CatalogManifestV1.Compatibility(">= 1.8"),

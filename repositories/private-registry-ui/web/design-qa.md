@@ -1,75 +1,50 @@
-# Terraform Registry visual-parity QA
+# Registry browse design QA
 
-## Source and implementation
+final result: passed
 
-- Source of visual truth: `https://registry.terraform.io/`, captured in the in-app browser on July 22, 2026.
-- Local implementation: `http://localhost:3000/` from the production Docker Compose stack.
-- Compared authenticated states: home, AzureRM provider documentation, and Helm module Outputs.
-- Comparison viewport: 1440 x 900 CSS pixels at DPR 1. The browser capture area is 1425 x 891 pixels because application chrome is excluded.
-- Responsive verification: 1440, 1024, 768, and 390 CSS-pixel widths; the automated browser suite asserts no horizontal overflow at the intermediate widths and exercises the mobile navigation at 390 pixels.
+## Reference and implementation
 
-The public Terraform/HashiCorp marks, Publish action, public sign-in, public download figures, and marketplace claims are intentionally excluded. Registry identity, Entra identity, APM authorization, truthful mirrored counts, governance metadata, and Artifactory installation data replace them without changing the source layout model.
+- Reference: `https://registry.terraform.io/browse/providers` and `https://registry.terraform.io/browse/modules`.
+- Implementation: `http://localhost:3000/providers` and `http://localhost:3000/modules` from the production Docker image.
+- Desktop comparisons used the same 1440 × 1000 browser viewport (1425 × 990 content capture), signed-out reference state, signed-in Registry administrator state, light theme, default filters, and the top of each page.
+- Mobile comparisons used the same 390 × 844 browser viewport (375 × 812 content capture), light theme, and both collapsed and expanded provider-filter states.
+- The Azure module-card regression comparison used one in-app browser tab at a 1100 × 1110 CSS viewport, device scale 1, and equal 1085 × 1095 pixel captures after both pages reached their populated state. The reference used `provider=azure`; the implementation used its equivalent `provider=azurerm` server filter.
 
-## Measured visual system
+## Evidence
 
-- Font stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"`.
-- Body type: 16-pixel font with 24-pixel line height.
-- Application header: 60 pixels high; global search band: 63 pixels high.
-- Home H1: 30/38 pixels at weight 700; hero copy: 14/20 pixels.
-- Buttons and selects: 36 pixels high with five-pixel radii.
-- Provider cards: three-column desktop grid with source-matched border, padding, icon geometry, and compact metadata.
-- Detail pages: compact breadcrumb/header metadata, underline tabs, provider documentation tree/article/on-this-page columns, and module content/sidebar proportions.
-
-## Side-by-side evidence
-
-These images combine the public reference and local implementation in the same input before judgment:
-
-- Home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-home-1440x900.png`
-- AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-azurerm-docs-1440x900.png`
-- Helm module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/comparison-module-outputs-1440x900.png`
-
-Final local captures:
-
-- Light home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-home-light-full-1440.png`
-- Light AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-azurerm-docs-light-1440x900.png`
-- Light module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-module-outputs-light-1440x900.png`
-- Dark home: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-home-dark-1440x900.png`
-- Dark AzureRM documentation: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-azurerm-docs-dark-1440x900.png`
-- Dark module Outputs: `C:/Users/steve/.codex/visualizations/2026/07/21/019f86b6-4327-7230-8f11-3fbfde162fa1/terraform-registry-audit/local-final-module-outputs-dark-1440x900.png`
+| State | Reference | Implementation | Combined comparison |
+| --- | --- | --- | --- |
+| Providers, desktop | `design-qa/terraform-provider-desktop.jpg` | `design-qa/registry-provider-desktop.jpg` | `design-qa/provider-desktop-comparison.jpg` |
+| Modules, desktop | `design-qa/terraform-module-desktop.jpg` | `design-qa/registry-module-desktop.jpg` | `design-qa/module-desktop-comparison.jpg` |
+| Providers, mobile | `design-qa/terraform-provider-mobile.jpg` | `design-qa/registry-provider-mobile.jpg` | `design-qa/provider-mobile-comparison.jpg` |
+| Provider filters, mobile | `design-qa/terraform-provider-mobile-filters.jpg` | `design-qa/registry-provider-mobile-filters.jpg` | `design-qa/provider-mobile-filters-comparison.jpg` |
+| Azure modules, desktop | `design-qa/terraform-modules-azure-1100x1110-source.jpg` | `design-qa/registry-modules-azurerm-1100x1110-fixed.jpg` | `design-qa/compare-modules-azure-1100x1110-fixed.jpg` |
+| Azure module-card spacing, focused | same source capture | same implementation capture | `design-qa/compare-modules-azure-card-spacing-1100x1110-fixed.jpg` |
+| Providers, dark theme | n/a | `design-qa/registry-provider-dark.jpg` | n/a |
 
 ## Comparison history
 
-1. The application used an APM dropdown and a top-level theme control, unlike the requested authenticated shell.
-   - Fixed: all entitled APMs are aggregated and enforced server-side; the selector was removed. Theme selection now lives only inside the signed-in user menu.
-2. The Registry emblem escaped its header container.
-   - Fixed: a measured 25 x 25 frame clips the 25 x 25 image. Browser inspection confirmed identical frame and image bounds, hidden overflow, and no internal scroll overflow.
-3. Home content diverged with Featured Modules and a standalone Docs route.
-   - Fixed: Featured Modules became the Terraform/provider/module explainer section, `/docs` redirects home, and Docs was removed from desktop and mobile navigation.
-4. The provider latest route omitted the resource documentation hierarchy and the module latest route omitted Inputs/Outputs.
-   - Fixed: latest-version symbol enrichment now returns the same provider groups and module definitions as pinned versions. Browser checks confirmed AzureRM groups and the Helm `deployment` output.
-5. Homepage notice text and featured-provider selection were static.
-   - Fixed: registry administrators can update the notice and choose up to six featured providers from the signed-in menu. Settings persist in PostgreSQL and changes are audited.
-6. Final combined comparisons show source-matched typography, density, geometry, controls, and information hierarchy with no remaining P0, P1, or P2 visual defects.
+1. Baseline: the local browse page used generic Approval, Lifecycle, and Risk controls, a different content width, an extra All Packages tab, a sort control, and a non-matching mobile filter flow. Classified as P1 because the primary browse experience did not match the requested source.
+2. First correction: matched the 336px filter rail, 24px content inset, tab height, headings, provider grid, one-column module cards, result count, and responsive filter button. Replaced the generic filters with Terraform Registry provider tiers/categories and module Partner/provider options. Remaining P2 drift was the shortened tier copy and mobile vertical spacing.
+3. Final correction: matched the visible tier copy, info marker, category/provider ordering, filter spacing, mobile header inset, mobile content rhythm, checkbox sizing, card density, and light-theme colors. Combined desktop and mobile comparison images show no unresolved P0, P1, or P2 visual defects.
+4. Azure-card regression: the reusable icon defaulted to 70px while the module card reserved a 48px grid track, placing the content 6px inside the icon bounds. Classified as P1 because the overlap affected every module using a provider logo. The module-card icon is now constrained to the official 48px slot with overflow protection and a 16px content gutter. The matched full-view and focused comparisons show the logo, title, and description are separated with no unresolved P0, P1, or P2 defect.
 
-## Interaction and runtime verification
+Registry branding, the authenticated user/admin control, APM authorization, truthful internal catalog metadata, and dark mode are intentional product differences. Unsupported Terraform Registry product areas such as Run Tasks, Policies, and publishing are not presented as working Registry features.
 
-- User-menu light/dark selection worked and persisted across reloads.
-- Admin homepage settings loaded and saved successfully; the final home rendered six selected providers.
-- `/docs` redirected to `/`.
-- No APM selector is present and catalog requests contain no client-selected `apm_id`.
-- AzureRM latest documentation exposed Guides, Functions, AAD B2C, Active Directory Domain Services, Advisor, and subsequent resource groups.
-- Helm latest Outputs exposed the `deployment` output.
-- The header brand measured 25 x 25 pixels, was fully contained, and did not overflow.
-- Browser console inspection found no local application errors.
-- Playwright, axe-core, and responsive overflow checks passed at the required widths.
+## Required fidelity review
 
-## Intentional private-registry differences
+- Fonts and typography: the existing Terraform-compatible family, weights, 16px module title, muted description, and metadata hierarchy remain unchanged; the fix introduces no wrapping or truncation drift.
+- Spacing and layout rhythm: module logos now occupy a 48px fixed track with a 16px gutter, matching the reference card rhythm and removing the measured negative gap.
+- Colors and visual tokens: card surfaces, borders, icon tile, text, and light-theme contrast remain aligned with the reference.
+- Image quality and asset fidelity: the supplied Azure provider asset remains sharp and uses `object-fit: contain`; constraining its tile does not crop or stretch it.
+- Copy and content: package names, descriptions, versions, and authorization-filtered results are unchanged.
 
-- Registry identity replaces Terraform/HashiCorp branding.
-- The authenticated Entra user menu replaces Publish and public Sign In actions.
-- APM authorization is server-side and aggregate; there is no client access-context dropdown.
-- Private governance and Artifactory provisioning replace public download analytics.
-- Dark mode is an added requirement; it preserves the measured layout while applying accessible charcoal surface tokens.
-- Mirrored package versions differ from the live public versions and remain truthful to the local catalog.
+## Functional verification
 
-final result: passed
+- Selecting Networking produced `/providers?category=networking` and returned only the 3 PostgreSQL-backed matching providers.
+- Selecting AWS produced `/modules?provider=aws` and returned 1–9 of 11 matching modules.
+- Tier/category/provider selections use server-side query parameters and remain within the caller's existing APM-authorized access context.
+- The mobile Filter Providers control expands and collapses the same filter taxonomy in document flow.
+- Dark mode is available from the authenticated user menu, not the global header.
+- A browser regression assertion verifies that module logos render at 48px and retain at least a 16px gap before module content at the reported 1100px desktop viewport.
+- The frontend unit/component suite, axe checks, strict TypeScript, typed ESLint, Stylelint, dependency-cruiser, Knip, production build, and bundle budget pass.

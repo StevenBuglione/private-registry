@@ -1,13 +1,28 @@
-import { ArrowLeftIcon, ArrowRightIcon, ListIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  HandshakeIcon,
+  ListIcon,
+  SealCheckIcon,
+} from "@phosphor-icons/react";
+import { type ReactNode, useMemo, useState } from "react";
 import { NavLink, useSearchParams } from "react-router";
 import { type FilterState, Filters } from "../components/Filters";
+import {
+  moduleProviderOptions,
+  providerCategoryOptions,
+  providerTierOptions,
+} from "../components/filter-options";
 import { PackageCard } from "../components/PackageCard";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage } from "../hooks";
-import type { Approval, Lifecycle, PackageKind, Risk } from "../types";
+import type { PackageKind, PackageSummary } from "../types";
 import { useRegistry } from "../use-registry";
 import { hasText } from "../utils";
+
+const providerTierValues = providerTierOptions.map((option) => option.value);
+const providerCategoryValues = providerCategoryOptions.map(([value]) => value);
+const moduleProviderValues = moduleProviderOptions.map(([value]) => value);
 
 export function CatalogPage({ kind }: { kind?: PackageKind }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,45 +36,22 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
           "provider",
           "module",
         ]),
-      provider: searchParams.get("provider") ?? undefined,
-      lifecycle: enumParam<Lifecycle>(searchParams.get("lifecycle"), [
-        "draft",
-        "candidate",
-        "approved",
-        "maintenance",
-        "deprecated",
-        "revoked",
-        "archived",
-      ]),
-      approval: enumParam<Approval>(searchParams.get("approval"), [
-        "approved",
-        "rejected",
-        "waived",
-      ]),
-      risk: enumParam<Risk>(searchParams.get("risk"), [
-        "low",
-        "medium",
-        "high",
-        "critical",
-      ]),
+      provider: csvParam(searchParams.get("provider"), moduleProviderValues),
+      tier: csvParam(searchParams.get("tier"), [...providerTierValues, "none"]),
+      category: csvParam(searchParams.get("category"), providerCategoryValues),
     }),
     [kind, searchParams],
   );
+  const effectiveKind = kind ?? filters.kind;
   const q = searchParams.get("q") ?? "";
-  const sort =
-    enumParam(searchParams.get("sort"), [
-      "relevance",
-      "updated",
-      "name",
-      "risk",
-    ] as const) ?? (q ? "relevance" : "updated");
+  const sort = q ? "relevance" : "updated";
+  const pageSize = effectiveKind === "module" ? 9 : 50;
   const cursorScope = [
     q,
-    filters.kind,
+    effectiveKind,
     filters.provider,
-    filters.lifecycle,
-    filters.approval,
-    filters.risk,
+    filters.tier,
+    filters.category,
     sort,
     selectedApmId,
   ].join("|");
@@ -67,20 +59,25 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     scope: string;
     values: string[];
   }>({ scope: cursorScope, values: [] });
-  if (cursorState.scope !== cursorScope)
+  if (cursorState.scope !== cursorScope) {
     setCursorState({ scope: cursorScope, values: [] });
+  }
   const cursorHistory =
     cursorState.scope === cursorScope ? cursorState.values : [];
   const cursor = cursorHistory.at(-1);
   const result = useCatalogPage({
-    ...filters,
     q,
+    kind: effectiveKind,
+    provider: filters.provider,
+    tier: filters.tier,
+    category: filters.category,
     sort,
     apmId: selectedApmId,
     cursor,
-    limit: 20,
+    limit: pageSize,
   });
   const nextCursor = result.data?.nextCursor;
+  const pageNumber = cursorHistory.length + 1;
 
   const updateParam = (key: string, value?: string) => {
     const next = new URLSearchParams(searchParams);
@@ -92,28 +89,31 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     key: K,
     value?: FilterState[K],
   ) => {
-    updateParam(key === "kind" ? "kind" : key, value);
+    updateParam(key, value);
   };
   const clear = () => {
     const next = new URLSearchParams();
     if (q) next.set("q", q);
+    if (kind === undefined && effectiveKind !== undefined) {
+      next.set("kind", effectiveKind);
+    }
     setSearchParams(next, { replace: true });
   };
 
   const title =
-    kind === "provider"
+    effectiveKind === "provider"
       ? "Providers"
-      : kind === "module"
+      : effectiveKind === "module"
         ? "Modules"
         : q
           ? `Results for “${q}”`
-          : "Browse the catalog";
+          : "Browse";
   const description =
-    kind === "provider"
-      ? "Providers are a logical abstraction of an upstream API. They expose approved infrastructure resources and services."
-      : kind === "module"
-        ? "Modules are self-contained packages of infrastructure configuration that are managed and versioned as a group."
-        : "Search and filter every provider and module available through your APM memberships.";
+    effectiveKind === "provider"
+      ? "Providers are a logical abstraction of an upstream API. They are responsible for understanding API interactions and exposing resources."
+      : effectiveKind === "module"
+        ? "Modules are self-contained packages of Terraform configurations that are managed as a group."
+        : "Browse every authorized provider and module available through your Registry access.";
 
   const providerItems =
     result.data?.items.filter((item) => item.kind === "provider") ?? [];
@@ -126,9 +126,8 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
         className="artifact-tabs source-container"
         aria-label="Artifact types"
       >
-        <NavLink to="/providers">Providers</NavLink>
-        <NavLink to="/modules">Modules</NavLink>
-        <NavLink to="/browse">All Packages</NavLink>
+        <NavLink to={browseTabHref("provider", q)}>Providers</NavLink>
+        <NavLink to={browseTabHref("module", q)}>Modules</NavLink>
       </nav>
       <button
         className="mobile-filter-button"
@@ -137,52 +136,25 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
           setMobileFilters((value) => !value);
         }}
         aria-expanded={mobileFilters}
+        aria-controls="catalog-filters"
       >
-        <ListIcon size={18} /> Filter{" "}
-        {kind === "provider"
-          ? "Providers"
-          : kind === "module"
-            ? "Modules"
-            : "Packages"}
+        <ListIcon size={18} /> Filter {filterNoun(effectiveKind)}
       </button>
       <div className="catalog-layout">
-        <Filters
-          value={filters}
-          kindLocked={kind}
-          mobileOpen={mobileFilters}
-          onMobileToggle={() => {
-            setMobileFilters((value) => !value);
-          }}
-          onChange={updateFilter}
-          onClear={clear}
-        />
+        <div id="catalog-filters" className="catalog-filter-region">
+          <Filters
+            value={filters}
+            kindLocked={effectiveKind}
+            mobileOpen={mobileFilters}
+            onChange={updateFilter}
+            onClear={clear}
+          />
+        </div>
         <div className="catalog-content">
           <header className="catalog-heading">
-            <div>
-              <p className="eyebrow">Authorized catalog</p>
-              <h1>{title}</h1>
-              <p>{description}</p>
-            </div>
-            <label className="sort-select">
-              <span>Sort by</span>
-              <select
-                value={sort}
-                onChange={(event) => {
-                  updateParam("sort", event.target.value);
-                }}
-              >
-                <option value="relevance">Relevance</option>
-                <option value="updated">Recently updated</option>
-                <option value="name">Name</option>
-                <option value="risk">Risk</option>
-              </select>
-            </label>
+            <h1>{title}</h1>
+            <p>{description}</p>
           </header>
-          <div className="result-summary" aria-live="polite">
-            <strong>{result.data?.total ?? 0}</strong> authorized{" "}
-            {kind ? `${kind}s` : "packages"}
-            {hasText(selectedApmId) ? <span>for {selectedApmId}</span> : null}
-          </div>
           {result.isPending ? (
             <div
               className="catalog-loading skeleton"
@@ -196,72 +168,186 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
             <StatePanel kind="empty" />
           ) : null}
           {providerItems.length > 0 ? (
-            <section className="catalog-result-section">
-              <h2>
-                {kind === "provider" && !q ? "Featured Providers" : "Providers"}
-              </h2>
-              <div className="source-card-grid providers">
-                {providerItems.map((item) => (
-                  <PackageCard
-                    key={`${item.namespace}-${item.name}`}
-                    item={item}
-                  />
-                ))}
-              </div>
-            </section>
+            <ProviderResults items={providerItems} showFeatured={!q} />
           ) : null}
           {moduleItems.length > 0 ? (
-            <section className="catalog-result-section">
-              {providerItems.length > 0 ? <h2>Modules</h2> : null}
-              <div className="source-card-grid modules">
-                {moduleItems.map((item) => (
-                  <PackageCard
-                    key={`${item.namespace}-${item.name}-${item.target ?? "general"}`}
-                    item={item}
-                  />
-                ))}
-              </div>
-            </section>
+            <ModuleResults items={moduleItems} />
           ) : null}
           {(result.data?.items.length ?? 0) > 0 ? (
-            <nav className="pagination" aria-label="Catalog pages">
-              <button
-                type="button"
-                disabled={cursorHistory.length === 0}
-                onClick={() => {
+            <CatalogPagination
+              pageNumber={pageNumber}
+              pageSize={pageSize}
+              itemCount={result.data?.items.length ?? 0}
+              total={result.data?.total ?? 0}
+              hasPrevious={cursorHistory.length > 0}
+              hasNext={hasText(nextCursor)}
+              onPrevious={() => {
+                setCursorState((state) => ({
+                  ...state,
+                  values: state.values.slice(0, -1),
+                }));
+              }}
+              onNext={() => {
+                if (hasText(nextCursor)) {
                   setCursorState((state) => ({
                     ...state,
-                    values: state.values.slice(0, -1),
+                    values: [...state.values, nextCursor],
                   }));
-                }}
-              >
-                <ArrowLeftIcon size={16} /> Previous
-              </button>
-              <span>
-                Showing {cursorHistory.length * 20 + 1}–
-                {cursorHistory.length * 20 + (result.data?.items.length ?? 0)}{" "}
-                of {result.data?.total ?? 0}
-              </span>
-              <button
-                type="button"
-                disabled={!hasText(nextCursor)}
-                onClick={() => {
-                  if (hasText(nextCursor)) {
-                    setCursorState((state) => ({
-                      ...state,
-                      values: [...state.values, nextCursor],
-                    }));
-                  }
-                }}
-              >
-                Next <ArrowRightIcon size={16} />
-              </button>
-            </nav>
+                }
+              }}
+            />
           ) : null}
         </div>
       </div>
     </div>
   );
+}
+
+function ProviderResults({
+  items,
+  showFeatured,
+}: {
+  items: PackageSummary[];
+  showFeatured: boolean;
+}) {
+  const official = items.filter((item) => providerTier(item) === "official");
+  const partner = items.filter((item) => providerTier(item) === "partner");
+  const community = items.filter((item) => providerTier(item) === "community");
+  return (
+    <>
+      {showFeatured ? (
+        <CatalogSection title="Featured Providers" items={items.slice(0, 6)} />
+      ) : null}
+      <CatalogSection
+        title="Official Providers"
+        items={official}
+        badge={<SealCheckIcon size={14} />}
+      />
+      <CatalogSection
+        title="Partner Providers"
+        items={partner}
+        badge={<HandshakeIcon size={14} />}
+        badgeTone="partner"
+      />
+      <CatalogSection title="Community Providers" items={community} />
+    </>
+  );
+}
+
+function ModuleResults({ items }: { items: PackageSummary[] }) {
+  return (
+    <div className="source-card-grid modules catalog-module-results">
+      {items.map((item) => (
+        <PackageCard
+          key={`${item.namespace}-${item.name}-${item.target ?? "general"}`}
+          item={item}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CatalogSection({
+  title,
+  items,
+  badge,
+  badgeTone,
+}: {
+  title: string;
+  items: PackageSummary[];
+  badge?: ReactNode;
+  badgeTone?: "partner" | undefined;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section className="catalog-result-section">
+      <h2>
+        {title}
+        {badge === undefined ? null : (
+          <span className={`catalog-tier-badge ${badgeTone ?? "official"}`}>
+            {badge}
+            {badgeTone === "partner" ? "Partner" : "Official"}
+          </span>
+        )}
+      </h2>
+      <div className="source-card-grid providers">
+        {items.map((item) => (
+          <PackageCard
+            key={`${item.namespace}-${item.name}`}
+            item={item}
+            compactProvider={title !== "Featured Providers"}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CatalogPagination({
+  pageNumber,
+  pageSize,
+  itemCount,
+  total,
+  hasPrevious,
+  hasNext,
+  onPrevious,
+  onNext,
+}: {
+  pageNumber: number;
+  pageSize: number;
+  itemCount: number;
+  total: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const first = (pageNumber - 1) * pageSize + 1;
+  const last = first + itemCount - 1;
+  return (
+    <div className="catalog-pagination-row">
+      <span className="catalog-result-count">
+        {first}–{last} of {total}
+      </span>
+      <nav className="pagination" aria-label="Catalog pages">
+        <button
+          type="button"
+          disabled={!hasPrevious}
+          onClick={onPrevious}
+          aria-label="Previous page"
+        >
+          <CaretLeftIcon size={16} />
+        </button>
+        <span aria-current="page">{pageNumber}</span>
+        <button
+          type="button"
+          disabled={!hasNext}
+          onClick={onNext}
+          aria-label="Next page"
+        >
+          <CaretRightIcon size={16} />
+        </button>
+      </nav>
+    </div>
+  );
+}
+
+function providerTier(
+  item: PackageSummary,
+): "official" | "partner" | "community" {
+  if (!item.verified) return "community";
+  return item.namespace.toLowerCase() === "hashicorp" ? "official" : "partner";
+}
+
+function browseTabHref(kind: PackageKind, q: string): string {
+  const path = kind === "provider" ? "/providers" : "/modules";
+  return q ? `${path}?q=${encodeURIComponent(q)}` : path;
+}
+
+function filterNoun(kind?: PackageKind): string {
+  if (kind === "provider") return "Providers";
+  if (kind === "module") return "Modules";
+  return "Packages";
 }
 
 function enumParam<T extends string>(
@@ -271,4 +357,15 @@ function enumParam<T extends string>(
   return value !== null && values.includes(value as T)
     ? (value as T)
     : undefined;
+}
+
+function csvParam(
+  value: string | null,
+  allowed: readonly string[],
+): string | undefined {
+  if (value === null) return undefined;
+  const values = value
+    .split(",")
+    .filter((candidate) => allowed.includes(candidate));
+  return values.length > 0 ? [...new Set(values)].join(",") : undefined;
 }

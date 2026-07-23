@@ -189,7 +189,7 @@ test("authorized home and theme are accessible at desktop and mobile sizes", asy
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Registry" })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Azure by Cloud Platform/i }),
+    page.getByRole("link", { name: /Azure by HashiCorp/i }),
   ).toBeVisible();
 
   const desktopScan = await new AxeBuilder({ page }).analyze();
@@ -257,6 +257,30 @@ test("module inputs and outputs remain discoverable", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Outputs" })).toContainText(
     "virtual_network_id",
   );
+});
+
+test("module logos remain separated from module content", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 1110 });
+  await page.goto("/modules?provider=azurerm");
+
+  const card = page.getByRole("link", { name: /platform \/ vnet/i });
+  await expect(card).toBeVisible();
+  const spacing = await card.evaluate((element) => {
+    const icon = element.querySelector<HTMLElement>(".package-icon");
+    const content = element.querySelector<HTMLElement>(".module-card-content");
+    if (icon === null || content === null) {
+      throw new Error("Expected module card icon and content");
+    }
+    const iconBounds = icon.getBoundingClientRect();
+    const contentBounds = content.getBoundingClientRect();
+    return {
+      gap: contentBounds.left - iconBounds.right,
+      iconWidth: iconBounds.width,
+    };
+  });
+
+  expect(spacing.iconWidth).toBe(48);
+  expect(spacing.gap).toBeGreaterThanOrEqual(16);
 });
 
 test("catalog requests aggregate server-side APM access without a client selector", async ({

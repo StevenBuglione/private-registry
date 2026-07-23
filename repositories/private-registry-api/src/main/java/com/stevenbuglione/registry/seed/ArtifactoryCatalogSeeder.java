@@ -303,7 +303,9 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                 "enterprise-verified",
                 "approved",
                 entry.riskTier(),
-                "restricted"),
+                "restricted",
+                entry.tier(),
+                entry.categories()),
             new CatalogManifestV1.RegistryLocation(
                 artifactoryProperties.url().getHost(),
                 artifactRepository,

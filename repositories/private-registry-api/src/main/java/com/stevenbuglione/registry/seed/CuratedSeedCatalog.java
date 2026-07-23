@@ -24,12 +24,15 @@ public record CuratedSeedCatalog(
       String description,
       String owner,
       String riskTier,
+      @Nullable String tier,
+      List<String> categories,
       List<String> apmIds,
       List<String> versions,
       String downloadTemplate,
       Map<String, String> expectedSha256) {
 
     public SeedEntry {
+      categories = categories == null ? List.of() : List.copyOf(categories);
       apmIds = apmIds == null ? List.of() : List.copyOf(apmIds);
       versions = versions == null ? List.of() : List.copyOf(versions);
       expectedSha256 = expectedSha256 == null ? Map.of() : Map.copyOf(expectedSha256);

@@ -23,7 +23,9 @@
     "verification": "enterprise-verified",
     "lifecycle": "approved",
     "riskTier": "medium",
-    "visibility": "enterprise"
+    "visibility": "enterprise",
+    "tier": "community",
+    "categories": []
   },
   "registry": {
     "hostname": "artifacts.example.invalid",
