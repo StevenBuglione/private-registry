@@ -31,7 +31,7 @@ class RegistryAdministrationIntegrationTest {
 
   @Container
   private static final PostgreSQLContainer POSTGRESQL =
-      new PostgreSQLContainer("postgres:18-alpine")
+      new PostgreSQLContainer("postgres:16-alpine")
           .withDatabaseName("registry_admin_test")
           .withUsername("registry")
           .withPassword("registry");
@@ -191,11 +191,15 @@ class RegistryAdministrationIntegrationTest {
   void reportsCatalogQueueIngestionReconciliationAndStructuredActivity() {
     jdbc.sql(
             """
-            INSERT INTO catalog_event_queue (event_id, payload, status)
+            INSERT INTO catalog_event_queue (
+                event_id, semantic_key, payload, status, attempts, completed_at)
             VALUES (
                 'event-1',
-                '{"repository":"iac-module-release-local","path":"Azure/vnet/azurerm/1.0.0.zip"}',
-                'dead_letter')
+                'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                '{"schemaVersion":1,"repository":"iac-module-release-local","path":"Azure/vnet/azurerm/1.0.0.zip"}',
+                'dead_letter',
+                1,
+                now())
             """)
         .update();
     jdbc.sql(
@@ -235,7 +239,60 @@ class RegistryAdministrationIntegrationTest {
   }
 
   @Test
+  void reportsRecoveredIngestionFailuresAsHealthy() {
+    jdbc.sql(
+            """
+            INSERT INTO ingestion_events (
+                event_id, idempotency_key, event_type, schema_version, package_digest,
+                status, attempts, correlation_id, source_repository, source_path,
+                payload, last_attempt_at, completed_at, received_at)
+            VALUES
+                (
+                    'failed-event', 'failed-key', 'deployed', 1, NULL,
+                    'failed', 1, 'failed-correlation', 'iac-module-release-local',
+                    'Azure/vnet/azurerm/1.0.0.zip', '{}'::jsonb,
+                    now() - interval '5 minutes', NULL, now() - interval '5 minutes'
+                ),
+                (
+                    'recovered-event', 'recovered-key', 'deployed', 1,
+                    'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                    'completed', 1, 'recovered-correlation', 'iac-module-release-local',
+                    'Azure/vnet/azurerm/1.0.0.zip', '{}'::jsonb,
+                    now(), now(), now()
+                )
+            """)
+        .update();
+    ObjectProvider<WorkerDependencyHealthService> health = mock();
+    when(health.getIfAvailable()).thenReturn(null);
+
+    var dashboard = new AdminDashboardService(jdbc, health).dashboard();
+
+    assertThat(dashboard.status()).isEqualTo("healthy");
+    assertThat(dashboard.ingestion().failed()).isZero();
+    assertThat(dashboard.ingestion().completed()).isOne();
+  }
+
+  @Test
   void homepageChangesRecordCompleteBeforeAndAfterAuditEvidence() {
+    jdbc.sql(
+            """
+            INSERT INTO packages (
+                kind, namespace, name, target, title, description, source_address,
+                visibility, risk_tier, verification, support_level, lifecycle)
+            VALUES
+                (
+                    'provider', 'hashicorp', 'aws', '', 'AWS', 'AWS provider',
+                    'hashicorp/aws', 'restricted', 'low', 'enterprise-verified',
+                    'supported', 'approved'
+                ),
+                (
+                    'module', 'terraform-aws-modules', 'iam', 'aws', 'IAM', 'IAM module',
+                    'terraform-aws-modules/iam/aws', 'restricted', 'low',
+                    'enterprise-verified', 'supported', 'approved'
+                )
+            ON CONFLICT (kind, namespace, name, target) DO NOTHING
+            """)
+        .update();
     var homepage = new HomepageSettingsService(jdbc, audit);
     var updated =
         homepage.update(

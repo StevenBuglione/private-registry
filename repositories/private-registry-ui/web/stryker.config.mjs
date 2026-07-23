@@ -1,6 +1,13 @@
 export default {
   $schema: "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  mutate: ["src/runtime-config.ts", "src/theme.ts", "src/utils.ts"],
+  mutate: [
+    "src/api/client.ts",
+    "src/api/catalog.ts",
+    "src/features/package-detail/model.ts",
+    "src/runtime-config.ts",
+    "src/theme.ts",
+    "src/utils.ts",
+  ],
   plugins: [
     "@stryker-mutator/typescript-checker",
     "@stryker-mutator/vitest-runner",

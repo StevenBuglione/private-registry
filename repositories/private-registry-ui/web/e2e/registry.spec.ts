@@ -1,47 +1,86 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
+const providerDocumentation = "# AzureRM Provider\n\nUse Azure resources.";
+
+function wireVersion(version: string) {
+  return {
+    version,
+    published_at: "2026-07-21T12:00:00Z",
+    package_digest: `sha256:${"a".repeat(64)}`,
+    documentation_digest: `sha256:${"b".repeat(64)}`,
+    documentation_root: "docs",
+    artifact_repository: "iac-provider-release-local",
+    artifact_path: `hashicorp/azurerm/${version}/provider.zip`,
+    source_repository:
+      "https://github.com/hashicorp/terraform-provider-azurerm",
+    source_commit: "0123456789abcdef",
+    source_tag: `v${version}`,
+    prerelease: false,
+    deprecated: false,
+    revoked: false,
+  };
+}
+
 const provider = {
+  id: "provider/hashicorp/azurerm",
   kind: "provider",
   namespace: "hashicorp",
   name: "azurerm",
-  provider: "azurerm",
-  version: "4.40.0",
-  versions: ["4.40.0", "4.39.0"],
+  target: "",
+  title: "AzureRM",
   description: "Manage Azure infrastructure.",
-  verified: true,
+  latest_version: "4.40.0",
+  verification: "official",
+  registry_tier: "official",
+  source_address: "registry.example/hashicorp/azurerm",
   updated_at: "2026-07-21T12:00:00Z",
-  artifact_repository: "iac-provider-release-local",
-  artifact_path: "hashicorp/azurerm/4.40.0/provider.zip",
-  documentation: "# AzureRM Provider\n\nUse Azure resources.",
+  versions: [wireVersion("4.40.0"), wireVersion("4.39.0")],
   symbols: [
     {
       kind: "resource",
       name: "azurerm_resource_group",
       path: "resources/resource_group.md",
       description: "Manages an Azure resource group.",
+      required: false,
+      sensitive: false,
     },
     {
       kind: "data-source",
       name: "azurerm_client_config",
       path: "data-sources/client_config.md",
       description: "Reads the active Azure client configuration.",
+      required: false,
+      sensitive: false,
     },
   ],
 };
 
 const modulePackage = {
+  id: "module/platform/vnet/azurerm",
   kind: "module",
   namespace: "platform",
   name: "vnet",
   target: "azurerm",
-  provider: "azurerm",
-  version: "1.0.0",
-  versions: ["1.0.0", "0.9.0"],
+  title: "Virtual network",
   description: "Creates an Azure virtual network.",
-  verified: true,
+  latest_version: "1.0.0",
+  verification: "verified",
+  registry_tier: "community",
+  source_address: "registry.example/platform/vnet/azurerm",
   updated_at: "2026-07-20T12:00:00Z",
-  documentation: "# Virtual network module\n\nAn Azure network.",
+  versions: [
+    {
+      ...wireVersion("1.0.0"),
+      artifact_repository: "iac-module-release-local",
+      artifact_path: "platform/vnet/azurerm/1.0.0/module.zip",
+    },
+    {
+      ...wireVersion("0.9.0"),
+      artifact_repository: "iac-module-release-local",
+      artifact_path: "platform/vnet/azurerm/0.9.0/module.zip",
+    },
+  ],
   symbols: [
     {
       kind: "input",
@@ -50,6 +89,7 @@ const modulePackage = {
       description: "Resource group that owns the network.",
       type: "string",
       required: true,
+      sensitive: false,
     },
     {
       kind: "output",
@@ -57,6 +97,8 @@ const modulePackage = {
       path: "outputs/virtual_network_id",
       description: "The created virtual network ID.",
       type: "string",
+      required: false,
+      sensitive: false,
     },
   ],
 };
@@ -98,6 +140,7 @@ async function mockRegistry(page: Page): Promise<string[]> {
           notification_message:
             "Browse Terraform providers and modules available to your account.",
           featured_provider_ids: ["provider/hashicorp/azurerm"],
+          featured_module_ids: ["module/platform/vnet/azurerm"],
           updated_at: "2026-07-22T12:00:00Z",
         },
       });
@@ -107,12 +150,11 @@ async function mockRegistry(page: Page): Promise<string[]> {
     if (url.pathname.endsWith("/documentation")) {
       const selected = url.searchParams.get("path");
       await route.fulfill({
-        json: {
-          markdown:
-            selected === "resources/resource_group.md"
-              ? "# azurerm_resource_group Resource\n\nManages an Azure resource group."
-              : provider.documentation,
-        },
+        contentType: "text/markdown",
+        body:
+          selected === "resources/resource_group.md"
+            ? "# azurerm_resource_group Resource\n\nManages an Azure resource group."
+            : providerDocumentation,
       });
       return;
     }

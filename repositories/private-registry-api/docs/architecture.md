@@ -17,11 +17,18 @@ Package search uses PostgreSQL generated `tsvector` content with a GIN index and
 ## Event path
 
 ```text
-JFrog webhook -> signed intake -> catalog_event_queue -> Java worker
+JFrog webhook -> signed intake -> catalog_event_queue -> NOTIFY -> Java worker
 Java worker -> JFrog validation -> PostgreSQL transaction -> NOTIFY -> authorized SSE
 ```
 
-The webhook transaction inserts an idempotent JSON event into `catalog_event_queue` and returns `202` only after the database accepts it. Workers claim batches with `FOR UPDATE SKIP LOCKED`, retry transient failures with bounded backoff, recover stale claims, and move terminal failures into the `catalog_event_dead_letters` view. The same API image runs request handling, event processing, and reconciliation.
+The webhook transaction inserts an idempotent JSON event into
+`catalog_event_queue` and returns `202` only after the database accepts it.
+Commit-time `NOTIFY` wakes a virtual-thread listener immediately, while a
+30-second scheduled poll remains the durability fallback. Workers claim batches
+with `FOR UPDATE SKIP LOCKED`, retry transient failures with bounded backoff,
+recover stale claims, expire terminal records according to retention policy, and
+move terminal failures into the `catalog_event_dead_letters` view. The same API
+image runs request handling, event processing, and reconciliation.
 
 ## Documents and reconciliation
 

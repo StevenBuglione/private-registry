@@ -1,6 +1,6 @@
 package com.stevenbuglione.registry.health;
 
-import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
+import com.stevenbuglione.registry.storage.ArtifactStorageStatus;
 import jakarta.annotation.PreDestroy;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,18 +22,18 @@ public class WorkerDependencyHealthService {
   private static final long PROBE_TIMEOUT_SECONDS = 5;
 
   private final JdbcClient jdbc;
-  private final ArtifactoryGateway artifactory;
+  private final ArtifactStorageStatus artifactStorage;
   private final ExecutorService probeExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-  public WorkerDependencyHealthService(JdbcClient jdbc, ArtifactoryGateway artifactory) {
+  public WorkerDependencyHealthService(JdbcClient jdbc, ArtifactStorageStatus artifactStorage) {
     this.jdbc = jdbc;
-    this.artifactory = artifactory;
+    this.artifactStorage = artifactStorage;
   }
 
   public WorkerHealthReport check() {
     var probes = new LinkedHashMap<String, Future<Boolean>>();
     probes.put("postgresql", submit(() -> jdbc.sql("SELECT 1").query(Integer.class).single() == 1));
-    probes.put("artifactory", submit(artifactory::ping));
+    probes.put("artifactory", submit(artifactStorage::ping));
 
     var dependencies = new LinkedHashMap<String, String>();
     var deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(PROBE_TIMEOUT_SECONDS);

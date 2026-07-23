@@ -124,7 +124,7 @@ else
 fi
 
 EXPORT_DIR="${TMP_DIR}/exported"
-"${ROOT}/scripts/export-repositories.sh" "${EXPORT_DIR}" >/dev/null
+bash "${ROOT}/scripts/export-repositories.sh" "${EXPORT_DIR}" >/dev/null
 for repo in private-registry-ui private-registry-api; do
   [[ -f "${EXPORT_DIR}/${repo}/README.md" ]] || { echo "ERROR: export missing ${repo}/README.md" >&2; exit 1; }
 done

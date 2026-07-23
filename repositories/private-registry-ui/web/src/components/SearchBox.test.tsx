@@ -10,6 +10,7 @@ import { SearchBox } from "./SearchBox";
 const packages: PackageSummary[] = [
   {
     kind: "provider",
+    registryTier: "official",
     namespace: "platform",
     name: "aws",
     version: "6.5.0",
@@ -20,6 +21,7 @@ const packages: PackageSummary[] = [
   },
   {
     kind: "module",
+    registryTier: "community",
     namespace: "platform",
     name: "vpc",
     target: "aws",
@@ -31,7 +33,7 @@ const packages: PackageSummary[] = [
   },
 ];
 
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/catalog", () => ({
   useCatalogSuggestions: () => ({
     data: {
       items: packages,

@@ -6,7 +6,7 @@ import {
   UsersThreeIcon,
 } from "@phosphor-icons/react";
 import { type ReactNode, useState } from "react";
-import { useTrafficReport } from "../hooks";
+import { useTrafficReport } from "../hooks/admin";
 import type { DailyTraffic } from "../types";
 import { formatDateTime, formatRelativeDate } from "../utils";
 import { StatePanel } from "./StatePanel";

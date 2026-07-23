@@ -10,11 +10,13 @@ public record EventingProperties(
     Duration claimRecoveryDelay,
     Duration claimTimeout,
     int pollBatchSize,
-    int maximumAttempts) {
+    int maximumAttempts,
+    Duration completedRetention,
+    Duration deadLetterRetention) {
 
   public EventingProperties {
     if (pollInterval == null) {
-      pollInterval = Duration.ofMillis(250);
+      pollInterval = Duration.ofSeconds(30);
     }
     if (claimRecoveryDelay == null) {
       claimRecoveryDelay = Duration.ofMinutes(1);
@@ -27,6 +29,16 @@ public record EventingProperties(
     }
     if (maximumAttempts < 1) {
       maximumAttempts = 5;
+    }
+    if (completedRetention == null
+        || completedRetention.isNegative()
+        || completedRetention.isZero()) {
+      completedRetention = Duration.ofDays(7);
+    }
+    if (deadLetterRetention == null
+        || deadLetterRetention.isNegative()
+        || deadLetterRetention.isZero()) {
+      deadLetterRetention = Duration.ofDays(90);
     }
   }
 }

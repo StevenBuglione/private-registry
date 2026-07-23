@@ -30,6 +30,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: ${{ env.ACT != 'true' }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: ${{ env.ACT != 'true' }}
+          GITLEAKS_ENABLE_SUMMARY: ${{ env.ACT != 'true' }}
 
   container:
     name: Container security and SBOM
@@ -53,7 +56,26 @@ jobs:
           output-file: api-image.cdx.json
           upload-artifact: false
 
+      - name: Install Trivy under act
+        if: ${{ env.ACT == 'true' }}
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
+        with:
+          version: v0.70.0
+          cache: true
+
+      - name: Scan image for high-severity vulnerabilities under act
+        if: ${{ env.ACT == 'true' }}
+        run: >-
+          trivy image
+          --format sarif
+          --output trivy-api-image.sarif
+          --exit-code 1
+          --ignore-unfixed
+          --severity HIGH,CRITICAL
+          private-registry-api:security-scan
+
       - name: Scan image for high-severity vulnerabilities
+        if: ${{ env.ACT != 'true' }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image

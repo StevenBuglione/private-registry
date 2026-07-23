@@ -1,5 +1,6 @@
 package com.stevenbuglione.registry.eventing.webhook;
 
+import com.stevenbuglione.registry.eventing.CatalogEventIdentityCollisionException;
 import com.stevenbuglione.registry.eventing.CatalogEventPublisher;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -59,7 +60,12 @@ public class JfrogWebhookController {
     if (properties.allowedPathPrefixes().stream().noneMatch(event.path()::startsWith)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Artifact path is not allowed");
     }
-    var receipt = publisher.publish(event);
+    CatalogEventPublisher.PublishReceipt receipt;
+    try {
+      receipt = publisher.publish(event);
+    } catch (CatalogEventIdentityCollisionException exception) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+    }
     return ResponseEntity.accepted()
         .body(Map.of("event_id", event.eventId(), "publication_id", receipt.eventId()));
   }

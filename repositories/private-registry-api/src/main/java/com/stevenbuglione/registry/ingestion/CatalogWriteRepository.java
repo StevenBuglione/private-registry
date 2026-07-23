@@ -24,6 +24,7 @@ public class CatalogWriteRepository {
     if (isAuthoritativePackageMetadata(packageId, manifest)) {
       upsertOwners(packageId, manifest);
       replaceApmAccess(packageId, manifest.access().apmIds());
+      replaceCategories(packageId, RegistryTaxonomy.categories(manifest));
     }
     var versionId = upsertVersion(packageId, manifest);
     replaceDocuments(versionId, documents);
@@ -41,12 +42,12 @@ public class CatalogWriteRepository {
                         INSERT INTO packages (
                             kind, namespace, name, target, title, description, source_address,
                             visibility, risk_tier, verification, support_level, lifecycle,
-                            search_keywords, registry_tier, categories
+                            search_keywords, registry_tier
                         ) VALUES (
                             CAST(:kind AS package_kind), :namespace, :name, :target, :title, :description,
                             :sourceAddress, :visibility, :riskTier, :verification,
                             CAST(:supportLevel AS support_level), CAST(:lifecycle AS lifecycle_state),
-                            :searchKeywords, :registryTier, :categories
+                            :searchKeywords, :registryTier
                         )
                         ON CONFLICT (kind, namespace, name, target) DO UPDATE SET
                             title = CASE WHEN NOT EXISTS (
@@ -89,10 +90,6 @@ public class CatalogWriteRepository {
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
                             ) THEN EXCLUDED.registry_tier ELSE packages.registry_tier END,
-                            categories = CASE WHEN NOT EXISTS (
-                                SELECT 1 FROM package_versions newer
-                                 WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
-                            ) THEN EXCLUDED.categories ELSE packages.categories END,
                             updated_at = CASE WHEN NOT EXISTS (
                                 SELECT 1 FROM package_versions newer
                                  WHERE newer.package_id = packages.id AND newer.published_at > :publishedAt
@@ -115,7 +112,6 @@ public class CatalogWriteRepository {
             "searchKeywords",
             display.keywords() == null ? new String[0] : display.keywords().toArray(String[]::new))
         .param("registryTier", RegistryTaxonomy.tier(manifest))
-        .param("categories", RegistryTaxonomy.categories(manifest))
         .param("publishedAt", java.sql.Timestamp.from(manifest.release().publishedAt()))
         .query(UUID.class)
         .single();
@@ -169,6 +165,21 @@ public class CatalogWriteRepository {
           .param("ownerOrder", index)
           .update();
     }
+  }
+
+  private void replaceCategories(UUID packageId, String[] categories) {
+    jdbc.sql("DELETE FROM package_categories WHERE package_id = :packageId")
+        .param("packageId", packageId)
+        .update();
+    jdbc.sql(
+            """
+            INSERT INTO package_categories (package_id, category_slug)
+            SELECT :packageId, selected.category_slug
+              FROM unnest(CAST(:categories AS text[])) selected(category_slug)
+            """)
+        .param("packageId", packageId)
+        .param("categories", categories)
+        .update();
   }
 
   private void replaceApmAccess(UUID packageId, List<String> apmIds) {

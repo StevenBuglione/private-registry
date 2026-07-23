@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.stevenbuglione.registry.config.ArtifactoryProperties;
+import com.stevenbuglione.registry.storage.ArtifactStorageStatus;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -43,7 +44,7 @@ class ArtifactoryGatewayTest {
     assertThat(status.reachable()).isTrue();
     assertThat(status.url()).isEqualTo("https://artifacts.example.invalid/artifactory");
     assertThat(status.repositories())
-        .extracting(ArtifactoryGateway.RepositoryStatus::repositoryClass)
+        .extracting(ArtifactStorageStatus.RepositoryStatus::repositoryClass)
         .containsExactly("authentication-required", "authentication-required");
   }
 

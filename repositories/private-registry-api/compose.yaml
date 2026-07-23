@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: registry
       POSTGRES_DB: registry
     ports:
-      - "5432:5432"
+      - "${REGISTRY_POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -30,26 +30,98 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: local,entra
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
-      SPRING_DATASOURCE_USERNAME: registry
-      SPRING_DATASOURCE_PASSWORD: registry
+      SPRING_DATASOURCE_USERNAME: registry_web
+      SPRING_DATASOURCE_PASSWORD: ${REGISTRY_WEB_DB_PASSWORD:-registry-web-local}
+      SPRING_FLYWAY_ENABLED: "false"
       REGISTRY_SECURITY_PERMIT_ALL: "false"
       REGISTRY_EVENTING_ENABLED: "true"
       REGISTRY_WEBHOOK_ENABLED: "true"
-      REGISTRY_INGESTION_ENABLED: "true"
+      REGISTRY_INGESTION_ENABLED: "false"
       REGISTRY_RECONCILE_ON_STARTUP: "false"
       REGISTRY_DOWNLOAD_STATISTICS_INITIAL_DELAY: 2s
       REGISTRY_POST_LOGOUT_REDIRECT_URI: /
     depends_on:
-      postgres:
-        condition: service_healthy
+      role-bootstrap:
+        condition: service_completed_successfully
     ports:
-      - "8080:8080"
+      - "${REGISTRY_API_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 20s
+
+  migrate:
+    build:
+      context: .
+    env_file:
+      - path: .env.artifactory
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_DATASOURCE_USERNAME: registry
+      SPRING_DATASOURCE_PASSWORD: registry
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_FLYWAY_USER: registry
+      SPRING_FLYWAY_PASSWORD: registry
+      REGISTRY_SECURITY_PERMIT_ALL: "true"
+      REGISTRY_EVENTING_ENABLED: "false"
+      REGISTRY_WEBHOOK_ENABLED: "false"
+      REGISTRY_INGESTION_ENABLED: "false"
+      REGISTRY_RUNTIME_EXIT_AFTER_STARTUP: "true"
+    command: ["--spring.main.web-application-type=none"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  role-bootstrap:
+    build:
+      context: .
+      dockerfile: deploy/role-bootstrap.Dockerfile
+    environment:
+      PGHOST: postgres
+      PGDATABASE: registry
+      PGUSER: registry
+      PGPASSWORD: registry
+      REGISTRY_WEB_DB_PASSWORD: ${REGISTRY_WEB_DB_PASSWORD:-registry-web-local}
+      REGISTRY_INDEXER_DB_PASSWORD: ${REGISTRY_INDEXER_DB_PASSWORD:-registry-indexer-local}
+    command: ["psql", "--file=/bootstrap-runtime-roles.sql"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  indexer:
+    build:
+      context: .
+    env_file:
+      - path: .env.artifactory
+        required: true
+      - path: .env.eventing
+        required: true
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_MAIN_KEEP_ALIVE: "true"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
+      SPRING_DATASOURCE_USERNAME: registry_indexer
+      SPRING_DATASOURCE_PASSWORD: ${REGISTRY_INDEXER_DB_PASSWORD:-registry-indexer-local}
+      SPRING_FLYWAY_ENABLED: "false"
+      REGISTRY_SECURITY_PERMIT_ALL: "true"
+      REGISTRY_EVENTING_ENABLED: "true"
+      REGISTRY_WEBHOOK_ENABLED: "false"
+      REGISTRY_INGESTION_ENABLED: "true"
+      REGISTRY_RECONCILE_ON_STARTUP: "false"
+      REGISTRY_DOWNLOAD_STATISTICS_INITIAL_DELAY: 2s
+    command: ["--spring.main.web-application-type=none"]
+    healthcheck:
+      disable: true
+    depends_on:
+      role-bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   seeder:
     profiles: ["seed"]
@@ -61,8 +133,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/registry
-      SPRING_DATASOURCE_USERNAME: registry
-      SPRING_DATASOURCE_PASSWORD: registry
+      SPRING_DATASOURCE_USERNAME: registry_indexer
+      SPRING_DATASOURCE_PASSWORD: ${REGISTRY_INDEXER_DB_PASSWORD:-registry-indexer-local}
+      SPRING_FLYWAY_ENABLED: "false"
       REGISTRY_SECURITY_PERMIT_ALL: "true"
       REGISTRY_EVENTING_ENABLED: "true"
       REGISTRY_INGESTION_ENABLED: "true"
@@ -80,8 +153,8 @@ services:
       REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:-15m}
     command: ["--spring.main.web-application-type=none"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      role-bootstrap:
+        condition: service_completed_successfully
     volumes:
       - registry-seed-cache:/var/cache/registry-seed
     restart: "no"
@@ -91,6 +164,7 @@ services:
       context: ../private-registry-ui
       args:
         VITE_BUILD_SHA: local-compose
+        NGINX_CONFIG: deploy/nginx/local.conf
     environment:
       REGISTRY_API_BASE_URL: /api/v1
       REGISTRY_JFROG_HOSTNAME: ${REGISTRY_JFROG_HOSTNAME:-trialwbgt07.jfrog.io}
@@ -99,10 +173,10 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      indexer:
+        condition: service_started
     ports:
       - "${REGISTRY_UI_PORT:-3000}:8080"
-    volumes:
-      - ../private-registry-ui/deploy/nginx/local.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/healthz"]
       interval: 10s

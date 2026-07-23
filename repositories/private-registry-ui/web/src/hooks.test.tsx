@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type * as ApiExports from "./api";
+import { ApiError } from "./api/client";
 import {
   useAdminDashboard,
   useAdminOperations,
@@ -11,6 +11,7 @@ import {
   useCatalogPage,
   useCatalogSuggestions,
   useCreateSyncCredential,
+  useFeaturedPackages,
   usePackage,
   usePackageDocumentation,
   useSession,
@@ -23,7 +24,6 @@ const apiMocks = vi.hoisted(() => ({
   getCatalogPage: vi.fn(),
   getPackage: vi.fn(),
   getPackageDocumentation: vi.fn(),
-  catalogEventsUrl: vi.fn(),
   getAdminDashboard: vi.fn(),
   getTrafficReport: vi.fn(),
   getAdminOperations: vi.fn(),
@@ -32,10 +32,24 @@ const apiMocks = vi.hoisted(() => ({
   createSyncCredential: vi.fn(),
 }));
 
-vi.mock("./api", async (importOriginal) => {
-  const actual = await importOriginal<typeof ApiExports>();
-  return { ...actual, ...apiMocks };
-});
+vi.mock("./api/auth", () => ({
+  getSession: apiMocks.getSession,
+}));
+
+vi.mock("./api/catalog", () => ({
+  getCatalogPage: apiMocks.getCatalogPage,
+  getPackage: apiMocks.getPackage,
+  getPackageDocumentation: apiMocks.getPackageDocumentation,
+}));
+
+vi.mock("./api/admin", () => ({
+  getAdminDashboard: apiMocks.getAdminDashboard,
+  getTrafficReport: apiMocks.getTrafficReport,
+  getAdminOperations: apiMocks.getAdminOperations,
+  getAuditEvents: apiMocks.getAuditEvents,
+  getSyncCredentials: apiMocks.getSyncCredentials,
+  createSyncCredential: apiMocks.createSyncCredential,
+}));
 
 let queryClient: QueryClient;
 
@@ -61,7 +75,6 @@ beforeEach(() => {
   apiMocks.getCatalogPage.mockResolvedValue({ items: [], total: 0 });
   apiMocks.getPackage.mockResolvedValue({ name: "aws" });
   apiMocks.getPackageDocumentation.mockResolvedValue("# AWS");
-  apiMocks.catalogEventsUrl.mockReturnValue("/api/v1/catalog/events");
   apiMocks.getAdminDashboard.mockResolvedValue({ status: "healthy" });
   apiMocks.getTrafficReport.mockResolvedValue({ days: 30 });
   apiMocks.getAdminOperations.mockResolvedValue([]);
@@ -115,6 +128,87 @@ describe("query hooks", () => {
   it("does not query incomplete suggestions", () => {
     renderHook(() => useCatalogSuggestions("a"), { wrapper: Wrapper });
     expect(apiMocks.getCatalogPage).not.toHaveBeenCalled();
+  });
+
+  it("loads configured featured packages by exact authorized identity", async () => {
+    apiMocks.getPackage.mockImplementation(
+      (
+        kind: "provider" | "module",
+        namespace: string,
+        name: string,
+        target?: string,
+      ) => {
+        if (name === "missing") {
+          throw new ApiError("Not found", 404, "not_found");
+        }
+        return {
+          kind,
+          registryTier: kind === "provider" ? "official" : "community",
+          namespace,
+          name,
+          target,
+          provider: target ?? name,
+          version: "1.0.0",
+          description: `${name} package`,
+          verified: true,
+          updatedAt: "2026-07-23T12:00:00Z",
+        };
+      },
+    );
+
+    const featured = renderHook(
+      () =>
+        useFeaturedPackages([
+          "provider/platform/provider-075",
+          "module/platform/module-150/aws",
+          "provider/platform/missing",
+          "not/a/package/id",
+          "provider/platform/provider-075",
+        ]),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => {
+      expect(featured.result.current.isPending).toBe(false);
+    });
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .flatMap((query) =>
+          query.state.error === null ? [] : [query.state.error],
+        ),
+    ).toEqual([expect.objectContaining({ status: 404 })]);
+    expect(featured.result.current.isError).toBe(false);
+    expect(featured.result.current.items.map((item) => item.name)).toEqual([
+      "provider-075",
+      "module-150",
+    ]);
+    expect(apiMocks.getPackage.mock.calls).toEqual([
+      ["provider", "platform", "provider-075", undefined],
+      ["module", "platform", "module-150", "aws"],
+      ["provider", "platform", "missing", undefined],
+    ]);
+    expect(apiMocks.getCatalogPage).not.toHaveBeenCalled();
+  });
+
+  it("surfaces non-404 failures from exact featured package lookups", async () => {
+    apiMocks.getPackage.mockRejectedValue(
+      new ApiError("Catalog unavailable", 503, "catalog_unavailable"),
+    );
+    const featured = renderHook(
+      () => useFeaturedPackages(["provider/platform/aws"]),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(
+      () => {
+        expect(featured.result.current.isPending).toBe(false);
+      },
+      { timeout: 3_000 },
+    );
+    expect(featured.result.current.isError).toBe(true);
+    expect(featured.result.current.items).toEqual([]);
   });
 
   it("loads package details and documentation", async () => {
@@ -234,7 +328,6 @@ describe("catalog event stream", () => {
     currentSource.listeners.get("catalog-change")?.();
     currentSource.onmessage?.();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["catalog"] });
-    expect(apiMocks.catalogEventsUrl).toHaveBeenCalledWith();
 
     stream.unmount();
     expect(currentSource.close).toHaveBeenCalledOnce();

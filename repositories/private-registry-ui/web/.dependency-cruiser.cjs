@@ -20,9 +20,9 @@ module.exports = {
       to: { path: "\\.(?:test|spec)\\.[cm]?[jt]sx?$|^src/test/" },
     },
     {
-      name: "components-do-not-import-routes",
+      name: "presentation-does-not-import-routes",
       severity: "error",
-      from: { path: "^src/components/" },
+      from: { path: "^src/(?:components|features)/" },
       to: { path: "^src/routes/" },
     },
     {
@@ -34,8 +34,24 @@ module.exports = {
     {
       name: "api-adapter-stays-independent",
       severity: "error",
-      from: { path: "^src/(?:api|runtime-config|types|utils)\\.ts$" },
-      to: { path: "^src/(?:components|routes|hooks|router)" },
+      from: {
+        path: "^src/(?:api(?:\\.ts$|/)|runtime-config\\.ts$|types\\.ts$|utils\\.ts$)",
+      },
+      to: { path: "^src/(?:components|features|routes|hooks|router)" },
+    },
+    {
+      name: "feature-internals-have-a-public-boundary",
+      severity: "error",
+      from: { path: "^src/(?!features/package-detail/)" },
+      to: {
+        path: "^src/features/package-detail/(?!(?:index|styles)\\.ts$)",
+      },
+    },
+    {
+      name: "feature-components-do-not-call-endpoints",
+      severity: "error",
+      from: { path: "^src/features/" },
+      to: { path: "^src/api/" },
     },
     {
       name: "production-does-not-import-generated-output",

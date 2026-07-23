@@ -13,11 +13,12 @@ ENV VITE_BUILD_SHA=${VITE_BUILD_SHA}
 RUN pnpm build
 
 FROM nginx:1.29-alpine
+ARG NGINX_CONFIG=deploy/nginx/default.conf
 RUN apk upgrade --no-cache \
     && apk add --no-cache curl gettext \
     && mkdir -p /usr/share/nginx/html/config /opt/registry \
     && chown -R nginx:nginx /usr/share/nginx/html /opt/registry
-COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY ${NGINX_CONFIG} /etc/nginx/conf.d/default.conf
 COPY deploy/nginx/runtime.json.template /opt/registry/runtime.json.template
 COPY deploy/docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY --from=build /workspace/web/dist/ /usr/share/nginx/html/

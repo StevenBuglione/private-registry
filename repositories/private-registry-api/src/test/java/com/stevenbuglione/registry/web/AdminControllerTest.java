@@ -1,8 +1,10 @@
 package com.stevenbuglione.registry.web;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.stevenbuglione.registry.administration.AdminDashboardService;
@@ -13,7 +15,6 @@ import com.stevenbuglione.registry.security.identity.AccessContext;
 import com.stevenbuglione.registry.security.identity.RegistryIdentityService;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 
 class AdminControllerTest {
@@ -28,26 +29,29 @@ class AdminControllerTest {
       new AdminController(identities, dashboards, operations, credentials, audit);
 
   @Test
-  void deniesEveryAdministrationSurfaceToNonAdministrators() {
-    when(identities.accessContext(authentication))
-        .thenReturn(new AccessContext("member-subject", Set.of("APM0000001"), false));
+  void delegatesReadOnlyAdministrationAfterTheHttpSecurityBoundary() {
+    var expected = mock(AdminDashboardService.Dashboard.class);
+    when(dashboards.dashboard()).thenReturn(expected);
 
-    assertDenied(() -> controller.dashboard(authentication));
-    assertDenied(() -> controller.operations(authentication, 50));
-    assertDenied(() -> controller.auditEvents(authentication, 50, null));
-    assertDenied(() -> controller.syncCredentials(authentication));
-    assertDenied(
-        () ->
-            controller.createSyncCredential(
-                authentication,
-                new AdminController.CreateSyncCredentialRequest("runner", "module", 30)));
+    assertThat(controller.dashboard()).isSameAs(expected);
+    controller.operations(25);
+    controller.auditEvents(30, null);
+    controller.syncCredentials();
 
-    verifyNoInteractions(dashboards, operations, credentials, audit);
+    verify(dashboards).dashboard();
+    verify(operations).recent(25);
+    verify(audit).recent(30, null);
+    verify(credentials).list();
   }
 
-  private static void assertDenied(Runnable operation) {
-    assertThatThrownBy(operation::run)
-        .isInstanceOf(AccessDeniedException.class)
-        .hasMessageContaining("administrator");
+  @Test
+  void usesTheCentrallyAuthorizedAdministratorAsCredentialActor() {
+    when(identities.accessContext(authentication))
+        .thenReturn(new AccessContext("admin-subject", Set.of(), true));
+    var request = new AdminController.CreateSyncCredentialRequest("runner", "module", 30);
+
+    controller.createSyncCredential(authentication, request);
+
+    verify(credentials).create(any(), eq("admin-subject"));
   }
 }

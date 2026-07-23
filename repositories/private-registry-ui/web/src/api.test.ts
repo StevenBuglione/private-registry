@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createSyncCredential,
+  csrfHeaders,
+  encodedPath,
   getAdminDashboard,
   getAdminOperations,
   getAuditEvents,
@@ -25,6 +27,64 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+function wireVersion(
+  version: string,
+  allTime: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    version,
+    published_at: "2026-07-22T12:00:00Z",
+    package_digest: `sha256:${"a".repeat(64)}`,
+    documentation_digest: `sha256:${"b".repeat(64)}`,
+    documentation_root: "docs",
+    artifact_repository: "iac-provider-release-local",
+    artifact_path: `hashicorp/aws/${version}/provider.zip`,
+    source_repository: "https://github.com/hashicorp/terraform-provider-aws",
+    source_commit: "0123456789abcdef",
+    source_tag: `v${version}`,
+    prerelease: false,
+    deprecated: false,
+    revoked: false,
+    download_statistics: {
+      all_time: allTime,
+      observed_at: "2026-07-22T12:00:00Z",
+    },
+    ...overrides,
+  };
+}
+
+function wirePackage(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "provider/hashicorp/aws",
+    kind: "provider",
+    namespace: "hashicorp",
+    name: "aws",
+    target: "",
+    title: "AWS",
+    description: "AWS infrastructure provider",
+    latest_version: "6.8.0",
+    verification: "enterprise-verified",
+    registry_tier: "official",
+    source_address: "registry.example/hashicorp/aws",
+    updated_at: "2026-07-22T12:00:00Z",
+    versions: [wireVersion("6.8.0", 11), wireVersion("6.7.0", 7)],
+    symbols: [
+      {
+        kind: "input",
+        name: "region",
+        description: "Deployment region.",
+        path: "#inputs",
+        type: "string",
+        default_value: "us-east-1",
+        required: false,
+        sensitive: false,
+      },
+    ],
+    ...overrides,
+  };
 }
 
 describe("OpenAPI response normalization", () => {
@@ -385,51 +445,65 @@ describe("OpenAPI response normalization", () => {
     });
   });
 
+  it("uses exact problem details and safe fallbacks for failed requests", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            detail: "The request could not be processed.",
+            error_code: "invalid_request",
+          },
+          400,
+        ),
+      )
+      .mockResolvedValueOnce(jsonResponse({ title: "Access denied" }, 403))
+      .mockResolvedValueOnce(jsonResponse({}, 500))
+      .mockResolvedValueOnce(
+        new Response("upstream unavailable", {
+          status: 502,
+          statusText: "Bad Gateway",
+          headers: { "content-type": "text/plain" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getSession()).rejects.toMatchObject({
+      status: 400,
+      code: "invalid_request",
+      message: "The request could not be processed.",
+    });
+    await expect(getSession()).rejects.toMatchObject({
+      status: 403,
+      message: "Access denied",
+    });
+    await expect(getSession()).rejects.toMatchObject({
+      status: 500,
+      message: "Registry request failed",
+    });
+    await expect(getSession()).rejects.toMatchObject({
+      status: 502,
+      message: "Bad Gateway",
+    });
+  });
+
+  it("builds encoded paths and chooses a non-empty CSRF source", () => {
+    document.cookie = "XSRF-TOKEN=; Max-Age=0; Path=/";
+    expect(csrfHeaders()).toEqual({});
+    document.cookie = "XSRF-TOKEN=cookie%3Dtoken; Path=/";
+    expect(csrfHeaders()).toEqual({ "X-XSRF-TOKEN": "cookie=token" });
+    expect(csrfHeaders("session-token")).toEqual({
+      "X-XSRF-TOKEN": "session-token",
+    });
+    expect(csrfHeaders("")).toEqual({});
+    expect(
+      encodedPath(["provider", "hashicorp", undefined, "", "aws/vpc"]),
+    ).toBe("provider/hashicorp/aws%2Fvpc");
+  });
+
   it("normalizes an exact snake_case CatalogPackage", () => {
     const page = normalizeCatalogPage({
-      items: [
-        {
-          id: "provider/hashicorp/aws",
-          kind: "provider",
-          namespace: "hashicorp",
-          name: "aws",
-          target: "",
-          title: "AWS",
-          description: "AWS infrastructure provider",
-          latest_version: "6.8.0",
-          verification: "enterprise-verified",
-          source_address: "registry.example/hashicorp/aws",
-          updated_at: "2026-07-22T12:00:00Z",
-          versions: [
-            {
-              version: "6.8.0",
-              download_statistics: {
-                download_count: 11,
-                observed_at: "2026-07-22T12:00:00Z",
-              },
-            },
-            {
-              version: "6.7.0",
-              download_statistics: {
-                download_count: 7,
-                observed_at: "2026-07-22T11:00:00Z",
-              },
-            },
-          ],
-          symbols: [
-            {
-              kind: "input",
-              name: "region",
-              description: "Deployment region.",
-              path: "#inputs",
-              type: "string",
-              default_value: "us-east-1",
-              required: false,
-              sensitive: false,
-            },
-          ],
-        },
-      ],
+      items: [wirePackage()],
       next_cursor: "next-page",
       total: 12,
     });
@@ -447,53 +521,74 @@ describe("OpenAPI response normalization", () => {
     });
   });
 
+  it("maps module identity and optional package detail fields exactly", () => {
+    const page = normalizeCatalogPage({
+      items: [
+        wirePackage({
+          id: "module/company/network/azurerm",
+          kind: "module",
+          namespace: "company",
+          name: "network",
+          target: "azurerm",
+          verification: "unverified",
+          registry_tier: "community",
+          versions: [],
+          symbols: [
+            {
+              kind: "example",
+              name: "complete",
+              path: "examples/complete",
+              required: false,
+              sensitive: false,
+            },
+            {
+              kind: "submodule",
+              name: "spoke",
+              path: "modules/spoke",
+              required: false,
+              sensitive: false,
+            },
+          ],
+        }),
+      ],
+      total: 1,
+    });
+
+    expect(page.items[0]).toMatchObject({
+      kind: "module",
+      provider: "azurerm",
+      target: "azurerm",
+      verified: false,
+      downloadStatistics: undefined,
+    });
+  });
+
   it("normalizes snake_case package source fields", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
-      jsonResponse({
-        kind: "provider",
-        namespace: "hashicorp",
-        name: "aws",
-        target: "",
-        description: "AWS infrastructure provider",
-        latest_version: "6.8.0",
-        verification: "enterprise-verified",
-        source_address: "registry.example/hashicorp/aws",
-        updated_at: "2026-07-22T12:00:00Z",
-        versions: [
-          {
-            version: "6.8.0",
-            artifact_repository: "iac-provider-release-local",
-            artifact_path:
-              "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
-            package_digest: `sha256:${"a".repeat(64)}`,
-            download_statistics: {
-              download_count: 11,
-              week_downloads: 4,
-              observed_at: "2026-07-22T12:00:00Z",
-            },
-          },
-          {
-            version: "6.7.0",
-            download_statistics: {
-              download_count: 7,
-              week_downloads: 3,
-              observed_at: "2026-07-22T11:00:00Z",
-            },
-          },
-        ],
-        symbols: [
-          {
-            kind: "input",
-            name: "region",
-            description: "Deployment region.",
-            path: "#inputs",
-            type: "string",
-            default_value: "us-east-1",
-            required: false,
-            sensitive: false,
-          },
-        ],
-      }),
+      jsonResponse(
+        wirePackage({
+          versions: [
+            wireVersion("6.8.0", 11, {
+              artifact_repository: "iac-provider-release-local",
+              artifact_path:
+                "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
+              package_digest: `sha256:${"a".repeat(64)}`,
+              download_statistics: {
+                all_time: 11,
+                week: 4,
+                observed_at: "2026-07-22T12:00:00Z",
+              },
+            }),
+            wireVersion("6.7.0", 7, {
+              download_statistics: {
+                all_time: 7,
+                week: 3,
+                observed_at: "2026-07-22T11:00:00Z",
+              },
+            }),
+          ],
+        }),
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -523,6 +618,21 @@ describe("OpenAPI response normalization", () => {
       ],
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects compatibility aliases and incomplete catalog payloads", () => {
+    expect(() =>
+      normalizeCatalogPage({
+        items: [{ ...wirePackage(), latestVersion: "6.8.0" }],
+        total: 1,
+      }),
+    ).toThrow(/latestVersion/);
+    expect(() =>
+      normalizeCatalogPage({
+        items: [{ kind: "provider", namespace: "hashicorp", name: "aws" }],
+        total: 1,
+      }),
+    ).toThrow(/id/);
   });
 
   it("requests an authorized selected documentation path", async () => {

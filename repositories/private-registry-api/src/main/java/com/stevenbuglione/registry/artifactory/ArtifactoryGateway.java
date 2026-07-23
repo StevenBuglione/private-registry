@@ -1,6 +1,7 @@
 package com.stevenbuglione.registry.artifactory;
 
 import com.stevenbuglione.registry.config.ArtifactoryProperties;
+import com.stevenbuglione.registry.storage.ArtifactStorageStatus;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
-public class ArtifactoryGateway {
+public class ArtifactoryGateway implements ArtifactStorageStatus {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ArtifactoryGateway.class);
   private static final JsonMapper JSON = JsonMapper.builder().build();
@@ -36,10 +37,12 @@ public class ArtifactoryGateway {
     this.properties = properties;
   }
 
+  @Override
   public boolean ping() {
     return client.system().ping();
   }
 
+  @Override
   public Status status() {
     var reachable = ping();
     var repositories =
@@ -48,14 +51,17 @@ public class ArtifactoryGateway {
                 repository(properties.moduleRepository()),
                 repository(properties.providerRepository()))
             : List.of(
-                new RepositoryStatus(properties.moduleRepository(), "authentication-required"),
-                new RepositoryStatus(properties.providerRepository(), "authentication-required"));
+                new ArtifactStorageStatus.RepositoryStatus(
+                    properties.moduleRepository(), "authentication-required"),
+                new ArtifactStorageStatus.RepositoryStatus(
+                    properties.providerRepository(), "authentication-required"));
     return new Status(reachable, properties.url().toString(), repositories);
   }
 
-  private RepositoryStatus repository(String key) {
+  private ArtifactStorageStatus.RepositoryStatus repository(String key) {
     var repository = client.repository(key).get();
-    return new RepositoryStatus(repository.getKey(), repository.getRclass().toString());
+    return new ArtifactStorageStatus.RepositoryStatus(
+        repository.getKey(), repository.getRclass().toString());
   }
 
   /**
@@ -281,10 +287,6 @@ public class ArtifactoryGateway {
   private static String encodePathSegment(String value) {
     return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
-
-  public record Status(boolean reachable, String url, List<RepositoryStatus> repositories) {}
-
-  public record RepositoryStatus(String key, String repositoryClass) {}
 
   public record ArtifactMetadata(
       String repository,

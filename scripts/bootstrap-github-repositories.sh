@@ -30,7 +30,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXPORT_ROOT="$(mktemp -d /tmp/private-registry-export.XXXXXX)"
 cleanup() { rm -rf -- "${EXPORT_ROOT}"; }
 trap cleanup EXIT
-"${ROOT}/scripts/export-repositories.sh" "${EXPORT_ROOT}"
+bash "${ROOT}/scripts/export-repositories.sh" "${EXPORT_ROOT}"
 
 for name in private-registry-ui private-registry-api; do
   path="${EXPORT_ROOT}/${name}"

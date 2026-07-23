@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,9 +17,11 @@ import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookController;
 import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookParser;
 import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookProperties;
 import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookSignatureVerifier;
+import com.stevenbuglione.registry.security.identity.AccessContext;
 import com.stevenbuglione.registry.security.identity.AlbAuthenticationFilter;
 import com.stevenbuglione.registry.security.identity.AlbTokenVerifier;
 import com.stevenbuglione.registry.security.identity.IdentityProperties;
+import com.stevenbuglione.registry.security.identity.RegistryAdminAuthorizationPolicy;
 import com.stevenbuglione.registry.security.identity.RegistryIdentityService;
 import com.stevenbuglione.registry.web.SyncTriggerController;
 import java.net.URI;
@@ -82,6 +85,19 @@ class SecurityConfigurationTest {
   }
 
   @Test
+  void centralizesRegistryAdministratorAuthorizationForEveryAdminRoute() throws Exception {
+    var identities = context.getBean(RegistryIdentityService.class);
+    when(identities.accessContext(any()))
+        .thenReturn(new AccessContext("member", Set.of("APM0000001"), false));
+
+    mvc.perform(get("/api/v1/admin/test").with(user("member"))).andExpect(status().isForbidden());
+
+    when(identities.accessContext(any()))
+        .thenReturn(new AccessContext("administrator", Set.of(), true));
+    mvc.perform(get("/api/v1/admin/test").with(user("administrator"))).andExpect(status().isOk());
+  }
+
+  @Test
   void allowsApiKeyAuthenticationBoundaryToReachSyncCredentialValidation() throws Exception {
     var sync = context.getBean(SyncTriggerService.class);
     var command =
@@ -142,6 +158,17 @@ class SecurityConfigurationTest {
     }
 
     @Bean
+    RegistryIdentityService registryIdentityService() {
+      return mock(RegistryIdentityService.class);
+    }
+
+    @Bean
+    RegistryAdminAuthorizationPolicy registryAdminAuthorizationPolicy(
+        RegistryIdentityService identities) {
+      return new RegistryAdminAuthorizationPolicy(identities);
+    }
+
+    @Bean
     JfrogWebhookProperties jfrogWebhookProperties() {
       return new JfrogWebhookProperties(
           true,
@@ -198,6 +225,11 @@ class SecurityConfigurationTest {
     @GetMapping("/api/closed")
     String closed() {
       return "closed";
+    }
+
+    @GetMapping("/api/v1/admin/test")
+    String administration() {
+      return "admin";
     }
   }
 }

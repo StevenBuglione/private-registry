@@ -10,7 +10,7 @@ import {
   ShieldCheckIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import { HomepageSettingsPanel } from "../components/HomepageSettingsPanel";
 import { StatePanel } from "../components/StatePanel";
@@ -20,7 +20,7 @@ import {
   useAdminDashboard,
   useAdminOperations,
   useAuditEvents,
-} from "../hooks";
+} from "../hooks/admin";
 import { runtimeConfig } from "../runtime-config";
 import type { AdminDashboard, AuditEvent, OperationalEvent } from "../types";
 import { useRegistry } from "../use-registry";
@@ -299,6 +299,7 @@ function OperationsPanel() {
       title="Operational logs"
       description="Structured ingestion, retry, dead-letter, and reconciliation activity. Payloads and secrets are intentionally excluded."
       rows={operations.data}
+      rowKey={(event) => event.eventId}
       row={(event) => <OperationRow event={event} />}
     />
   );
@@ -322,22 +323,23 @@ function AuditPanel() {
       title="Administrator audit log"
       description="Immutable records of settings changes, credential lifecycle actions, and runner-triggered syncs."
       rows={audit.data}
+      rowKey={(event) => event.id}
       row={(event) => <AuditRow event={event} />}
     />
   );
 }
 
-function LogPanel<
-  T extends { id?: string | undefined; eventId?: string | undefined },
->({
+function LogPanel<T>({
   title,
   description,
   rows,
+  rowKey,
   row,
 }: {
   title: string;
   description: string;
   rows: T[];
+  rowKey: (value: T) => string;
   row: (value: T) => ReactNode;
 }) {
   return (
@@ -356,7 +358,11 @@ function LogPanel<
           <p>Events will appear here as the Registry is operated.</p>
         </div>
       ) : (
-        <div className="admin-event-list">{rows.map(row)}</div>
+        <div className="admin-event-list">
+          {rows.map((value) => (
+            <Fragment key={rowKey(value)}>{row(value)}</Fragment>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -364,7 +370,7 @@ function LogPanel<
 
 function OperationRow({ event }: { event: OperationalEvent }) {
   return (
-    <article className="admin-event-row" key={event.eventId}>
+    <article className="admin-event-row">
       <span className={`admin-event-icon ${event.status.replaceAll("_", "-")}`}>
         <ActivityIcon size={17} />
       </span>
@@ -391,7 +397,7 @@ function OperationRow({ event }: { event: OperationalEvent }) {
 
 function AuditRow({ event }: { event: AuditEvent }) {
   return (
-    <article className="admin-event-row audit" key={event.id}>
+    <article className="admin-event-row audit">
       <span className="admin-event-icon completed">
         <ShieldCheckIcon size={17} />
       </span>

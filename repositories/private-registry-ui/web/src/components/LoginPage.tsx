@@ -19,7 +19,7 @@ export function LoginPage({ onSignIn }: { onSignIn: () => void }) {
             Trusted Terraform packages, ready for your teams.
           </p>
           <p className="login-introduction">
-            Discover the providers and modules approved for the applications you
+            Discover the providers and modules available to the applications you
             support, with access resolved from your Microsoft Entra groups.
           </p>
           <ul className="login-benefits">

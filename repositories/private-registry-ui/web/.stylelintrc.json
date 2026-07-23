@@ -24,5 +24,13 @@
     "selector-max-id": 0,
     "selector-max-specificity": "0,5,2",
     "value-keyword-case": null
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/features/package-detail/**/*.css"],
+      "rules": {
+        "color-no-hex": true
+      }
+    }
+  ]
 }

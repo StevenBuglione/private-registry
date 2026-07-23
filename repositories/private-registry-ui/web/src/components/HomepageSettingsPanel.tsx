@@ -5,11 +5,11 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
+import { useCatalogPage } from "../hooks/catalog";
 import {
-  useCatalogPage,
   useHomepageSettings,
   useUpdateHomepageSettings,
-} from "../hooks";
+} from "../hooks/homepage";
 import type {
   HomepageSettings,
   HomepageSettingsUpdate,

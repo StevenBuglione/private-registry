@@ -49,6 +49,7 @@ class CatalogJsonMixinTest {
             "supported",
             "approved",
             "enterprise-verified",
+            "partner",
             "low",
             "registry.example/network",
             Instant.EPOCH,
@@ -71,6 +72,7 @@ class CatalogJsonMixinTest {
         .doesNotContain("defaultValue");
     assertThat(json.writeValueAsString(searchResult))
         .contains("\"package\":")
+        .contains("\"registry_tier\":\"partner\"")
         .doesNotContain("packageDetails");
   }
 }

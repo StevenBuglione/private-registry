@@ -9,7 +9,8 @@ import { Link } from "react-router";
 import { PackageCard } from "../components/PackageCard";
 import { RegistryMark } from "../components/RegistryMark";
 import { StatePanel } from "../components/StatePanel";
-import { useCatalogPage, useHomepageSettings } from "../hooks";
+import { useCatalogPage, useFeaturedPackages } from "../hooks/catalog";
+import { useHomepageSettings } from "../hooks/homepage";
 import type { HomepageSettings } from "../types";
 
 export function HomePage() {
@@ -17,25 +18,27 @@ export function HomePage() {
   const providers = useCatalogPage({
     kind: "provider",
     sort: "name",
-    limit: 50,
+    limit: 1,
   });
   const modules = useCatalogPage({
     kind: "module",
     sort: "name",
-    limit: 100,
+    limit: 1,
   });
   const providerCount = providers.data?.total ?? 0;
   const moduleCount = modules.data?.total ?? 0;
-  const catalogError = providers.isError || modules.isError;
   const homepageSettings = settings.data ?? DEFAULT_HOMEPAGE_SETTINGS;
-  const featured = featuredPackages(
-    providers.data?.items ?? [],
-    homepageSettings.featuredProviderIds,
+  const featuredProviders = useFeaturedPackages(
+    settings.isPending ? [] : homepageSettings.featuredProviderIds,
   );
-  const featuredModules = featuredPackages(
-    modules.data?.items ?? [],
-    homepageSettings.featuredModuleIds,
+  const featuredModules = useFeaturedPackages(
+    settings.isPending ? [] : homepageSettings.featuredModuleIds,
   );
+  const catalogError =
+    providers.isError ||
+    modules.isError ||
+    featuredProviders.isError ||
+    featuredModules.isError;
 
   return (
     <div className="home-page">
@@ -96,16 +99,24 @@ export function HomePage() {
             eyebrow="Featured providers"
             description="Popular infrastructure plugins available in your Registry."
             href="/providers"
-            loading={providers.isPending}
-            items={featured}
+            loading={
+              settings.isPending ||
+              providers.isPending ||
+              featuredProviders.isPending
+            }
+            items={featuredProviders.items}
             variant="providers"
           />
           <CatalogSection
             eyebrow="Featured modules"
             description="Reusable Terraform configurations selected for your teams."
             href="/modules"
-            loading={modules.isPending}
-            items={featuredModules}
+            loading={
+              settings.isPending ||
+              modules.isPending ||
+              featuredModules.isPending
+            }
+            items={featuredModules.items}
             variant="modules"
           />
           <HowTerraformWorks />
@@ -142,33 +153,6 @@ const DEFAULT_HOMEPAGE_SETTINGS: HomepageSettings = {
   featuredModuleIds: DEFAULT_FEATURED_MODULE_IDS,
   updatedAt: "",
 };
-
-function featuredPackages(
-  items: Parameters<typeof PackageCard>[0]["item"][],
-  selectedIds: string[],
-) {
-  return [...items]
-    .sort((left, right) => {
-      const leftRank = selectedIds.indexOf(packageId(left));
-      const rightRank = selectedIds.indexOf(packageId(right));
-      return (
-        (leftRank < 0 ? Number.MAX_SAFE_INTEGER : leftRank) -
-          (rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank) ||
-        left.name.localeCompare(right.name)
-      );
-    })
-    .filter((item) => selectedIds.includes(packageId(item)))
-    .slice(0, 6);
-}
-
-function packageId(item: Parameters<typeof PackageCard>[0]["item"]) {
-  return [
-    item.kind,
-    item.namespace,
-    item.name,
-    ...(item.target === undefined ? [] : [item.target]),
-  ].join("/");
-}
 
 function NotificationLink({ label, href }: { label: string; href: string }) {
   return href.startsWith("/") ? (

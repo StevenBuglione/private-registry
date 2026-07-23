@@ -1,6 +1,6 @@
 export type PackageKind = "provider" | "module";
 
-export interface ApmAccess {
+interface ApmAccess {
   id: string;
   name: string;
 }
@@ -32,6 +32,7 @@ export type HomepageSettingsUpdate = Omit<HomepageSettings, "updatedAt">;
 
 export interface PackageSummary {
   kind: PackageKind;
+  registryTier: "official" | "partner" | "partner-premier" | "community";
   namespace: string;
   name: string;
   target?: string | undefined;

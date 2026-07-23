@@ -28,7 +28,10 @@ Verify the ALB `x-amzn-oidc-data` JWT signature with the expected signer ARN, is
 
 ## Worker semantics
 
-- Idempotency is enforced by unique event IDs in PostgreSQL.
+- Idempotency is enforced by both the transport event ID and a canonical SHA-256
+  key over the artifact action, repository, path, occurrence time, and sorted
+  properties. Replayed deliveries therefore collapse without suppressing a later
+  legitimate change to the same artifact.
 - Transient failures use bounded retries and database timestamps for backoff.
 - Validation and quarantine failures enter the PostgreSQL dead-letter view immediately.
 - Processing claims older than the recovery threshold become retryable.

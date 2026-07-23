@@ -4,12 +4,12 @@
     allowedDependencies = {
       "administration",
       "analytics",
-      "artifactory",
       "audit",
       "catalog",
       "health",
       "model",
-      "security::identity"
+      "security::identity",
+      "storage"
     })
 @NullMarked
 package com.stevenbuglione.registry.web;

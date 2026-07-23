@@ -330,6 +330,44 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
                 minimum = coveredRatio(baselineBranchCovered, baselineBranchMissed)
             }
         }
+        rule {
+            element = "CLASS"
+            includes =
+                listOf(
+                    "com.stevenbuglione.registry.catalog.JdbcCatalogService",
+                    "com.stevenbuglione.registry.catalog.CatalogPackageEnricher",
+                    "com.stevenbuglione.registry.catalog.CatalogRowMapper",
+                )
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.70")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.40")
+            }
+        }
+        rule {
+            element = "CLASS"
+            includes =
+                listOf(
+                    "com.stevenbuglione.registry.catalog.CatalogQueryBuilder",
+                    "com.stevenbuglione.registry.catalog.CatalogQueryFilters",
+                    "com.stevenbuglione.registry.catalog.CatalogCursorCodec",
+                )
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.70")
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.50")
+            }
+        }
     }
 }
 
@@ -395,6 +433,7 @@ pitest {
 val nullMarkedProductionPackages =
     listOf(
         "administration",
+        "analytics",
         "artifactory",
         "audit",
         "catalog",
@@ -407,6 +446,7 @@ val nullMarkedProductionPackages =
         "security",
         "security.identity",
         "seed",
+        "storage",
         "web",
     )
 

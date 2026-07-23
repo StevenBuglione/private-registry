@@ -2,6 +2,7 @@ package com.stevenbuglione.registry.config;
 
 import com.stevenbuglione.registry.security.identity.AlbAuthenticationFilter;
 import com.stevenbuglione.registry.security.identity.IdentityProperties;
+import com.stevenbuglione.registry.security.identity.RegistryAdminAuthorizationPolicy;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -27,6 +28,7 @@ public class SecurityConfiguration {
       HttpSecurity http,
       IdentityProperties properties,
       AlbAuthenticationFilter albAuthenticationFilter,
+      RegistryAdminAuthorizationPolicy registryAdministrators,
       ObjectProvider<ClientRegistrationRepository> clientRegistrations)
       throws Exception {
     var csrfRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
@@ -51,6 +53,10 @@ public class SecurityConfiguration {
               authorize.requestMatchers("/oauth2/**", "/login/**").permitAll();
               authorize.requestMatchers(HttpMethod.POST, "/internal/webhooks/jfrog").permitAll();
               authorize.requestMatchers(HttpMethod.POST, "/api/v1/sync/artifacts").permitAll();
+              authorize.requestMatchers("/api/v1/admin/**").access(registryAdministrators);
+              authorize
+                  .requestMatchers(HttpMethod.PUT, "/api/v1/registry/homepage")
+                  .access(registryAdministrators);
               if (properties.permitAll()) {
                 authorize.anyRequest().permitAll();
               } else {

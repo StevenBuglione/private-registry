@@ -7,6 +7,7 @@ import { PackageTable } from "./PackageTable";
 
 const item: PackageSummary = {
   kind: "provider",
+  registryTier: "official",
   namespace: "hashicorp",
   name: "azurerm",
   version: "4.36.0",

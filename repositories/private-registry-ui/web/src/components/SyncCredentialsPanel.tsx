@@ -12,7 +12,7 @@ import {
   useCreateSyncCredential,
   useRevokeSyncCredential,
   useSyncCredentials,
-} from "../hooks";
+} from "../hooks/admin";
 import type {
   CreatedSyncCredential,
   CreateSyncCredential,

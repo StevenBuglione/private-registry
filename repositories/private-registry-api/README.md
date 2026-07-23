@@ -34,6 +34,15 @@ migration. The default Compose profiles use the real Microsoft Entra application
 OAuth and delegated Graph tokens remain in the server-side session while every
 catalog query is filtered to the caller's APM access context.
 
+Compose deliberately separates migration and runtime database authority. Flyway
+connects as the schema owner in a one-shot migration container. A second
+one-shot bootstrap assigns local runtime credentials, after which the public API
+authenticates directly as the narrowly writable `registry_web` role and the
+isolated ingestion service authenticates directly as
+`registry_indexer`. This keeps catalog mutation authority out of the
+internet-facing process while making migrations, web writes, and worker
+processing exercise production-shaped grants.
+
 API readiness covers PostgreSQL only, so a JFrog outage does not remove catalog
 reads. The API exposes `/health/worker`, which checks PostgreSQL and Artifactory
 with bounded probes.
@@ -89,4 +98,6 @@ suppression policy, CI gates, SonarQube setup, and branch-protection checklist.
 6. Apply with `deploy_application_services = true` and immutable image tags.
 7. Configure signed JFrog webhooks after promotion completes.
 
-Read `CLAUDE.md`, `docs/project-structure.md`, `docs/compatibility-contract.md`, and `docs/deployment-runbook.md` before deployment.
+Read `CLAUDE.md`, `docs/project-structure.md`, `docs/database-design.md`,
+`docs/compatibility-contract.md`, and `docs/deployment-runbook.md` before
+deployment.

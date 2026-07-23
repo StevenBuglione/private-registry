@@ -1,13 +1,10 @@
-import { faBox } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
 export function RegistryMark({ compact = false }: { compact?: boolean }) {
   return (
     <span
       className={compact ? "brand-mark-frame compact" : "brand-mark-frame"}
       aria-hidden="true"
     >
-      <FontAwesomeIcon icon={faBox} />
+      <img alt="" src="/assets/registry-mark.svg" />
     </span>
   );
 }

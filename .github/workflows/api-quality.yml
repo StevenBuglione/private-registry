@@ -39,6 +39,12 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Configure Testcontainers under act
+        if: ${{ env.ACT }}
+        run: |
+          echo 'TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal' >> "$GITHUB_ENV"
+          echo 'TESTCONTAINERS_RYUK_DISABLED=true' >> "$GITHUB_ENV"
+
       - name: Run formatting, correctness, architecture, test, coverage, and security gates
         run: bash scripts/quality.sh pr
 

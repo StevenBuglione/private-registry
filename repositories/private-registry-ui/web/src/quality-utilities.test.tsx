@@ -16,7 +16,7 @@ describe("shared UI contracts", () => {
     );
   });
 
-  it("renders Font Awesome container marks and the Oremus Labs lockup", () => {
+  it("renders the optimized container marks and the Oremus Labs lockup", () => {
     const { container } = render(
       <>
         <RegistryMark />
@@ -24,7 +24,11 @@ describe("shared UI contracts", () => {
         <RegistryBrand />
       </>,
     );
-    expect(container.querySelectorAll(".fa-box")).toHaveLength(3);
+    expect(
+      container.querySelectorAll(
+        '.brand-mark-frame img[src="/assets/registry-mark.svg"]',
+      ),
+    ).toHaveLength(3);
     expect(container.querySelector(".brand-mark-frame.compact")).not.toBeNull();
     expect(screen.getByText("Oremus Labs")).toBeInTheDocument();
     expect(screen.getByText("Terraform")).toBeInTheDocument();

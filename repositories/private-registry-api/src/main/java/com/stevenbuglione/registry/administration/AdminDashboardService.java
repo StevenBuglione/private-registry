@@ -107,25 +107,39 @@ public class AdminDashboardService {
   private IngestionMetrics ingestionMetrics() {
     return jdbc.sql(
             """
+            WITH recent AS (
+                SELECT *
+                  FROM ingestion_events
+                 WHERE received_at >= now() - interval '24 hours'
+            ),
+            latest_source_outcomes AS (
+                SELECT DISTINCT ON (
+                           COALESCE(source_repository, event_id),
+                           COALESCE(source_path, event_id))
+                       status
+                  FROM recent
+                 ORDER BY
+                       COALESCE(source_repository, event_id),
+                       COALESCE(source_path, event_id),
+                       received_at DESC,
+                       id DESC
+            )
             SELECT COUNT(*) FILTER (
                        WHERE status = 'completed'
-                         AND received_at >= now() - interval '24 hours') AS completed,
-                   COUNT(*) FILTER (
-                       WHERE status = 'failed'
-                         AND received_at >= now() - interval '24 hours') AS failed,
-                   COUNT(*) FILTER (
-                       WHERE status = 'quarantined'
-                         AND received_at >= now() - interval '24 hours') AS quarantined,
+                   ) AS completed,
+                   (SELECT COUNT(*) FROM latest_source_outcomes
+                     WHERE status = 'failed') AS failed,
+                   (SELECT COUNT(*) FROM latest_source_outcomes
+                     WHERE status = 'quarantined') AS quarantined,
                    COALESCE(
                        EXTRACT(EPOCH FROM percentile_cont(0.95) WITHIN GROUP (
                            ORDER BY completed_at - received_at)
                        FILTER (
                            WHERE status = 'completed'
-                             AND completed_at IS NOT NULL
-                             AND received_at >= now() - interval '24 hours')) * 1000,
+                             AND completed_at IS NOT NULL)) * 1000,
                        0)::bigint AS latency_p95_ms,
                    MAX(completed_at) FILTER (WHERE status = 'completed') AS last_completed_at
-              FROM ingestion_events
+              FROM recent
             """)
         .query(
             (resultSet, rowNumber) ->

@@ -9,10 +9,8 @@ import {
   useLocation,
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type * as ApiExports from "./api";
 import { ApiError } from "./api";
 import { AppShell } from "./components/AppShell";
-import type * as HookExports from "./hooks";
 import { RegistryProvider } from "./registry-provider";
 import { LegacyPackageRedirect } from "./router";
 import { AdminSettingsPage } from "./routes/AdminSettingsPage";
@@ -27,6 +25,7 @@ import type {
 const hookMocks = vi.hoisted(() => ({
   useSession: vi.fn(),
   useCatalogPage: vi.fn(),
+  useFeaturedPackages: vi.fn(),
   useCatalogSuggestions: vi.fn(),
   useCatalogEvents: vi.fn(),
   useHomepageSettings: vi.fn(),
@@ -45,34 +44,39 @@ const apiMocks = vi.hoisted(() => ({
   recordPageView: vi.fn(),
 }));
 
-vi.mock("./hooks", async (importOriginal) => {
-  const actual = await importOriginal<typeof HookExports>();
-  return {
-    ...actual,
-    useSession: hookMocks.useSession,
-    useCatalogPage: hookMocks.useCatalogPage,
-    useCatalogSuggestions: hookMocks.useCatalogSuggestions,
-    useCatalogEvents: hookMocks.useCatalogEvents,
-    useHomepageSettings: hookMocks.useHomepageSettings,
-    useUpdateHomepageSettings: hookMocks.useUpdateHomepageSettings,
-    useAdminDashboard: hookMocks.useAdminDashboard,
-    useTrafficReport: hookMocks.useTrafficReport,
-    useAdminOperations: hookMocks.useAdminOperations,
-    useAuditEvents: hookMocks.useAuditEvents,
-    useSyncCredentials: hookMocks.useSyncCredentials,
-    useCreateSyncCredential: hookMocks.useCreateSyncCredential,
-    useRevokeSyncCredential: hookMocks.useRevokeSyncCredential,
-  };
-});
+vi.mock("./hooks/auth", () => ({
+  useSession: hookMocks.useSession,
+}));
 
-vi.mock("./api", async (importOriginal) => {
-  const actual = await importOriginal<typeof ApiExports>();
-  return {
-    ...actual,
-    logout: apiMocks.logout,
-    recordPageView: apiMocks.recordPageView,
-  };
-});
+vi.mock("./hooks/catalog", () => ({
+  useCatalogPage: hookMocks.useCatalogPage,
+  useFeaturedPackages: hookMocks.useFeaturedPackages,
+  useCatalogSuggestions: hookMocks.useCatalogSuggestions,
+  useCatalogEvents: hookMocks.useCatalogEvents,
+}));
+
+vi.mock("./hooks/homepage", () => ({
+  useHomepageSettings: hookMocks.useHomepageSettings,
+  useUpdateHomepageSettings: hookMocks.useUpdateHomepageSettings,
+}));
+
+vi.mock("./hooks/admin", () => ({
+  useAdminDashboard: hookMocks.useAdminDashboard,
+  useTrafficReport: hookMocks.useTrafficReport,
+  useAdminOperations: hookMocks.useAdminOperations,
+  useAuditEvents: hookMocks.useAuditEvents,
+  useSyncCredentials: hookMocks.useSyncCredentials,
+  useCreateSyncCredential: hookMocks.useCreateSyncCredential,
+  useRevokeSyncCredential: hookMocks.useRevokeSyncCredential,
+}));
+
+vi.mock("./api/auth", () => ({
+  logout: apiMocks.logout,
+}));
+
+vi.mock("./api/analytics", () => ({
+  recordPageView: apiMocks.recordPageView,
+}));
 
 const session: RegistrySession = {
   subject: "user-1",
@@ -89,6 +93,7 @@ const session: RegistrySession = {
 
 const provider: PackageSummary = {
   kind: "provider",
+  registryTier: "official",
   namespace: "hashicorp",
   name: "aws",
   provider: "aws",
@@ -101,6 +106,7 @@ const provider: PackageSummary = {
 const modulePackage: PackageSummary = {
   ...provider,
   kind: "module",
+  registryTier: "community",
   namespace: "platform",
   name: "vpc",
   target: "aws",
@@ -166,6 +172,16 @@ beforeEach(() => {
   hookMocks.useCatalogSuggestions.mockReturnValue(
     queryResult({ items: [], total: 0 }),
   );
+  hookMocks.useFeaturedPackages.mockImplementation((ids: string[]) => ({
+    items:
+      ids.length === 0
+        ? []
+        : ids[0]?.startsWith("module/") === true
+          ? [modulePackage]
+          : [provider],
+    isPending: false,
+    isError: false,
+  }));
   hookMocks.useHomepageSettings.mockReturnValue({
     data: {
       notificationEnabled: true,
@@ -676,6 +692,22 @@ describe("application composition", () => {
 
   it("renders truthful home counts and catalog content", () => {
     renderWithRegistry(<HomePage />);
+    expect(hookMocks.useCatalogPage).toHaveBeenNthCalledWith(1, {
+      kind: "provider",
+      sort: "name",
+      limit: 1,
+    });
+    expect(hookMocks.useCatalogPage).toHaveBeenNthCalledWith(2, {
+      kind: "module",
+      sort: "name",
+      limit: 1,
+    });
+    expect(hookMocks.useFeaturedPackages).toHaveBeenNthCalledWith(1, [
+      "provider/hashicorp/aws",
+    ]);
+    expect(hookMocks.useFeaturedPackages).toHaveBeenNthCalledWith(2, [
+      "module/terraform-aws-modules/iam/aws",
+    ]);
     expect(screen.getAllByText("1")).toHaveLength(2);
     expect(
       screen.getByRole("link", { name: /AWSby HashiCorp/i }),
@@ -758,6 +790,11 @@ describe("application composition", () => {
     hookMocks.useCatalogPage.mockReturnValue(
       queryResult({ items: [], total: 0 }),
     );
+    hookMocks.useFeaturedPackages.mockReturnValue({
+      items: [],
+      isPending: false,
+      isError: false,
+    });
     const adminSession = { ...session, admin: true, apms: [] };
     renderWithRegistry(<HomePage />, "/", adminSession);
     expect(screen.queryByText(/administrator|APM group/i)).toBeNull();

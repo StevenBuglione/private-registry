@@ -20,7 +20,7 @@ class ArtifactoryCatalogSeederTest {
             "aws",
             "https://releases.hashicorp.com/terraform-provider-aws/{version}/terraform-provider-aws_{version}_{os}_{arch}.zip");
 
-    assertThat(ArtifactoryCatalogSeeder.sourceRepository(entry))
+    assertThat(UpstreamSourceResolver.sourceRepository(entry))
         .isEqualTo("https://github.com/hashicorp/terraform-provider-aws");
   }
 
@@ -32,7 +32,7 @@ class ArtifactoryCatalogSeederTest {
             "datadog",
             "https://github.com/DataDog/terraform-provider-datadog/releases/download/v{version}/provider.zip");
 
-    assertThat(ArtifactoryCatalogSeeder.sourceRepository(entry))
+    assertThat(UpstreamSourceResolver.sourceRepository(entry))
         .isEqualTo("https://github.com/DataDog/terraform-provider-datadog");
   }
 
@@ -56,7 +56,7 @@ class ArtifactoryCatalogSeederTest {
             "https://github.com/terraform-aws-modules/terraform-aws-vpc/archive/refs/tags/v{version}.zip",
             Map.of());
 
-    assertThat(ArtifactoryCatalogSeeder.sourceRepository(entry))
+    assertThat(UpstreamSourceResolver.sourceRepository(entry))
         .isEqualTo("https://github.com/terraform-aws-modules/terraform-aws-vpc");
   }
 
@@ -68,7 +68,7 @@ class ArtifactoryCatalogSeederTest {
             "vpc",
             "https://github.com/terraform-aws-modules/terraform-aws-vpc/archive/refs/tags/v{version}.zip");
 
-    assertThat(ArtifactoryCatalogSeeder.artifactProperties(entry, "5.21.0", null))
+    assertThat(SeedCatalogPolicy.artifactProperties(entry, "5.21.0", null))
         .containsEntry("registry.platform", "archive");
   }
 
@@ -80,7 +80,7 @@ class ArtifactoryCatalogSeederTest {
             "aws",
             "https://releases.hashicorp.com/terraform-provider-aws/{version}/terraform-provider-aws_{version}_{os}_{arch}.zip");
 
-    assertThat(ArtifactoryCatalogSeeder.sourceArchive(entry, "5.100.0"))
+    assertThat(UpstreamSourceResolver.sourceArchive(entry, "5.100.0"))
         .hasToString(
             "https://github.com/hashicorp/terraform-provider-aws/archive/refs/tags/v5.100.0.zip");
   }
@@ -89,39 +89,35 @@ class ArtifactoryCatalogSeederTest {
   void catalogRepairAllowsOnlyVersionedMarkdownAndManifestPaths() {
     assertThatCode(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
+                CatalogMetadataPolicy.validatePath(
                     "v1/providers/hashicorp/aws/5.100.0/docs/resources/vpc.md"))
         .doesNotThrowAnyException();
     assertThatCode(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
+                CatalogMetadataPolicy.validatePath(
                     "v1/modules/terraform-aws-modules/vpc/aws/6.0.1/catalog-manifest.json"))
         .doesNotThrowAnyException();
     assertThatCode(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
-                    "v1/providers/hashicorp/aws/5.100.0/README.md"))
+                CatalogMetadataPolicy.validatePath("v1/providers/hashicorp/aws/5.100.0/README.md"))
         .doesNotThrowAnyException();
 
     assertThatThrownBy(
-            () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
-                    "hashicorp/aws/5.100.0/provider.zip"))
+            () -> CatalogMetadataPolicy.validatePath("hashicorp/aws/5.100.0/provider.zip"))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
+                CatalogMetadataPolicy.validatePath(
                     "v1/providers/hashicorp/aws/5.100.0/release.zip"))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
+                CatalogMetadataPolicy.validatePath(
                     "v1/providers/hashicorp/aws/5.100.0/docs/../release.md"))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
-                ArtifactoryCatalogSeeder.validateCatalogMetadataPath(
-                    "v2/providers/hashicorp/aws/5.100.0/README.md"))
+                CatalogMetadataPolicy.validatePath("v2/providers/hashicorp/aws/5.100.0/README.md"))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -132,20 +128,20 @@ class ArtifactoryCatalogSeederTest {
     var refreshed =
         manifest("iac-provider-release-local", digest('a'), List.of("APM0000001"), "new.md");
 
-    assertThat(ArtifactoryCatalogSeeder.equivalentGovernedRelease(existing, refreshed)).isTrue();
+    assertThat(CatalogMetadataPolicy.equivalentGovernedRelease(existing, refreshed)).isTrue();
     assertThat(
-            ArtifactoryCatalogSeeder.equivalentGovernedRelease(
+            CatalogMetadataPolicy.equivalentGovernedRelease(
                 existing,
                 manifest("other-release-local", digest('a'), List.of("APM0000001"), "new.md")))
         .isFalse();
     assertThat(
-            ArtifactoryCatalogSeeder.equivalentGovernedRelease(
+            CatalogMetadataPolicy.equivalentGovernedRelease(
                 existing,
                 manifest(
                     "iac-provider-release-local", digest('b'), List.of("APM0000001"), "new.md")))
         .isFalse();
     assertThat(
-            ArtifactoryCatalogSeeder.equivalentGovernedRelease(
+            CatalogMetadataPolicy.equivalentGovernedRelease(
                 existing,
                 manifest(
                     "iac-provider-release-local", digest('a'), List.of("APM0000002"), "new.md")))

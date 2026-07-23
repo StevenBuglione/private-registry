@@ -27,6 +27,11 @@ Object.defineProperty(globalThis, "ResizeObserver", {
   },
 });
 
+Object.defineProperty(Element.prototype, "getAnimations", {
+  configurable: true,
+  value: () => [],
+});
+
 Object.defineProperty(window, "scrollTo", {
   writable: true,
   value: () => undefined,

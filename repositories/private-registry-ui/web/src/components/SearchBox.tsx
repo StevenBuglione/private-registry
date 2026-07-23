@@ -1,7 +1,7 @@
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { type FocusEvent, type SyntheticEvent, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { useCatalogSuggestions } from "../hooks";
+import { useCatalogSuggestions } from "../hooks/catalog";
 import { packageHref } from "../utils";
 import { PackageIcon } from "./PackageIcon";
 

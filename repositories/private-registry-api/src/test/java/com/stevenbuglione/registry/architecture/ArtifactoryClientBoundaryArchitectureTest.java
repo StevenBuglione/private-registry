@@ -17,7 +17,7 @@ class ArtifactoryClientBoundaryArchitectureTest {
           "com/stevenbuglione/registry/config/IdentityConfiguration.java",
           "com/stevenbuglione/registry/security/identity/AlbTokenVerifier.java",
           "com/stevenbuglione/registry/security/identity/GraphMembershipClient.java",
-          "com/stevenbuglione/registry/seed/ArtifactoryCatalogSeeder.java");
+          "com/stevenbuglione/registry/seed/JdkUpstreamContentClient.java");
   private static final Set<String> ARTIFACTORY_REST_ALLOWLIST =
       Set.of("com/stevenbuglione/registry/artifactory/ArtifactoryGateway.java");
   private static final List<String> ARTIFACTORY_REST_MARKERS =
@@ -71,16 +71,16 @@ class ArtifactoryClientBoundaryArchitectureTest {
   }
 
   @Test
-  void gatewayUsesTheOfficialJfrogClientAndSeederUsesOnlyTheGateway() throws IOException {
+  void gatewayUsesTheOfficialJfrogClientAndSeedPublicationUsesOnlyTheGateway() throws IOException {
     var gateway =
         Files.readString(
             MAIN_JAVA.resolve("com/stevenbuglione/registry/artifactory/ArtifactoryGateway.java"));
-    var seeder =
+    var publisher =
         Files.readString(
-            MAIN_JAVA.resolve("com/stevenbuglione/registry/seed/ArtifactoryCatalogSeeder.java"));
+            MAIN_JAVA.resolve("com/stevenbuglione/registry/seed/ImmutableArtifactPublisher.java"));
 
     assertThat(gateway).contains("org.jfrog.artifactory.client.Artifactory");
-    assertThat(seeder)
+    assertThat(publisher)
         .contains("ArtifactoryGateway")
         .doesNotContain("/api/storage", "/api/repositories", "X-JFrog-Art-Api");
   }

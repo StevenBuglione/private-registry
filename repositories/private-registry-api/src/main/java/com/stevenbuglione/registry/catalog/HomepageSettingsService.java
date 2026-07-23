@@ -1,9 +1,13 @@
 package com.stevenbuglione.registry.catalog;
 
 import com.stevenbuglione.registry.audit.AuditLogService;
+import com.stevenbuglione.registry.security.identity.AccessContext;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -30,37 +34,50 @@ public class HomepageSettingsService {
   }
 
   public HomepageSettings get() {
-    return jdbc.sql(
-            """
+    return get(AccessContext.localAdministrator());
+  }
+
+  public HomepageSettings get(AccessContext accessContext) {
+    var presentation =
+        jdbc.sql(
+                """
             SELECT notification_enabled,
                    notification_title,
                    notification_message,
                    notification_link_label,
                    notification_link_url,
-                   featured_provider_ids,
-                   featured_module_ids,
                    updated_at
               FROM registry_homepage_settings
              WHERE id = 1
             """)
-        .query(
-            (resultSet, rowNumber) ->
-                new HomepageSettings(
-                    resultSet.getBoolean("notification_enabled"),
-                    resultSet.getString("notification_title"),
-                    resultSet.getString("notification_message"),
-                    resultSet.getString("notification_link_label"),
-                    resultSet.getString("notification_link_url"),
-                    splitIds(resultSet.getString("featured_provider_ids")),
-                    splitIds(resultSet.getString("featured_module_ids")),
-                    resultSet.getTimestamp("updated_at").toInstant()))
-        .single();
+            .query(
+                (resultSet, rowNumber) ->
+                    new Presentation(
+                        resultSet.getBoolean("notification_enabled"),
+                        resultSet.getString("notification_title"),
+                        resultSet.getString("notification_message"),
+                        resultSet.getString("notification_link_label"),
+                        resultSet.getString("notification_link_url"),
+                        resultSet.getTimestamp("updated_at").toInstant()))
+            .single();
+    return new HomepageSettings(
+        presentation.notificationEnabled(),
+        presentation.notificationTitle(),
+        presentation.notificationMessage(),
+        presentation.notificationLinkLabel(),
+        presentation.notificationLinkUrl(),
+        featuredPackageIds("provider", accessContext),
+        featuredPackageIds("module", accessContext),
+        presentation.updatedAt());
   }
 
   @Transactional
   public HomepageSettings update(Update update, String actorSubject) {
     var normalized = validate(update);
+    var providerFeatures = resolveFeatures("provider", normalized.featuredProviderIds());
+    var moduleFeatures = resolveFeatures("module", normalized.featuredModuleIds());
     var before = get();
+    replaceFeatures(providerFeatures, moduleFeatures);
     jdbc.sql(
             """
             UPDATE registry_homepage_settings
@@ -69,8 +86,6 @@ public class HomepageSettingsService {
                    notification_message = :notificationMessage,
                    notification_link_label = :notificationLinkLabel,
                    notification_link_url = :notificationLinkUrl,
-                   featured_provider_ids = :featuredProviderIds,
-                   featured_module_ids = :featuredModuleIds,
                    updated_by = :updatedBy,
                    updated_at = now()
              WHERE id = 1
@@ -80,8 +95,6 @@ public class HomepageSettingsService {
         .param("notificationMessage", normalized.notificationMessage())
         .param("notificationLinkLabel", normalized.notificationLinkLabel())
         .param("notificationLinkUrl", normalized.notificationLinkUrl())
-        .param("featuredProviderIds", String.join(",", normalized.featuredProviderIds()))
-        .param("featuredModuleIds", String.join(",", normalized.featuredModuleIds()))
         .param("updatedBy", actorSubject)
         .update();
     var after = get();
@@ -97,6 +110,94 @@ public class HomepageSettingsService {
             "home",
             detail));
     return after;
+  }
+
+  private List<String> featuredPackageIds(String featureKind, AccessContext accessContext) {
+    return jdbc.sql(
+            """
+            SELECT CASE
+                       WHEN package_record.kind = 'module'
+                           THEN 'module/' || package_record.namespace || '/' ||
+                                package_record.name || '/' || package_record.target
+                       ELSE 'provider/' || package_record.namespace || '/' || package_record.name
+                   END AS public_id
+              FROM registry_homepage_features feature
+              JOIN packages package_record ON package_record.id = feature.package_id
+             WHERE feature.feature_kind = CAST(:featureKind AS package_kind)
+               AND (
+                   :registryAdmin
+                   OR EXISTS (
+                       SELECT 1
+                         FROM package_apm_access access
+                        WHERE access.package_id = package_record.id
+                          AND access.apm_id = ANY(CAST(:apmIds AS text[]))
+                   )
+               )
+             ORDER BY feature.display_order, feature.package_id
+            """)
+        .param("featureKind", featureKind)
+        .param("registryAdmin", accessContext.registryAdmin())
+        .param("apmIds", accessContext.apmIds().toArray(String[]::new))
+        .query(
+            (resultSet, rowNumber) ->
+                Objects.requireNonNull(resultSet.getString("public_id"), "public_id"))
+        .list();
+  }
+
+  private List<Feature> resolveFeatures(String featureKind, List<String> publicIds) {
+    if (publicIds.isEmpty()) {
+      return List.of();
+    }
+    var features =
+        jdbc.sql(
+                """
+                SELECT package_record.id AS package_id,
+                       selected.ordinality - 1 AS display_order
+                  FROM unnest(CAST(:publicIds AS text[]))
+                       WITH ORDINALITY selected(public_id, ordinality)
+                  JOIN packages package_record
+                    ON package_record.kind = CAST(:featureKind AS package_kind)
+                   AND CASE
+                           WHEN package_record.kind = 'module'
+                               THEN 'module/' || package_record.namespace || '/' ||
+                                    package_record.name || '/' || package_record.target
+                           ELSE 'provider/' || package_record.namespace || '/' ||
+                                package_record.name
+                       END = selected.public_id
+                 ORDER BY selected.ordinality
+                """)
+            .param("publicIds", publicIds.toArray(String[]::new))
+            .param("featureKind", featureKind)
+            .query(
+                (resultSet, rowNumber) ->
+                    new Feature(
+                        featureKind,
+                        resultSet.getObject("package_id", UUID.class),
+                        resultSet.getInt("display_order")))
+            .list();
+    if (features.size() != publicIds.size()) {
+      throw new IllegalArgumentException(
+          "Every featured " + featureKind + " must reference an existing Registry package");
+    }
+    return features;
+  }
+
+  private void replaceFeatures(List<Feature> providers, List<Feature> modules) {
+    jdbc.sql("DELETE FROM registry_homepage_features").update();
+    java.util.stream.Stream.concat(providers.stream(), modules.stream())
+        .forEach(
+            feature ->
+                jdbc.sql(
+                        """
+                        INSERT INTO registry_homepage_features (
+                            feature_kind, package_id, display_order)
+                        VALUES (
+                            CAST(:featureKind AS package_kind), :packageId, :displayOrder)
+                        """)
+                    .param("featureKind", feature.kind())
+                    .param("packageId", feature.packageId())
+                    .param("displayOrder", feature.displayOrder())
+                    .update());
   }
 
   private static Update validate(Update update) {
@@ -151,7 +252,10 @@ public class HomepageSettingsService {
         throw new IllegalArgumentException(
             "Featured " + packageLabel + " must use " + expectedFormat + " IDs");
       }
-      packageIds.add(normalized);
+      if (!packageIds.add(normalized)) {
+        throw new IllegalArgumentException(
+            "Featured " + packageLabel + " must not contain duplicates");
+      }
     }
     if (packageIds.size() > maximum) {
       throw new IllegalArgumentException(
@@ -183,16 +287,15 @@ public class HomepageSettingsService {
     return normalized;
   }
 
-  private static List<String> splitIds(String value) {
-    if (value.isBlank()) {
-      return List.of();
-    }
-    return Pattern.compile(",")
-        .splitAsStream(value)
-        .map(String::trim)
-        .filter(providerId -> !providerId.isEmpty())
-        .toList();
-  }
+  private record Presentation(
+      boolean notificationEnabled,
+      String notificationTitle,
+      String notificationMessage,
+      @Nullable String notificationLinkLabel,
+      @Nullable String notificationLinkUrl,
+      Instant updatedAt) {}
+
+  private record Feature(String kind, UUID packageId, int displayOrder) {}
 
   public record Update(
       boolean notificationEnabled,

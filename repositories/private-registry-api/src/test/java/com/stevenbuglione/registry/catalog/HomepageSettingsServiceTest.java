@@ -63,6 +63,14 @@ class HomepageSettingsServiceTest {
                     "admin"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("six featured providers");
+
+    assertThatThrownBy(
+            () ->
+                service.update(
+                    update(null, null, List.of("provider/hashicorp/aws", "provider/hashicorp/aws")),
+                    "admin"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("duplicates");
   }
 
   private static HomepageSettingsService.Update update(

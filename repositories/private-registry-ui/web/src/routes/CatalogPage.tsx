@@ -15,7 +15,7 @@ import {
 } from "../components/filter-options";
 import { PackageCard } from "../components/PackageCard";
 import { StatePanel } from "../components/StatePanel";
-import { useCatalogPage } from "../hooks";
+import { useCatalogPage } from "../hooks/catalog";
 import type { PackageKind, PackageSummary } from "../types";
 import { hasText } from "../utils";
 
@@ -359,8 +359,14 @@ function paginationItems(
 function providerTier(
   item: PackageSummary,
 ): "official" | "partner" | "community" {
-  if (!item.verified) return "community";
-  return item.namespace.toLowerCase() === "hashicorp" ? "official" : "partner";
+  if (item.registryTier === "official") return "official";
+  if (
+    item.registryTier === "partner" ||
+    item.registryTier === "partner-premier"
+  ) {
+    return "partner";
+  }
+  return "community";
 }
 
 function browseTabHref(

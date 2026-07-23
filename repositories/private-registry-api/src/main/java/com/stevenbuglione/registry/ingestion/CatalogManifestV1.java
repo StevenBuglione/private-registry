@@ -307,7 +307,7 @@ public final class CatalogManifestV1 {
       throw new QuarantineException(
           "invalid_symbol_kind", "Symbol kind is not part of the Registry vocabulary");
     }
-    requireOptionalSafePath(symbol.path(), "symbols.path");
+    requireSafePath(symbol.path(), "symbols.path");
     requireOptionalText(symbol.type(), "symbols.type");
     if (!identities.add(
         symbol.kind()
@@ -362,12 +362,6 @@ public final class CatalogManifestV1 {
     }
     if (value.startsWith("/") || value.contains("..") || value.contains("\\")) {
       throw new QuarantineException("unsafe_artifact_path", field + " is unsafe");
-    }
-  }
-
-  private static void requireOptionalSafePath(@Nullable String value, String field) {
-    if (value != null) {
-      requireSafePath(value, field);
     }
   }
 
@@ -454,7 +448,7 @@ public final class CatalogManifestV1 {
       String kind,
       String name,
       @Nullable String description,
-      @Nullable String path,
+      String path,
       @Nullable String type,
       @JsonProperty("default_value") @Nullable String defaultValue,
       boolean required,

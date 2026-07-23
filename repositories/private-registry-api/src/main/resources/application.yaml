@@ -64,11 +64,13 @@ registry:
     provider-repository: ${REGISTRY_ARTIFACTORY_PROVIDER_REPOSITORY:iac-providers-public-remote}
   eventing:
     enabled: ${REGISTRY_EVENTING_ENABLED:false}
-    poll-interval: ${REGISTRY_EVENT_POLL_INTERVAL:250ms}
+    poll-interval: ${REGISTRY_EVENT_POLL_INTERVAL:30s}
     claim-recovery-delay: ${REGISTRY_EVENT_CLAIM_RECOVERY_DELAY:1m}
     claim-timeout: ${REGISTRY_EVENT_CLAIM_TIMEOUT:5m}
     poll-batch-size: ${REGISTRY_EVENT_POLL_BATCH_SIZE:25}
     maximum-attempts: ${REGISTRY_EVENT_MAXIMUM_ATTEMPTS:5}
+    completed-retention: ${REGISTRY_EVENT_COMPLETED_RETENTION:7d}
+    dead-letter-retention: ${REGISTRY_EVENT_DEAD_LETTER_RETENTION:90d}
     webhook:
       enabled: ${REGISTRY_WEBHOOK_ENABLED:false}
       secret: ${REGISTRY_WEBHOOK_SECRET:}

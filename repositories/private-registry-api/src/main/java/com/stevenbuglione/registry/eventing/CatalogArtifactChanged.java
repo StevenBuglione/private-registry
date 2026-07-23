@@ -1,6 +1,10 @@
 package com.stevenbuglione.registry.eventing;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Map;
 
 public record CatalogArtifactChanged(
@@ -31,7 +35,35 @@ public record CatalogArtifactChanged(
   }
 
   public String idempotencyKey() {
-    return repository + ":" + path + ":" + eventId;
+    return semanticKey();
+  }
+
+  public String semanticKey() {
+    var canonical = new StringBuilder();
+    appendCanonical(canonical, Integer.toString(schemaVersion));
+    appendCanonical(canonical, action.name());
+    appendCanonical(canonical, repository);
+    appendCanonical(canonical, path);
+    appendCanonical(canonical, occurredAt.toString());
+    properties.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey())
+        .forEach(
+            entry -> {
+              appendCanonical(canonical, entry.getKey());
+              appendCanonical(canonical, entry.getValue());
+            });
+    try {
+      var digest =
+          MessageDigest.getInstance("SHA-256")
+              .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+      return "sha256:" + HexFormat.of().formatHex(digest);
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("SHA-256 is unavailable", exception);
+    }
+  }
+
+  private static void appendCanonical(StringBuilder target, String value) {
+    target.append(value.length()).append(':').append(value).append(';');
   }
 
   private static String requireText(String value, String field) {

@@ -2,26 +2,12 @@ package com.stevenbuglione.registry.catalog;
 
 import com.stevenbuglione.registry.model.Approval;
 import com.stevenbuglione.registry.model.CatalogPackage;
-import com.stevenbuglione.registry.model.DownloadStatistics;
 import com.stevenbuglione.registry.model.Governance;
 import com.stevenbuglione.registry.model.PackageKind;
-import com.stevenbuglione.registry.model.PackageVersion;
 import com.stevenbuglione.registry.model.Symbol;
 import com.stevenbuglione.registry.security.identity.AccessContext;
-import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -32,104 +18,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class JdbcCatalogService implements CatalogService {
 
-  private static final String PUBLIC_ID =
-      """
-            CASE
-                WHEN p.kind = 'module' THEN 'module/' || p.namespace || '/' || p.name || '/' || p.target
-                ELSE 'provider/' || p.namespace || '/' || p.name
-            END
-            """;
-
-  private static final String RELEVANCE_RANK =
-      """
-            CASE
-                WHEN lower(p.namespace || '/' || p.name) = lower(:query) THEN 4
-                WHEN lower(p.name) = lower(:query) THEN 3
-                WHEN p.name ILIKE :query || '%' THEN 2
-                ELSE 1
-            END
-            """;
-
-  private static final String DOWNLOAD_COUNT = "COALESCE(downloads.download_count, 0)";
-
-  private static final String PACKAGE_SELECT =
-      """
-            SELECT p.id AS database_id,
-                   %s AS public_id,
-                   p.kind::text AS kind,
-                   p.namespace,
-                   p.name,
-                   p.target,
-                   p.title,
-                   p.description,
-                   latest.version AS latest_version,
-                   COALESCE(owners.team_ids, '') AS owner_ids,
-                   p.support_level::text AS support_level,
-                   p.lifecycle::text AS lifecycle,
-                   p.verification,
-                   p.risk_tier,
-                   p.source_address,
-                   p.updated_at,
-                   %s AS download_count
-              FROM packages p
-              LEFT JOIN LATERAL (
-                    SELECT pv.version
-                      FROM package_versions pv
-                     WHERE pv.package_id = p.id AND pv.active AND NOT pv.revoked
-                     ORDER BY pv.published_at DESC
-                     LIMIT 1
-              ) latest ON true
-              LEFT JOIN LATERAL (
-                    SELECT string_agg(po.team_id, ',' ORDER BY po.owner_order, po.team_id) AS team_ids
-                      FROM package_owners po
-                     WHERE po.package_id = p.id
-              ) owners ON true
-              LEFT JOIN LATERAL (
-                    SELECT COALESCE(sum(version_downloads.download_count), 0)::bigint
-                               AS download_count
-                      FROM package_versions counted_version
-                      LEFT JOIN LATERAL (
-                            SELECT statistics.download_count
-                              FROM artifact_download_statistics statistics
-                             WHERE statistics.package_version_id = counted_version.id
-                             ORDER BY statistics.observed_on DESC
-                             LIMIT 1
-                      ) version_downloads ON true
-                     WHERE counted_version.package_id = p.id
-                       AND counted_version.active
-                       AND NOT counted_version.revoked
-              ) downloads ON true
-            """
-          .formatted(PUBLIC_ID, DOWNLOAD_COUNT);
-
   private final JdbcClient jdbc;
-  private final CatalogTextSearch catalogTextSearch;
+  private final CatalogQueryBuilder queries;
+  private final CatalogPackageEnricher enricher;
 
-  public JdbcCatalogService(JdbcClient jdbc, CatalogTextSearch catalogTextSearch) {
+  public JdbcCatalogService(
+      JdbcClient jdbc, CatalogQueryBuilder queries, CatalogPackageEnricher enricher) {
     this.jdbc = jdbc;
-    this.catalogTextSearch = catalogTextSearch;
+    this.queries = queries;
+    this.enricher = enricher;
   }
 
   @Override
   public CatalogPage<CatalogPackage> findPackages(AccessContext accessContext, CatalogQuery query) {
-    var filters = filters(accessContext, query);
-    var sql = new StringBuilder(PACKAGE_SELECT).append(filters.sql());
-    var parameters = new HashMap<>(filters.parameters());
-    if (query.page() == 0) {
-      appendCursor(sql, parameters, query);
-    }
-    sql.append(orderBy(query.sort())).append(" LIMIT :pageSize");
-    parameters.put("pageSize", query.page() == 0 ? query.limit() + 1 : query.limit());
-    if (query.page() > 0) {
-      sql.append(" OFFSET :pageOffset");
-      parameters.put("pageOffset", query.offset());
-    }
-
-    var rows = jdbc.sql(sql.toString()).params(parameters).query(this::mapPackageRow).list();
+    var plan = queries.findPackages(accessContext, query);
+    var rows =
+        jdbc.sql(plan.sql()).params(plan.parameters()).query(CatalogRowMapper::packageRow).list();
     var hasNext = query.page() == 0 && rows.size() > query.limit();
     var pageRows = hasNext ? rows.subList(0, query.limit()) : rows;
-    var items = enrich(pageRows);
-    var nextCursor = hasNext ? encodeCursor(query, pageRows.getLast()) : null;
+    var items = enricher.enrich(pageRows);
+    var nextCursor = hasNext ? CatalogQueryBuilder.encodeCursor(query, pageRows.getLast()) : null;
     return new CatalogPage<>(items, nextCursor, countMatching(accessContext, query));
   }
 
@@ -147,16 +55,16 @@ public class JdbcCatalogService implements CatalogService {
     if (packageIds.isEmpty()) {
       return List.of();
     }
-    var authorization = authorizationFilters(accessContext);
+    var authorization = queries.authorizationFilters(accessContext);
     var accessible =
         Set.copyOf(
             jdbc.sql(
                     "SELECT "
-                        + PUBLIC_ID
+                        + CatalogQueryBuilder.PUBLIC_ID
                         + " AS public_id FROM packages p"
                         + authorization.sql()
                         + " AND ("
-                        + PUBLIC_ID
+                        + CatalogQueryBuilder.PUBLIC_ID
                         + ") IN (:packageIds)")
                 .params(authorization.parameters())
                 .param("packageIds", packageIds)
@@ -173,23 +81,19 @@ public class JdbcCatalogService implements CatalogService {
   @Override
   public CatalogPackage getPackage(
       AccessContext accessContext, String id, @Nullable String version) {
-    var filters =
-        filters(
-            accessContext,
-            new CatalogQuery(
-                new CatalogQuery.Criteria(null, null, null, null, null, "updated", null, 1, null)));
-    var parameters = new HashMap<>(filters.parameters());
-    parameters.put("publicId", id);
+    var plan = queries.findPackage(accessContext, id);
     try {
       var row =
-          jdbc.sql(PACKAGE_SELECT + filters.sql() + " AND " + PUBLIC_ID + " = :publicId")
-              .params(parameters)
-              .query(this::mapPackageRow)
+          jdbc.sql(plan.sql())
+              .params(plan.parameters())
+              .query(CatalogRowMapper::packageRow)
               .single();
-      var item = enrich(List.of(row)).getFirst();
+      var item = enricher.enrich(List.of(row)).getFirst();
       if (version == null || version.isBlank() || "latest".equals(version)) {
         return withSelectedVersion(
-            item, item.latestVersion(), symbolsForVersion(row.databaseId(), item.latestVersion()));
+            item,
+            item.latestVersion(),
+            enricher.symbolsForVersion(row.databaseId(), item.latestVersion()));
       }
       var selected =
           item.versions().stream()
@@ -197,7 +101,9 @@ public class JdbcCatalogService implements CatalogService {
               .findFirst()
               .orElseThrow(() -> new NotFoundException("Package not found"));
       return withSelectedVersion(
-          item, selected.version(), symbolsForVersion(row.databaseId(), selected.version()));
+          item,
+          selected.version(),
+          enricher.symbolsForVersion(row.databaseId(), selected.version()));
     } catch (EmptyResultDataAccessException exception) {
       throw new NotFoundException("Package not found");
     }
@@ -212,8 +118,8 @@ public class JdbcCatalogService implements CatalogService {
   public Governance getGovernance(
       AccessContext accessContext, String id, @Nullable String version) {
     var item = getPackage(accessContext, id, version);
-    var authorization = authorizationFilters(accessContext);
-    var authorizationSql = additionalPredicates(authorization);
+    var authorization = queries.authorizationFilters(accessContext);
+    var authorizationSql = CatalogQueryBuilder.additionalPredicates(authorization);
     var approvals =
         jdbc.sql(
                 """
@@ -223,7 +129,7 @@ public class JdbcCatalogService implements CatalogService {
                           JOIN packages p ON p.id = pv.package_id
                          WHERE %s = :id AND pv.version = :version
                         """
-                        .formatted(PUBLIC_ID)
+                        .formatted(CatalogQueryBuilder.PUBLIC_ID)
                     + authorizationSql
                     + " ORDER BY a.approval_type")
             .params(authorization.parameters())
@@ -247,7 +153,7 @@ public class JdbcCatalogService implements CatalogService {
                           JOIN packages p ON p.id = po.package_id
                          WHERE %s = :id
                         """
-                        .formatted(PUBLIC_ID)
+                        .formatted(CatalogQueryBuilder.PUBLIC_ID)
                     + authorizationSql
                     + " ORDER BY po.owner_order, po.team_id LIMIT 1")
             .params(authorization.parameters())
@@ -263,7 +169,7 @@ public class JdbcCatalogService implements CatalogService {
                           JOIN packages p ON p.id = pv.package_id
                          WHERE %s = :id AND pv.version = :version
                         """
-                        .formatted(PUBLIC_ID)
+                        .formatted(CatalogQueryBuilder.PUBLIC_ID)
                     + authorizationSql)
             .params(authorization.parameters())
             .param("id", id)
@@ -296,7 +202,7 @@ public class JdbcCatalogService implements CatalogService {
   public DocumentContent readDocument(
       AccessContext accessContext, String packageId, @Nullable String version, String path) {
     var item = getPackage(accessContext, packageId, version);
-    var authorization = authorizationFilters(accessContext);
+    var authorization = queries.authorizationFilters(accessContext);
     var candidatePaths = documentationPathCandidates(path);
     try {
       var document =
@@ -311,8 +217,8 @@ public class JdbcCatalogService implements CatalogService {
                                AND pv.active
                                AND dp.path IN (:candidatePaths)
                             """
-                          .formatted(PUBLIC_ID)
-                      + additionalPredicates(authorization)
+                          .formatted(CatalogQueryBuilder.PUBLIC_ID)
+                      + CatalogQueryBuilder.additionalPredicates(authorization)
                       + " ORDER BY CASE WHEN dp.path = :preferredPath THEN 0 ELSE 1 END LIMIT 1")
               .params(authorization.parameters())
               .param("id", packageId)
@@ -346,35 +252,6 @@ public class JdbcCatalogService implements CatalogService {
 
   private record StoredDocument(@Nullable String content, String contentType) {}
 
-  private List<Symbol> symbolsForVersion(UUID packageId, String version) {
-    return jdbc.sql(
-            """
-                        SELECT s.kind, s.name, s.description, s.document_path,
-                               s.symbol_type, s.default_value, s.is_required, s.sensitive
-                          FROM symbols s
-                          JOIN package_versions pv ON pv.id = s.package_version_id
-                         WHERE pv.package_id = :packageId
-                           AND pv.version = :version
-                           AND pv.active
-                           AND NOT pv.revoked
-                         ORDER BY s.kind, s.name
-                        """)
-        .param("packageId", packageId)
-        .param("version", version)
-        .query(
-            (resultSet, rowNumber) ->
-                new Symbol(
-                    resultSet.getString("kind"),
-                    resultSet.getString("name"),
-                    resultSet.getString("description"),
-                    resultSet.getString("document_path"),
-                    resultSet.getString("symbol_type"),
-                    resultSet.getString("default_value"),
-                    resultSet.getBoolean("is_required"),
-                    resultSet.getBoolean("sensitive")))
-        .list();
-  }
-
   private static CatalogPackage withSelectedVersion(
       CatalogPackage item, String selectedVersion, List<Symbol> selectedSymbols) {
     return new CatalogPackage(
@@ -390,6 +267,7 @@ public class JdbcCatalogService implements CatalogService {
         item.supportLevel(),
         item.lifecycle(),
         item.verification(),
+        item.registryTier(),
         item.riskTier(),
         item.sourceAddress(),
         item.updatedAt(),
@@ -397,395 +275,8 @@ public class JdbcCatalogService implements CatalogService {
         selectedSymbols);
   }
 
-  private QueryFilters filters(AccessContext accessContext, CatalogQuery query) {
-    var sql = new StringBuilder(" WHERE 1 = 1");
-    var parameters = new HashMap<String, Object>();
-    sql.append(
-        " AND EXISTS (SELECT 1 FROM package_versions visible_version"
-            + " WHERE visible_version.package_id = p.id AND visible_version.active AND NOT visible_version.revoked)");
-    appendAuthorizationFilter(sql, parameters, accessContext);
-    appendKindFilter(sql, parameters, query);
-    appendNamespaceFilter(sql, parameters, query);
-    appendTextSearchFilter(sql, parameters, accessContext, query);
-    appendTaxonomyFilters(sql, parameters, query);
-    return new QueryFilters(sql.toString(), parameters);
-  }
-
-  private static void appendAuthorizationFilter(
-      StringBuilder sql, Map<String, Object> parameters, AccessContext accessContext) {
-    if (accessContext.registryAdmin()) {
-      return;
-    }
-    if (accessContext.apmIds().isEmpty()) {
-      sql.append(" AND 1 = 0");
-      return;
-    }
-    sql.append(
-        """
-                     AND EXISTS (
-                           SELECT 1
-                             FROM package_apm_access visible_apm
-                            WHERE visible_apm.package_id = p.id
-                              AND visible_apm.apm_id IN (:authorizedApmIds)
-                     )
-                    """);
-    parameters.put("authorizedApmIds", accessContext.apmIds());
-  }
-
-  private static void appendKindFilter(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.kind() == null) {
-      return;
-    }
-    sql.append(" AND p.kind = CAST(:kind AS package_kind)");
-    parameters.put("kind", query.kind().jsonValue());
-  }
-
-  private static void appendNamespaceFilter(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.namespace() == null) {
-      return;
-    }
-    sql.append(" AND lower(p.namespace) = lower(:namespace)");
-    parameters.put("namespace", query.namespace());
-  }
-
-  private void appendTextSearchFilter(
-      StringBuilder sql,
-      Map<String, Object> parameters,
-      AccessContext accessContext,
-      CatalogQuery query) {
-    if (query.q() == null) {
-      return;
-    }
-    var matchingIds = catalogTextSearch.findPackageIds(accessContext, query, 10_000);
-    if (matchingIds.isEmpty()) {
-      sql.append(" AND 1 = 0");
-    } else {
-      sql.append(" AND (").append(PUBLIC_ID).append(") IN (:searchPackageIds)");
-      parameters.put("searchPackageIds", matchingIds);
-    }
-    parameters.put("query", query.q());
-  }
-
-  private static void appendTaxonomyFilters(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (!query.providers().isEmpty()) {
-      sql.append(" AND COALESCE(NULLIF(p.target, ''), p.name) IN (:providers)");
-      parameters.put("providers", query.providers());
-    }
-    appendTierFilter(sql, parameters, query);
-    if (!query.categories().isEmpty()) {
-      sql.append(
-          " AND EXISTS (SELECT 1 FROM unnest(p.categories) category"
-              + " WHERE category IN (:registryCategories))");
-      parameters.put("registryCategories", query.categories());
-    }
-  }
-
-  private static void appendTierFilter(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.tiers().isEmpty()) {
-      return;
-    }
-    if (query.tiers().contains("none")) {
-      sql.append(" AND 1 = 0");
-      return;
-    }
-    sql.append(" AND p.registry_tier IN (:registryTiers)");
-    parameters.put("registryTiers", query.tiers());
-  }
-
-  private QueryFilters authorizationFilters(AccessContext accessContext) {
-    return filters(
-        accessContext,
-        new CatalogQuery(
-            new CatalogQuery.Criteria(null, null, null, null, null, "updated", null, 1, null)));
-  }
-
-  private static String additionalPredicates(QueryFilters filters) {
-    return filters.sql().substring(" WHERE 1 = 1".length());
-  }
-
   private long countMatching(AccessContext accessContext, CatalogQuery query) {
-    var filters = filters(accessContext, query);
-    return jdbc.sql("SELECT count(*) FROM packages p" + filters.sql())
-        .params(filters.parameters())
-        .query(Long.class)
-        .single();
+    var plan = queries.countPackages(accessContext, query);
+    return jdbc.sql(plan.sql()).params(plan.parameters()).query(Long.class).single();
   }
-
-  private static void appendCursor(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.cursor() == null) {
-      return;
-    }
-    var cursor = decodeCursor(query.cursor());
-    if (!query.sort().equals(cursor.sort())) {
-      throw new IllegalArgumentException("Cursor does not match the requested sort");
-    }
-    parameters.put("cursorId", cursor.publicId());
-    switch (query.sort()) {
-      case "name" -> sql.append(" AND ").append(PUBLIC_ID).append(" > :cursorId");
-      case "updated" -> {
-        try {
-          parameters.put("cursorUpdated", Instant.parse(cursor.value()));
-        } catch (DateTimeParseException exception) {
-          throw new IllegalArgumentException("Invalid catalog cursor", exception);
-        }
-        sql.append(" AND (p.updated_at < :cursorUpdated OR (p.updated_at = :cursorUpdated AND ")
-            .append(PUBLIC_ID)
-            .append(" > :cursorId))");
-      }
-      case "relevance" -> {
-        try {
-          parameters.put("cursorRelevance", Integer.parseInt(cursor.value()));
-        } catch (NumberFormatException exception) {
-          throw new IllegalArgumentException("Invalid catalog cursor", exception);
-        }
-        sql.append(" AND (")
-            .append(RELEVANCE_RANK)
-            .append(" < :cursorRelevance OR (")
-            .append(RELEVANCE_RANK)
-            .append(" = :cursorRelevance AND ")
-            .append(PUBLIC_ID)
-            .append(" > :cursorId))");
-      }
-      case "downloads" -> {
-        try {
-          parameters.put("cursorDownloads", Long.parseLong(cursor.value()));
-        } catch (NumberFormatException exception) {
-          throw new IllegalArgumentException("Invalid catalog cursor", exception);
-        }
-        sql.append(" AND (")
-            .append(DOWNLOAD_COUNT)
-            .append(" < :cursorDownloads OR (")
-            .append(DOWNLOAD_COUNT)
-            .append(" = :cursorDownloads AND ")
-            .append(PUBLIC_ID)
-            .append(" > :cursorId))");
-      }
-      default -> throw new IllegalArgumentException("Unsupported catalog sort");
-    }
-  }
-
-  private static String orderBy(String sort) {
-    return switch (sort) {
-      case "name" -> " ORDER BY public_id ASC";
-      case "relevance" -> " ORDER BY " + RELEVANCE_RANK + " DESC, public_id ASC";
-      case "downloads" -> " ORDER BY " + DOWNLOAD_COUNT + " DESC, public_id ASC";
-      case "updated" -> " ORDER BY p.updated_at DESC, public_id ASC";
-      default -> throw new IllegalArgumentException("Unsupported catalog sort");
-    };
-  }
-
-  private static String encodeCursor(CatalogQuery query, PackageRow row) {
-    var value =
-        switch (query.sort()) {
-          case "name" -> "";
-          case "updated" -> row.item().updatedAt().toString();
-          case "relevance" -> Integer.toString(relevanceRank(row.item(), query.q()));
-          case "downloads" -> Long.toString(row.downloadCount());
-          default -> throw new IllegalArgumentException("Unsupported catalog sort");
-        };
-    var plain = String.join("\u001f", query.sort(), value, row.item().id());
-    return Base64.getUrlEncoder()
-        .withoutPadding()
-        .encodeToString(plain.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private static DecodedCursor decodeCursor(String encoded) {
-    try {
-      var plain = new String(Base64.getUrlDecoder().decode(encoded), StandardCharsets.UTF_8);
-      var segments = plain.split("\u001f", -1);
-      if (segments.length != 3 || segments[0].isBlank() || segments[2].isBlank()) {
-        throw new IllegalArgumentException("Invalid catalog cursor");
-      }
-      return new DecodedCursor(segments[0], segments[1], segments[2]);
-    } catch (IllegalArgumentException exception) {
-      throw new IllegalArgumentException("Invalid catalog cursor", exception);
-    }
-  }
-
-  private List<CatalogPackage> enrich(List<PackageRow> rows) {
-    if (rows.isEmpty()) {
-      return List.of();
-    }
-    var ids = rows.stream().map(PackageRow::databaseId).toList();
-    var versions = new LinkedHashMap<UUID, List<PackageVersion>>();
-    jdbc.sql(
-            """
-                        SELECT package_id, version, published_at, package_digest, documentation_digest,
-                               documentation_root, artifact_repository, artifact_path,
-                               source_repository, source_commit, source_tag,
-                               prerelease, deprecated, revoked,
-                               latest.download_count, latest.last_downloaded_at,
-                               latest.observed_at,
-                               CASE WHEN week_baseline.download_count IS NULL THEN NULL
-                                    ELSE GREATEST(latest.download_count - week_baseline.download_count, 0)
-                                END AS week_downloads,
-                               CASE WHEN month_baseline.download_count IS NULL THEN NULL
-                                    ELSE GREATEST(latest.download_count - month_baseline.download_count, 0)
-                                END AS month_downloads,
-                               CASE WHEN year_baseline.download_count IS NULL THEN NULL
-                                    ELSE GREATEST(latest.download_count - year_baseline.download_count, 0)
-                                END AS year_downloads
-                          FROM package_versions pv
-                          LEFT JOIN LATERAL (
-                              SELECT download_count, last_downloaded_at, observed_at
-                                FROM artifact_download_statistics statistics
-                               WHERE statistics.package_version_id = pv.id
-                               ORDER BY observed_on DESC
-                               LIMIT 1
-                          ) latest ON true
-                          LEFT JOIN LATERAL (
-                              SELECT download_count
-                                FROM artifact_download_statistics statistics
-                               WHERE statistics.package_version_id = pv.id
-                                 AND observed_on <= CURRENT_DATE - 7
-                               ORDER BY observed_on DESC
-                               LIMIT 1
-                          ) week_baseline ON true
-                          LEFT JOIN LATERAL (
-                              SELECT download_count
-                                FROM artifact_download_statistics statistics
-                               WHERE statistics.package_version_id = pv.id
-                                 AND observed_on <= CURRENT_DATE - 30
-                               ORDER BY observed_on DESC
-                               LIMIT 1
-                          ) month_baseline ON true
-                          LEFT JOIN LATERAL (
-                              SELECT download_count
-                                FROM artifact_download_statistics statistics
-                               WHERE statistics.package_version_id = pv.id
-                                 AND observed_on <= CURRENT_DATE - 365
-                               ORDER BY observed_on DESC
-                               LIMIT 1
-                          ) year_baseline ON true
-                         WHERE package_id IN (:packageIds) AND active
-                         ORDER BY package_id, published_at DESC
-                        """)
-        .param("packageIds", ids)
-        .query(
-            (resultSet, rowNumber) ->
-                new VersionRow(
-                    resultSet.getObject("package_id", UUID.class), mapVersion(resultSet)))
-        .list()
-        .forEach(
-            row ->
-                versions
-                    .computeIfAbsent(row.packageId(), ignored -> new ArrayList<>())
-                    .add(row.version()));
-
-    return rows.stream()
-        .map(
-            row -> {
-              var item = row.item();
-              return new CatalogPackage(
-                  item.id(),
-                  item.kind(),
-                  item.namespace(),
-                  item.name(),
-                  item.target(),
-                  item.title(),
-                  item.description(),
-                  item.latestVersion(),
-                  item.owners(),
-                  item.supportLevel(),
-                  item.lifecycle(),
-                  item.verification(),
-                  item.riskTier(),
-                  item.sourceAddress(),
-                  item.updatedAt(),
-                  List.copyOf(versions.getOrDefault(row.databaseId(), List.of())),
-                  List.of());
-            })
-        .toList();
-  }
-
-  private static PackageVersion mapVersion(ResultSet resultSet) throws SQLException {
-    var allTime = resultSet.getObject("download_count", Long.class);
-    DownloadStatistics statistics = null;
-    if (allTime != null) {
-      var lastDownloadedAt = resultSet.getTimestamp("last_downloaded_at");
-      statistics =
-          new DownloadStatistics(
-              allTime,
-              resultSet.getObject("week_downloads", Long.class),
-              resultSet.getObject("month_downloads", Long.class),
-              resultSet.getObject("year_downloads", Long.class),
-              lastDownloadedAt == null ? null : lastDownloadedAt.toInstant(),
-              resultSet.getTimestamp("observed_at").toInstant());
-    }
-    return new PackageVersion(
-        resultSet.getString("version"),
-        resultSet.getTimestamp("published_at").toInstant(),
-        resultSet.getString("package_digest"),
-        resultSet.getString("documentation_digest"),
-        resultSet.getString("documentation_root"),
-        resultSet.getString("artifact_repository"),
-        resultSet.getString("artifact_path"),
-        resultSet.getString("source_repository"),
-        resultSet.getString("source_commit"),
-        resultSet.getString("source_tag"),
-        resultSet.getBoolean("prerelease"),
-        resultSet.getBoolean("deprecated"),
-        resultSet.getBoolean("revoked"),
-        statistics);
-  }
-
-  private PackageRow mapPackageRow(ResultSet resultSet, int rowNumber) throws SQLException {
-    var ownerIds = resultSet.getString("owner_ids");
-    var owners = ownerIds.isBlank() ? List.<String>of() : Arrays.asList(ownerIds.split(",", -1));
-    var item =
-        new CatalogPackage(
-            resultSet.getString("public_id"),
-            java.util.Objects.requireNonNull(PackageKind.from(resultSet.getString("kind"))),
-            resultSet.getString("namespace"),
-            resultSet.getString("name"),
-            resultSet.getString("target"),
-            resultSet.getString("title"),
-            resultSet.getString("description"),
-            resultSet.getString("latest_version"),
-            List.copyOf(owners),
-            resultSet.getString("support_level"),
-            resultSet.getString("lifecycle"),
-            resultSet.getString("verification"),
-            resultSet.getString("risk_tier"),
-            resultSet.getString("source_address"),
-            resultSet.getTimestamp("updated_at").toInstant(),
-            List.of(),
-            List.of());
-    return new PackageRow(
-        resultSet.getObject("database_id", UUID.class), item, resultSet.getLong("download_count"));
-  }
-
-  private static int relevanceRank(CatalogPackage item, @Nullable String query) {
-    if (query == null) {
-      return 1;
-    }
-    if ((item.namespace() + "/" + item.name()).equalsIgnoreCase(query)) {
-      return 4;
-    }
-    if (item.name().equalsIgnoreCase(query)) {
-      return 3;
-    }
-    return item.name()
-                .regionMatches(true, 0, query, 0, Math.min(item.name().length(), query.length()))
-            && item.name().length() >= query.length()
-        ? 2
-        : 1;
-  }
-
-  private record QueryFilters(String sql, Map<String, Object> parameters) {
-    private QueryFilters {
-      parameters = Map.copyOf(parameters);
-    }
-  }
-
-  private record DecodedCursor(String sort, String value, String publicId) {}
-
-  private record PackageRow(UUID databaseId, CatalogPackage item, long downloadCount) {}
-
-  private record VersionRow(UUID packageId, PackageVersion version) {}
 }

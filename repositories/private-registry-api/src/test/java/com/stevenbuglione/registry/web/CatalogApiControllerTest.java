@@ -93,6 +93,7 @@ class CatalogApiControllerTest {
             module.supportLevel(),
             module.lifecycle(),
             module.verification(),
+            module.registryTier(),
             module.riskTier(),
             module.sourceAddress(),
             module.updatedAt(),

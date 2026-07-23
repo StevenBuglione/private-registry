@@ -11,9 +11,9 @@ public class PrivateRegistryApplication {
 
   public static void main(String[] args) {
     var application = SpringApplication.run(PrivateRegistryApplication.class, args);
-    if (application
-        .getEnvironment()
-        .getProperty("registry.seed.exit-after-completion", Boolean.class, false)) {
+    var environment = application.getEnvironment();
+    if (environment.getProperty("registry.runtime.exit-after-startup", Boolean.class, false)
+        || environment.getProperty("registry.seed.exit-after-completion", Boolean.class, false)) {
       System.exit(SpringApplication.exit(application, () -> 0));
     }
   }

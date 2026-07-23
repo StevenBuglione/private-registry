@@ -8,11 +8,13 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TrafficAnalyticsService {
@@ -37,17 +39,44 @@ public class TrafficAnalyticsService {
     this.clock = clock;
   }
 
+  @Transactional
   public void recordPageView(RegistryPrincipal principal, String requestedPath) {
     var path = safePath(requestedPath);
     var occurredAt = timestamp(clock.instant());
+    var identityId =
+        jdbc.sql(
+                """
+                INSERT INTO registry_traffic_identities (
+                    subject, display_name, email, first_seen_at, last_seen_at)
+                VALUES (
+                    :subject, :displayName, :email, :occurredAt, :occurredAt)
+                ON CONFLICT (subject) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    email = COALESCE(
+                        EXCLUDED.email,
+                        registry_traffic_identities.email),
+                    first_seen_at = LEAST(
+                        registry_traffic_identities.first_seen_at,
+                        EXCLUDED.first_seen_at),
+                    last_seen_at = GREATEST(
+                        registry_traffic_identities.last_seen_at,
+                        EXCLUDED.last_seen_at)
+                RETURNING id
+                """)
+            .param("subject", principal.subject())
+            .param("displayName", principal.displayName())
+            .param("email", principal.email(), Types.VARCHAR)
+            .param("occurredAt", occurredAt)
+            .query(UUID.class)
+            .single();
     jdbc.sql(
             """
-            INSERT INTO registry_page_views (subject, display_name, email, path, occurred_at)
-            VALUES (:subject, :displayName, :email, :path, :occurredAt)
+            INSERT INTO registry_page_views (
+                identity_id, path, occurred_at)
+            VALUES (
+                :identityId, :path, :occurredAt)
             """)
-        .param("subject", principal.subject())
-        .param("displayName", principal.displayName())
-        .param("email", principal.email(), Types.VARCHAR)
+        .param("identityId", identityId)
         .param("path", path)
         .param("occurredAt", occurredAt)
         .update();
@@ -82,10 +111,10 @@ public class TrafficAnalyticsService {
     return jdbc.sql(
             """
             SELECT COUNT(*) AS page_views,
-                   COUNT(DISTINCT subject) AS unique_visitors,
+                   COUNT(DISTINCT identity_id) AS unique_visitors,
                    COUNT(*) FILTER (
                        WHERE occurred_at >= :todayStart) AS page_views_today,
-                   COUNT(DISTINCT subject) FILTER (
+                   COUNT(DISTINCT identity_id) FILTER (
                        WHERE occurred_at >= :todayStart) AS visitors_today
               FROM registry_page_views
              WHERE occurred_at >= :since
@@ -113,7 +142,7 @@ public class TrafficAnalyticsService {
             )
             SELECT report_days.day,
                    COUNT(page_views.id) AS page_views,
-                   COUNT(DISTINCT page_views.subject) AS unique_visitors
+                   COUNT(DISTINCT page_views.identity_id) AS unique_visitors
               FROM report_days
               LEFT JOIN registry_page_views page_views
                 ON (page_views.occurred_at AT TIME ZONE 'UTC')::date = report_days.day
@@ -135,7 +164,7 @@ public class TrafficAnalyticsService {
             """
             SELECT path,
                    COUNT(*) AS page_views,
-                   COUNT(DISTINCT subject) AS unique_visitors,
+                   COUNT(DISTINCT identity_id) AS unique_visitors,
                    MAX(occurred_at) AS last_viewed_at
               FROM registry_page_views
              WHERE occurred_at >= :since
@@ -158,31 +187,34 @@ public class TrafficAnalyticsService {
     return jdbc.sql(
             """
             WITH scoped AS (
-                SELECT *
+                SELECT id,
+                       identity_id,
+                       path,
+                       occurred_at
                   FROM registry_page_views
                  WHERE occurred_at >= :since
             ),
             latest AS (
-                SELECT DISTINCT ON (subject)
-                       subject,
-                       display_name,
-                       email,
+                SELECT DISTINCT ON (identity_id)
+                       identity_id,
                        path AS last_path
                   FROM scoped
-                 ORDER BY subject, occurred_at DESC, id DESC
+                 ORDER BY identity_id, occurred_at DESC, id DESC
             )
-            SELECT latest.subject,
-                   latest.display_name,
-                   latest.email,
+            SELECT identity.subject,
+                   identity.display_name,
+                   identity.email,
                    latest.last_path,
                    COUNT(scoped.id) AS page_views,
                    MIN(scoped.occurred_at) AS first_seen_at,
                    MAX(scoped.occurred_at) AS last_seen_at
               FROM latest
-              JOIN scoped USING (subject)
-             GROUP BY latest.subject,
-                      latest.display_name,
-                      latest.email,
+              JOIN scoped USING (identity_id)
+              JOIN registry_traffic_identities identity
+                ON identity.id = latest.identity_id
+             GROUP BY identity.subject,
+                      identity.display_name,
+                      identity.email,
                       latest.last_path
              ORDER BY last_seen_at DESC
              LIMIT :limit
@@ -196,14 +228,16 @@ public class TrafficAnalyticsService {
   private List<RecentAccess> recentAccess(Instant since) {
     return jdbc.sql(
             """
-            SELECT subject,
-                   display_name,
-                   email,
-                   path,
-                   occurred_at
-              FROM registry_page_views
-             WHERE occurred_at >= :since
-             ORDER BY occurred_at DESC, id DESC
+            SELECT identity.subject,
+                   identity.display_name,
+                   identity.email,
+                   page_view.path,
+                   page_view.occurred_at
+              FROM registry_page_views page_view
+              JOIN registry_traffic_identities identity
+                ON identity.id = page_view.identity_id
+             WHERE page_view.occurred_at >= :since
+             ORDER BY page_view.occurred_at DESC, page_view.id DESC
              LIMIT :limit
             """)
         .param("since", timestamp(since))

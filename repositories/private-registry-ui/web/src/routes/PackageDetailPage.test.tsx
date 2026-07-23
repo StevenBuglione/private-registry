@@ -22,6 +22,7 @@ afterEach(() => {
 
 const moduleDetail: PackageDetail = {
   kind: "module",
+  registryTier: "partner",
   namespace: "platform",
   name: "vpc",
   target: "aws",
@@ -151,7 +152,7 @@ const providerDetail: PackageDetail = {
   ],
 };
 
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/catalog", () => ({
   usePackage: (identity: { kind: PackageKind }) => ({
     data: identity.kind === "module" ? moduleDetail : providerDetail,
     isPending: false,

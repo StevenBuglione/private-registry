@@ -1,9 +1,13 @@
 package com.stevenbuglione.registry.ingestion;
 
 import com.stevenbuglione.registry.eventing.CatalogArtifactChanged;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -18,8 +22,10 @@ public class IngestionEventRepository {
     this.objectMapper = objectMapper;
   }
 
-  public boolean claim(CatalogArtifactChanged event) {
-    return jdbc.sql(
+  @Transactional
+  public boolean claim(CatalogArtifactChanged event, Duration claimTimeout) {
+    var inserted =
+        jdbc.sql(
                 """
                         INSERT INTO ingestion_events (
                             event_id, idempotency_key, event_type, schema_version, package_digest,
@@ -30,13 +36,8 @@ public class IngestionEventRepository {
                             'processing', 1, :correlationId, :repository, :path,
                             CAST(:payload AS jsonb), now()
                         )
-                        ON CONFLICT (event_id) DO UPDATE SET
-                            status = 'processing',
-                            attempts = ingestion_events.attempts + 1,
-                            last_attempt_at = now(),
-                            error_code = NULL,
-                            error_detail = NULL
-                        WHERE ingestion_events.status IN ('failed', 'processing')
+                        ON CONFLICT DO NOTHING
+                        RETURNING 1
                         """)
             .param("eventId", event.eventId())
             .param("idempotencyKey", event.idempotencyKey())
@@ -46,6 +47,36 @@ public class IngestionEventRepository {
             .param("repository", event.repository())
             .param("path", event.path())
             .param("payload", json(event))
+            .query(Integer.class)
+            .optional()
+            .isPresent();
+    if (inserted) {
+      return true;
+    }
+    return jdbc.sql(
+                """
+                UPDATE ingestion_events
+                   SET status = 'processing',
+                       attempts = attempts + 1,
+                       last_attempt_at = now(),
+                       correlation_id = :correlationId,
+                       payload = CAST(:payload AS jsonb),
+                       completed_at = NULL,
+                       error_code = NULL,
+                       error_detail = NULL
+                 WHERE idempotency_key = :idempotencyKey
+                   AND (
+                       status = 'failed'
+                       OR (
+                           status = 'processing'
+                           AND last_attempt_at < :claimedBefore
+                       )
+                   )
+                """)
+            .param("idempotencyKey", event.idempotencyKey())
+            .param("correlationId", event.correlationId())
+            .param("payload", json(event))
+            .param("claimedBefore", Timestamp.from(Instant.now().minus(claimTimeout)))
             .update()
         == 1;
   }
@@ -56,9 +87,9 @@ public class IngestionEventRepository {
                         UPDATE ingestion_events
                            SET status = 'completed', package_digest = :digest,
                                completed_at = now(), error_code = NULL, error_detail = NULL
-                         WHERE event_id = :eventId
+                         WHERE idempotency_key = :idempotencyKey
                         """)
-        .param("eventId", event.eventId())
+        .param("idempotencyKey", event.idempotencyKey())
         .param("digest", digest)
         .update();
   }
@@ -69,9 +100,9 @@ public class IngestionEventRepository {
                         UPDATE ingestion_events
                            SET status = 'failed', error_code = :code, error_detail = :detail,
                                last_attempt_at = now()
-                         WHERE event_id = :eventId
+                         WHERE idempotency_key = :idempotencyKey
                         """)
-        .param("eventId", event.eventId())
+        .param("idempotencyKey", event.idempotencyKey())
         .param("code", failure.getClass().getSimpleName())
         .param("detail", truncate(failure.getMessage()))
         .update();
@@ -83,9 +114,9 @@ public class IngestionEventRepository {
                         UPDATE ingestion_events
                            SET status = 'quarantined', error_code = :code, error_detail = :detail,
                                completed_at = now(), last_attempt_at = now()
-                         WHERE event_id = :eventId
+                         WHERE idempotency_key = :idempotencyKey
                         """)
-        .param("eventId", event.eventId())
+        .param("idempotencyKey", event.idempotencyKey())
         .param("code", failure.code())
         .param("detail", truncate(failure.getMessage()))
         .update();
@@ -106,6 +137,43 @@ public class IngestionEventRepository {
         .update();
   }
 
+  public int recoverStaleClaims(Duration claimTimeout) {
+    return jdbc.sql(
+            """
+            UPDATE ingestion_events
+               SET status = 'failed',
+                   error_code = 'stale_claim_recovered',
+                   error_detail = 'Recovered stale ingestion claim',
+                   last_attempt_at = now()
+             WHERE status = 'processing'
+               AND last_attempt_at < :claimedBefore
+            """)
+        .param("claimedBefore", Timestamp.from(Instant.now().minus(claimTimeout)))
+        .update();
+  }
+
+  public RetentionResult purgeTerminalEvents(
+      Duration completedRetention, Duration quarantineRetention) {
+    var quarantine =
+        jdbc.sql(
+                """
+                DELETE FROM ingestion_quarantine
+                 WHERE quarantined_at < :quarantinedBefore
+                """)
+            .param("quarantinedBefore", Timestamp.from(Instant.now().minus(quarantineRetention)))
+            .update();
+    var completed =
+        jdbc.sql(
+                """
+                DELETE FROM ingestion_events
+                 WHERE status IN ('completed', 'quarantined')
+                   AND completed_at < :completedBefore
+                """)
+            .param("completedBefore", Timestamp.from(Instant.now().minus(completedRetention)))
+            .update();
+    return new RetentionResult(completed, quarantine);
+  }
+
   private String json(CatalogArtifactChanged event) {
     try {
       return objectMapper.writeValueAsString(event);
@@ -120,4 +188,6 @@ public class IngestionEventRepository {
     }
     return message.substring(0, Math.min(message.length(), 4_000));
   }
+
+  public record RetentionResult(int completed, int quarantine) {}
 }

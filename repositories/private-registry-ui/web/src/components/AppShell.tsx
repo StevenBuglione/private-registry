@@ -18,8 +18,10 @@ import {
 } from "@phosphor-icons/react";
 import { Fragment, type ReactNode, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
-import { ApiError, logout } from "../api";
-import { useCatalogEvents, useSession } from "../hooks";
+import { logout } from "../api/auth";
+import { ApiError } from "../api/client";
+import { useSession } from "../hooks/auth";
+import { useCatalogEvents } from "../hooks/catalog";
 import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
@@ -181,7 +183,7 @@ function HeaderActions() {
     setBusy(true);
     try {
       const target = await logout(session.csrfToken);
-      window.location.assign(target ?? session.logoutUrl ?? "/");
+      window.location.assign(target);
     } finally {
       setBusy(false);
     }

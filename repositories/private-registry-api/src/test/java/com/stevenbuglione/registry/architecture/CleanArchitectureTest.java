@@ -77,6 +77,15 @@ class CleanArchitectureTest {
           .resideInAnyPackage("..ingestion..", "..seed..");
 
   @ArchTest
+  static final ArchRule webAdaptersMustUseArtifactStoragePorts =
+      noClasses()
+          .that()
+          .resideInAPackage("..web..")
+          .should()
+          .dependOnClassesThat()
+          .resideInAPackage("..artifactory..");
+
+  @ArchTest
   static final ArchRule productionCodeMustNotUseAutowiredFields =
       noFields().should().beAnnotatedWith(Autowired.class);
 

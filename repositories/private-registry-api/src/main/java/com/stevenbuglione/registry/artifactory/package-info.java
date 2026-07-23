@@ -3,7 +3,9 @@
  *
  * <p>All Artifactory reads and writes must remain behind this module's public gateway.
  */
-@ApplicationModule(displayName = "Artifactory adapter", allowedDependencies = "config")
+@ApplicationModule(
+    displayName = "Artifactory adapter",
+    allowedDependencies = {"config", "storage"})
 @NullMarked
 package com.stevenbuglione.registry.artifactory;
 

@@ -34,9 +34,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^7.3.1",
-    "@fortawesome/free-solid-svg-icons": "^7.3.1",
-    "@fortawesome/react-fontawesome": "^3.5.0",
     "@headlessui/react": "^2.2.9",
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/vite": "^4.1.14",
@@ -95,8 +92,18 @@
   "size-limit": [
     {
       "name": "Initial application JavaScript",
+      "path": [
+        "dist/assets/index-*.js",
+        "dist/assets/icons-*.js",
+        "dist/assets/react-vendor-*.js",
+        "dist/assets/application-vendor-*.js"
+      ],
+      "limit": "180 kB"
+    },
+    {
+      "name": "Total application JavaScript",
       "path": "dist/assets/*.js",
-      "limit": "250 kB"
+      "limit": "240 kB"
     }
   ],
   "lint-staged": {

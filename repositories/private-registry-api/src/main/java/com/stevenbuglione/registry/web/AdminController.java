@@ -4,14 +4,12 @@ import com.stevenbuglione.registry.administration.AdminDashboardService;
 import com.stevenbuglione.registry.administration.AdminOperationsService;
 import com.stevenbuglione.registry.administration.SyncCredentialService;
 import com.stevenbuglione.registry.audit.AuditLogService;
-import com.stevenbuglione.registry.security.identity.AccessContext;
 import com.stevenbuglione.registry.security.identity.RegistryIdentityService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,57 +45,44 @@ public class AdminController {
   }
 
   @GetMapping("/dashboard")
-  public AdminDashboardService.Dashboard dashboard(Authentication authentication) {
-    requireAdministrator(authentication);
+  public AdminDashboardService.Dashboard dashboard() {
     return dashboards.dashboard();
   }
 
   @GetMapping("/operations")
   public List<AdminOperationsService.OperationalEvent> operations(
-      Authentication authentication, @RequestParam(defaultValue = "50") int limit) {
-    requireAdministrator(authentication);
+      @RequestParam(defaultValue = "50") int limit) {
     return operations.recent(limit);
   }
 
   @GetMapping("/audit-events")
   public List<AuditLogService.AuditEvent> auditEvents(
-      Authentication authentication,
       @RequestParam(defaultValue = "50") int limit,
       @RequestParam(required = false) @Nullable Instant before) {
-    requireAdministrator(authentication);
     return audit.recent(limit, before);
   }
 
   @GetMapping("/sync-credentials")
-  public List<SyncCredentialService.CredentialView> syncCredentials(Authentication authentication) {
-    requireAdministrator(authentication);
+  public List<SyncCredentialService.CredentialView> syncCredentials() {
     return credentials.list();
   }
 
   @PostMapping("/sync-credentials")
   public SyncCredentialService.CreatedCredential createSyncCredential(
       Authentication authentication, @RequestBody CreateSyncCredentialRequest request) {
-    var context = requireAdministrator(authentication);
+    var context = identities.accessContext(authentication);
     return credentials.create(request.toCommand(), context.subject());
   }
 
   @DeleteMapping("/sync-credentials/{id}")
   public SyncCredentialService.CredentialView revokeSyncCredential(
       Authentication authentication, @PathVariable UUID id) {
-    var context = requireAdministrator(authentication);
+    var context = identities.accessContext(authentication);
     try {
       return credentials.revoke(id, context.subject());
     } catch (SyncCredentialService.CredentialNotFoundException exception) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
     }
-  }
-
-  private AccessContext requireAdministrator(Authentication authentication) {
-    var context = identities.accessContext(authentication);
-    if (!context.registryAdmin()) {
-      throw new AccessDeniedException("Registry administrator access is required");
-    }
-    return context;
   }
 
   record CreateSyncCredentialRequest(String name, String scope, int expiresInDays) {

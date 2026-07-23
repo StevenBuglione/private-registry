@@ -2,6 +2,7 @@ package com.stevenbuglione.registry.ingestion;
 
 import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import com.stevenbuglione.registry.eventing.CatalogArtifactChanged;
+import com.stevenbuglione.registry.eventing.EventingProperties;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class CatalogIngestionService {
   private final DocumentStore documents;
   private final CatalogWriteRepository catalog;
   private final IngestionProperties properties;
+  private final EventingProperties eventing;
 
   public CatalogIngestionService(
       ArtifactoryGateway artifactory,
@@ -30,17 +32,19 @@ public class CatalogIngestionService {
       IngestionEventRepository events,
       DocumentStore documents,
       CatalogWriteRepository catalog,
-      IngestionProperties properties) {
+      IngestionProperties properties,
+      EventingProperties eventing) {
     this.artifactory = artifactory;
     this.objectMapper = objectMapper;
     this.events = events;
     this.documents = documents;
     this.catalog = catalog;
     this.properties = properties;
+    this.eventing = eventing;
   }
 
   public Outcome accept(CatalogArtifactChanged event) {
-    if (!events.claim(event)) {
+    if (!events.claim(event, eventing.claimTimeout())) {
       return Outcome.DUPLICATE;
     }
     try {

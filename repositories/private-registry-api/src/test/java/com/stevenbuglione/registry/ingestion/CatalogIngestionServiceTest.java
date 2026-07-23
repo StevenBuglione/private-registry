@@ -10,9 +10,11 @@ import static org.mockito.Mockito.when;
 
 import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import com.stevenbuglione.registry.eventing.CatalogArtifactChanged;
+import com.stevenbuglione.registry.eventing.EventingProperties;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +32,7 @@ import tools.jackson.databind.ObjectMapper;
 class CatalogIngestionServiceTest {
 
   private static final String CATALOG_REPOSITORY = "iac-catalog-release-local";
+  private static final Duration CLAIM_TIMEOUT = Duration.ofMinutes(5);
   private static final String PROVIDER_REPOSITORY = "iac-provider-release-local";
   private static final String MANIFEST_PATH =
       "v1/providers/hashicorp/null/3.2.4/catalog-manifest.json";
@@ -69,13 +72,19 @@ class CatalogIngestionServiceTest {
             16);
     service =
         new CatalogIngestionService(
-            artifactory, objectMapper, events, documents, catalog, properties);
+            artifactory,
+            objectMapper,
+            events,
+            documents,
+            catalog,
+            properties,
+            eventingProperties());
   }
 
   @Test
   void duplicateEventDoesNotReadOrStageArtifactoryState() {
     var duplicate = event("event-1", Instant.parse("2026-07-21T12:00:00Z"));
-    when(events.claim(duplicate)).thenReturn(false);
+    when(events.claim(duplicate, CLAIM_TIMEOUT)).thenReturn(false);
 
     assertThat(service.accept(duplicate)).isEqualTo(CatalogIngestionService.Outcome.DUPLICATE);
 
@@ -87,7 +96,7 @@ class CatalogIngestionServiceTest {
   void outOfOrderHintsAlwaysReReadAndStageCurrentArtifactoryState() {
     var manifest = manifestBytes();
     var manifestDigest = ContentDigest.sha256(manifest);
-    when(events.claim(any())).thenReturn(true);
+    when(events.claim(any(), eq(CLAIM_TIMEOUT))).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
             new ArtifactoryGateway.ArtifactMetadata(
@@ -145,7 +154,7 @@ class CatalogIngestionServiceTest {
             Instant.parse("2026-07-21T13:00:00Z"),
             "correlation-artifact",
             Map.of());
-    when(events.claim(artifactEvent)).thenReturn(true);
+    when(events.claim(artifactEvent, CLAIM_TIMEOUT)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
             new ArtifactoryGateway.ArtifactMetadata(
@@ -184,7 +193,7 @@ class CatalogIngestionServiceTest {
     var event = event("event-document-key", Instant.parse("2026-07-21T13:00:00Z"));
     var manifestBytes = manifestBytes();
     var manifest = currentManifestWithDocument();
-    when(events.claim(event)).thenReturn(true);
+    when(events.claim(event, CLAIM_TIMEOUT)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
             new ArtifactoryGateway.ArtifactMetadata(
@@ -259,7 +268,7 @@ class CatalogIngestionServiceTest {
             DOCUMENT_BYTES.length,
             "text/markdown",
             new String(DOCUMENT_BYTES, StandardCharsets.UTF_8));
-    when(events.claim(event)).thenReturn(true);
+    when(events.claim(event, CLAIM_TIMEOUT)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
             new ArtifactoryGateway.ArtifactMetadata(
@@ -319,7 +328,7 @@ class CatalogIngestionServiceTest {
     var unsafe = zipBytes("../escape", "unsafe");
     var unsafeDigest = ContentDigest.sha256(unsafe);
     var unsafeManifest = currentManifestWithDigest(unsafeDigest);
-    when(events.claim(event)).thenReturn(true);
+    when(events.claim(event, CLAIM_TIMEOUT)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
             new ArtifactoryGateway.ArtifactMetadata(
@@ -368,7 +377,7 @@ class CatalogIngestionServiceTest {
             Instant.parse("2026-07-21T12:00:00Z"),
             "correlation-unsafe",
             Map.of());
-    when(events.claim(unsafe)).thenReturn(true);
+    when(events.claim(unsafe, CLAIM_TIMEOUT)).thenReturn(true);
 
     assertThat(service.accept(unsafe)).isEqualTo(CatalogIngestionService.Outcome.QUARANTINED);
 
@@ -389,6 +398,18 @@ class CatalogIngestionServiceTest {
         occurredAt,
         "correlation-" + eventId,
         Map.of());
+  }
+
+  private static EventingProperties eventingProperties() {
+    return new EventingProperties(
+        true,
+        Duration.ofSeconds(30),
+        Duration.ofMinutes(1),
+        CLAIM_TIMEOUT,
+        25,
+        5,
+        Duration.ofDays(7),
+        Duration.ofDays(90));
   }
 
   private static byte[] manifestBytes() {
