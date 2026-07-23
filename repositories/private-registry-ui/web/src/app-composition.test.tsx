@@ -163,6 +163,7 @@ beforeEach(() => {
       notificationTitle: "Registry notice",
       notificationMessage: "Terraform catalog content.",
       featuredProviderIds: ["provider/hashicorp/aws"],
+      featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
       updatedAt: "2026-07-22T12:00:00Z",
     },
     isPending: false,
@@ -368,7 +369,9 @@ describe("application composition", () => {
     await user.click(screen.getByRole("button", { name: /Ada Lovelace/i }));
     await user.click(screen.getByRole("menuitem", { name: "Admin settings" }));
     expect(
-      screen.getByRole("heading", { name: "Settings and operations" }),
+      screen.getByRole("heading", {
+        name: "Registry settings and operations",
+      }),
     ).toBeVisible();
     expect(screen.getByText("Registry systems are healthy")).toBeVisible();
     expect(screen.getByText("12,400")).toBeVisible();
@@ -380,7 +383,7 @@ describe("application composition", () => {
     const message = screen.getByRole("textbox", { name: "Message" });
     await user.clear(message);
     await user.type(message, "The catalog will be read-only tonight.");
-    await user.click(screen.getByRole("checkbox", { name: "Enabled" }));
+    await user.click(screen.getByRole("checkbox", { name: "Visible" }));
     await user.type(
       screen.getByRole("textbox", { name: "Link label (optional)" }),
       "Status",
@@ -389,8 +392,17 @@ describe("application composition", () => {
       screen.getByRole("textbox", { name: "HTTPS or Registry-relative URL" }),
       "/status",
     );
-    await user.click(screen.getByRole("checkbox", { name: /awshashicorp/i }));
-    await user.click(screen.getByRole("button", { name: "Save homepage" }));
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search providers" }),
+      "aws",
+    );
+    await user.click(screen.getByRole("button", { name: /hashicorp\/aws/i }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Remove module/terraform-aws-modules/iam/aws",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -400,6 +412,7 @@ describe("application composition", () => {
         notificationLinkLabel: "Status",
         notificationLinkUrl: "/status",
         featuredProviderIds: [],
+        featuredModuleIds: [],
       }),
     );
 
@@ -593,6 +606,34 @@ describe("application composition", () => {
     expect(screen.queryByText(/APM group/i)).toBeNull();
   });
 
+  it("does not replace an intentionally empty featured catalog", () => {
+    hookMocks.useHomepageSettings.mockReturnValue({
+      data: {
+        notificationEnabled: true,
+        notificationTitle: "Registry notice",
+        notificationMessage: "Terraform catalog content.",
+        featuredProviderIds: [],
+        featuredModuleIds: [],
+        updatedAt: "2026-07-23T12:00:00Z",
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderWithRegistry(<HomePage />);
+
+    expect(screen.queryByRole("link", { name: /AWSby HashiCorp/i })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: /terraform-aws-modules/i }),
+    ).toBeNull();
+    expect(
+      screen.getAllByRole("heading", {
+        name: "No packages match these filters",
+      }),
+    ).toHaveLength(2);
+  });
+
   it("renders home loading, empty, error, and administrator states truthfully", () => {
     hookMocks.useCatalogPage.mockReturnValueOnce({
       data: undefined,
@@ -629,7 +670,7 @@ describe("application composition", () => {
     const loading = renderWithRegistry(<HomePage />);
     expect(
       loading.container.querySelectorAll(".source-card-skeleton"),
-    ).toHaveLength(6);
+    ).toHaveLength(9);
     loading.unmount();
 
     hookMocks.useCatalogPage.mockReturnValue(
@@ -642,10 +683,10 @@ describe("application composition", () => {
       screen.getAllByRole("heading", {
         name: "No packages match these filters",
       }),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   });
 
-  it("updates Terraform-style module filters and cursor pagination", async () => {
+  it("updates Terraform-style module filters and URL pagination", async () => {
     const user = userEvent.setup();
     hookMocks.useCatalogPage.mockReturnValue(
       queryResult({

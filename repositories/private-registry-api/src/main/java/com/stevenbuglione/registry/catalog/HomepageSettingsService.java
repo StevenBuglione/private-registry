@@ -15,8 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class HomepageSettingsService {
 
   private static final int MAX_FEATURED_PROVIDERS = 6;
+  private static final int MAX_FEATURED_MODULES = 6;
   private static final Pattern PROVIDER_ID =
       Pattern.compile("provider/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+");
+  private static final Pattern MODULE_ID =
+      Pattern.compile("module/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+");
 
   private final JdbcClient jdbc;
   private final AuditLogService audit;
@@ -35,6 +38,7 @@ public class HomepageSettingsService {
                    notification_link_label,
                    notification_link_url,
                    featured_provider_ids,
+                   featured_module_ids,
                    updated_at
               FROM registry_homepage_settings
              WHERE id = 1
@@ -47,7 +51,8 @@ public class HomepageSettingsService {
                     resultSet.getString("notification_message"),
                     resultSet.getString("notification_link_label"),
                     resultSet.getString("notification_link_url"),
-                    splitProviderIds(resultSet.getString("featured_provider_ids")),
+                    splitIds(resultSet.getString("featured_provider_ids")),
+                    splitIds(resultSet.getString("featured_module_ids")),
                     resultSet.getTimestamp("updated_at").toInstant()))
         .single();
   }
@@ -65,6 +70,7 @@ public class HomepageSettingsService {
                    notification_link_label = :notificationLinkLabel,
                    notification_link_url = :notificationLinkUrl,
                    featured_provider_ids = :featuredProviderIds,
+                   featured_module_ids = :featuredModuleIds,
                    updated_by = :updatedBy,
                    updated_at = now()
              WHERE id = 1
@@ -75,6 +81,7 @@ public class HomepageSettingsService {
         .param("notificationLinkLabel", normalized.notificationLinkLabel())
         .param("notificationLinkUrl", normalized.notificationLinkUrl())
         .param("featuredProviderIds", String.join(",", normalized.featuredProviderIds()))
+        .param("featuredModuleIds", String.join(",", normalized.featuredModuleIds()))
         .param("updatedBy", actorSubject)
         .update();
     var after = get();
@@ -104,7 +111,18 @@ public class HomepageSettingsService {
         message,
         linkLabel,
         linkUrl,
-        validateProviderIds(update.featuredProviderIds()));
+        validatePackageIds(
+            update.featuredProviderIds(),
+            PROVIDER_ID,
+            MAX_FEATURED_PROVIDERS,
+            "providers",
+            "provider/namespace/name"),
+        validatePackageIds(
+            update.featuredModuleIds(),
+            MODULE_ID,
+            MAX_FEATURED_MODULES,
+            "modules",
+            "module/namespace/name/provider"));
   }
 
   private static void validateLink(@Nullable String linkLabel, @Nullable String linkUrl) {
@@ -120,20 +138,26 @@ public class HomepageSettingsService {
     }
   }
 
-  private static List<String> validateProviderIds(List<String> requestedProviderIds) {
-    var providerIds = new LinkedHashSet<String>();
-    for (var providerId : requestedProviderIds) {
-      var normalized = providerId.trim();
-      if (!PROVIDER_ID.matcher(normalized).matches()) {
+  private static List<String> validatePackageIds(
+      List<String> requestedIds,
+      Pattern pattern,
+      int maximum,
+      String packageLabel,
+      String expectedFormat) {
+    var packageIds = new LinkedHashSet<String>();
+    for (var packageId : requestedIds) {
+      var normalized = packageId.trim();
+      if (!pattern.matcher(normalized).matches()) {
         throw new IllegalArgumentException(
-            "Featured providers must use provider/namespace/name IDs");
+            "Featured " + packageLabel + " must use " + expectedFormat + " IDs");
       }
-      providerIds.add(normalized);
+      packageIds.add(normalized);
     }
-    if (providerIds.size() > MAX_FEATURED_PROVIDERS) {
-      throw new IllegalArgumentException("No more than six featured providers may be selected");
+    if (packageIds.size() > maximum) {
+      throw new IllegalArgumentException(
+          "No more than six featured " + packageLabel + " may be selected");
     }
-    return List.copyOf(providerIds);
+    return List.copyOf(packageIds);
   }
 
   private static String requiredText(String value, String label, int maxLength) {
@@ -159,7 +183,7 @@ public class HomepageSettingsService {
     return normalized;
   }
 
-  private static List<String> splitProviderIds(String value) {
+  private static List<String> splitIds(String value) {
     if (value.isBlank()) {
       return List.of();
     }
@@ -176,10 +200,12 @@ public class HomepageSettingsService {
       String notificationMessage,
       @Nullable String notificationLinkLabel,
       @Nullable String notificationLinkUrl,
-      List<String> featuredProviderIds) {
+      List<String> featuredProviderIds,
+      List<String> featuredModuleIds) {
 
     public Update {
       featuredProviderIds = List.copyOf(featuredProviderIds);
+      featuredModuleIds = List.copyOf(featuredModuleIds);
     }
   }
 }

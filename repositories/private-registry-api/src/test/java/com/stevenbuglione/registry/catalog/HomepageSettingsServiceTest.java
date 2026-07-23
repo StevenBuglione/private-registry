@@ -68,6 +68,12 @@ class HomepageSettingsServiceTest {
   private static HomepageSettingsService.Update update(
       @Nullable String linkLabel, @Nullable String linkUrl, List<String> providerIds) {
     return new HomepageSettingsService.Update(
-        true, "Registry notice", "Approved content is available.", linkLabel, linkUrl, providerIds);
+        true,
+        "Registry notice",
+        "Approved content is available.",
+        linkLabel,
+        linkUrl,
+        providerIds,
+        List.of("module/terraform-aws-modules/iam/aws"));
   }
 }

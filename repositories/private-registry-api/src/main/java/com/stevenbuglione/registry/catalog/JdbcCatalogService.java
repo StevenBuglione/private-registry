@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -114,12 +115,18 @@ public class JdbcCatalogService implements CatalogService {
     var filters = filters(accessContext, query);
     var sql = new StringBuilder(PACKAGE_SELECT).append(filters.sql());
     var parameters = new HashMap<>(filters.parameters());
-    appendCursor(sql, parameters, query);
+    if (query.page() == 0) {
+      appendCursor(sql, parameters, query);
+    }
     sql.append(orderBy(query.sort())).append(" LIMIT :pageSize");
-    parameters.put("pageSize", query.limit() + 1);
+    parameters.put("pageSize", query.page() == 0 ? query.limit() + 1 : query.limit());
+    if (query.page() > 0) {
+      sql.append(" OFFSET :pageOffset");
+      parameters.put("pageOffset", query.offset());
+    }
 
     var rows = jdbc.sql(sql.toString()).params(parameters).query(this::mapPackageRow).list();
-    var hasNext = rows.size() > query.limit();
+    var hasNext = query.page() == 0 && rows.size() > query.limit();
     var pageRows = hasNext ? rows.subList(0, query.limit()) : rows;
     var items = enrich(pageRows);
     var nextCursor = hasNext ? encodeCursor(query, pageRows.getLast()) : null;
@@ -132,6 +139,30 @@ public class JdbcCatalogService implements CatalogService {
         accessContext,
         new CatalogQuery(
             new CatalogQuery.Criteria(null, kind, null, null, null, "updated", null, 1, null)));
+  }
+
+  @Override
+  public List<String> filterAccessiblePackageIds(
+      AccessContext accessContext, List<String> packageIds) {
+    if (packageIds.isEmpty()) {
+      return List.of();
+    }
+    var authorization = authorizationFilters(accessContext);
+    var accessible =
+        Set.copyOf(
+            jdbc.sql(
+                    "SELECT "
+                        + PUBLIC_ID
+                        + " AS public_id FROM packages p"
+                        + authorization.sql()
+                        + " AND ("
+                        + PUBLIC_ID
+                        + ") IN (:packageIds)")
+                .params(authorization.parameters())
+                .param("packageIds", packageIds)
+                .query(String.class)
+                .list());
+    return packageIds.stream().filter(accessible::contains).toList();
   }
 
   @Override

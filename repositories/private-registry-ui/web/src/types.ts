@@ -24,6 +24,7 @@ export interface HomepageSettings {
   notificationLinkLabel?: string | undefined;
   notificationLinkUrl?: string | undefined;
   featuredProviderIds: string[];
+  featuredModuleIds: string[];
   updatedAt: string;
 }
 
@@ -105,6 +106,7 @@ export interface CatalogQuery {
   category?: string | undefined;
   sort?: "relevance" | "updated" | "name" | "downloads" | undefined;
   cursor?: string | undefined;
+  page?: number | undefined;
   limit?: number | undefined;
 }
 

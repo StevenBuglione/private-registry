@@ -252,6 +252,7 @@ export async function updateHomepageSettings(
       notification_link_label: update.notificationLinkLabel,
       notification_link_url: update.notificationLinkUrl,
       featured_provider_ids: update.featuredProviderIds,
+      featured_module_ids: update.featuredModuleIds,
     }),
   });
   return normalizeHomepageSettings(raw);
@@ -269,6 +270,7 @@ export async function getCatalogPage(
   addParam(params, "category", query.category);
   addParam(params, "sort", query.sort);
   addParam(params, "cursor", query.cursor);
+  addParam(params, "page", query.page?.toString());
   addParam(params, "limit", query.limit?.toString());
 
   const raw = await request(
@@ -801,6 +803,9 @@ function normalizeHomepageSettings(raw: JsonObject): HomepageSettings {
     ),
     featuredProviderIds: stringList(
       raw["featuredProviderIds"] ?? raw["featured_provider_ids"],
+    ),
+    featuredModuleIds: stringList(
+      raw["featuredModuleIds"] ?? raw["featured_module_ids"],
     ),
     updatedAt: firstString(raw["updatedAt"], raw["updated_at"]),
   };

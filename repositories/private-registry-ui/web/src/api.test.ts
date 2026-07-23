@@ -38,6 +38,7 @@ describe("OpenAPI response normalization", () => {
       tier: "official,partner",
       category: "public-cloud,networking",
       provider: "aws,azure",
+      page: 2,
       limit: 50,
     });
 
@@ -55,6 +56,7 @@ describe("OpenAPI response normalization", () => {
     expect(url.searchParams.get("namespace")).toBe("hashicorp");
     expect(url.searchParams.get("category")).toBe("public-cloud,networking");
     expect(url.searchParams.get("provider")).toBe("aws,azure");
+    expect(url.searchParams.get("page")).toBe("2");
     expect(url.searchParams.get("limit")).toBe("50");
   });
 
@@ -113,6 +115,7 @@ describe("OpenAPI response normalization", () => {
           notification_title: "Registry notice",
           notification_message: "Terraform packages are available.",
           featured_provider_ids: ["provider/hashicorp/aws"],
+          featured_module_ids: ["module/terraform-aws-modules/iam/aws"],
           updated_at: "2026-07-22T12:00:00Z",
         }),
       ),
@@ -124,6 +127,7 @@ describe("OpenAPI response normalization", () => {
       notificationEnabled: true,
       notificationTitle: "Registry notice",
       featuredProviderIds: ["provider/hashicorp/aws"],
+      featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
     });
 
     await updateHomepageSettings(
@@ -132,6 +136,7 @@ describe("OpenAPI response normalization", () => {
         notificationTitle: "Maintenance",
         notificationMessage: "The catalog is read-only.",
         featuredProviderIds: [],
+        featuredModuleIds: [],
       },
       "csrf-value",
     );
@@ -151,6 +156,7 @@ describe("OpenAPI response normalization", () => {
       notification_title: "Maintenance",
       notification_message: "The catalog is read-only.",
       featured_provider_ids: [],
+      featured_module_ids: [],
     });
   });
 

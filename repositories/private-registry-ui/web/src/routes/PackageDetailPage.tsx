@@ -30,7 +30,6 @@ import { VerificationBadge } from "../components/Badges";
 import { PackageIcon } from "../components/PackageIcon";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage, usePackage, usePackageDocumentation } from "../hooks";
-import { runtimeConfig } from "../runtime-config";
 import type {
   DownloadStatistics,
   PackageDetail,
@@ -122,7 +121,7 @@ export function PackageDetailPage({
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
   const installSnippet =
     moduleChildKind === undefined || !hasText(moduleChildName)
-      ? buildInstallSnippet(item, runtimeConfig().jfrogHostname)
+      ? buildInstallSnippet(item)
       : buildModuleChildInstallSnippet(item, moduleChildKind, moduleChildName);
   const providerSnippet = buildProviderConfigurationSnippet(item);
   const sourceRepository = safeExternalUrl(item.sourceRepository);
@@ -1918,7 +1917,7 @@ function InstallPanel({
       <h2>
         {kind === "provider"
           ? "How to use this provider"
-          : "Provision instructions"}
+          : "Provision Instructions"}
       </h2>
       <p>
         {kind === "provider" ? (
@@ -1933,13 +1932,21 @@ function InstallPanel({
           </>
         )}
       </p>
-      {kind === "provider" ? <strong>Terraform 0.13+</strong> : null}
-      <pre>
-        <code>{snippet}</code>
-      </pre>
+      {kind === "provider" ? (
+        <div className="source-install-code">
+          <strong>Terraform 0.13+</strong>
+          <pre>
+            <code>{snippet}</code>
+          </pre>
+        </div>
+      ) : (
+        <pre>
+          <code>{snippet}</code>
+        </pre>
+      )}
       <button type="button" onClick={() => void copy()}>
         {copied ? <CheckIcon size={16} /> : <ClipboardIcon size={16} />}
-        {copied ? "Copied" : "Copy"}
+        {copied ? "Copied" : kind === "module" ? "Copy configuration" : "Copy"}
       </button>
       {hasText(artifactLabel) ? (
         <small className="artifact-source-note">
@@ -1967,34 +1974,20 @@ provider "${item.name}" {
 
 function buildInstallSnippet(
   item: NonNullable<ReturnType<typeof usePackage>["data"]>,
-  jfrogHostname: string,
 ): string {
-  const jfrogBase = /^https?:\/\//i.test(jfrogHostname)
-    ? jfrogHostname.replace(/\/$/, "")
-    : `https://${jfrogHostname || "artifactory.internal"}`;
-  const artifactUrl =
-    hasText(item.artifactRepository) && hasText(item.artifactPath)
-      ? `${jfrogBase}/artifactory/${item.artifactRepository}/${item.artifactPath}`
-      : undefined;
   if (item.kind === "provider") {
-    const source = `registry.terraform.io/${item.namespace}/${item.name}`;
-    const filename =
-      item.artifactPath?.split("/").at(-1) ??
-      `terraform-provider-${item.name}_${item.version}_linux_amd64.zip`;
-    const mirrorDirectory = `.terraform/providers/${source}`;
-    const download = hasText(artifactUrl)
-      ? `mkdir -p "${mirrorDirectory}"\ncurl --fail --location --header "Authorization: Bearer $JFROG_ACCESS_TOKEN" "${artifactUrl}" --output "${mirrorDirectory}/${filename}"`
-      : `# Resolve the mirrored archive in Artifactory before installing ${source}.`;
-    const checksum = item.packageDigest?.replace(/^sha256:/, "");
-    return `${download}${
-      hasText(checksum)
-        ? `\necho "${checksum}  ${mirrorDirectory}/${filename}" | sha256sum --check`
-        : ""
-    }\n\n# Add this mirror to ~/.terraformrc\nprovider_installation {\n  filesystem_mirror {\n    path    = ".terraform/providers"\n    include = ["${source}"]\n  }\n}\n\nterraform {\n  required_providers {\n    ${item.name} = {\n      source  = "${source}"\n      version = "${item.version}"\n    }\n  }\n}`;
+    return buildProviderConfigurationSnippet(item);
   }
-  const source =
-    artifactUrl ?? item.installSource ?? "ARTIFACTORY_URL_REQUIRED";
-  return `module "${item.name.replaceAll("-", "_")}" {\n  # The immutable version is pinned in the Artifactory path.\n  source = "${source}"\n}`;
+  const requiredVariables = item.symbols.filter(
+    (symbol) => symbol.kind === "input" && symbol.required === true,
+  ).length;
+  const source = `${item.namespace}/${item.name}/${item.target ?? item.provider}`;
+  return `module "${item.name}" {
+  source  = "${source}"
+  version = "${item.version}"
+
+  # insert the ${String(requiredVariables)} required variables here
+}`;
 }
 
 function buildModuleChildInstallSnippet(

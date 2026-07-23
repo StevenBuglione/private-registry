@@ -11,9 +11,11 @@ public record HomepageSettings(
     @Nullable String notificationLinkLabel,
     @Nullable String notificationLinkUrl,
     List<String> featuredProviderIds,
+    List<String> featuredModuleIds,
     Instant updatedAt) {
 
   public HomepageSettings {
     featuredProviderIds = List.copyOf(featuredProviderIds);
+    featuredModuleIds = List.copyOf(featuredModuleIds);
   }
 }

@@ -3,6 +3,7 @@ package com.stevenbuglione.registry.catalog;
 import com.stevenbuglione.registry.model.PackageKind;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
@@ -40,8 +41,13 @@ public final class CatalogQuery {
   private final String sort;
   private final @Nullable String cursor;
   private final int limit;
+  private final int page;
 
   public CatalogQuery(Criteria criteria) {
+    this(criteria, null);
+  }
+
+  public CatalogQuery(Criteria criteria, @Nullable Integer page) {
     this.q = normalize(criteria.q());
     this.kind = criteria.kind();
     this.namespace = normalizeNamespace(criteria.namespace());
@@ -52,6 +58,7 @@ public final class CatalogQuery {
     this.sort = normalizeSort(criteria.sort(), this.q);
     this.cursor = normalize(criteria.cursor());
     this.limit = criteria.limit() <= 0 ? 25 : Math.min(criteria.limit(), 100);
+    this.page = Objects.requireNonNullElse(page, 0);
   }
 
   public @Nullable String q() {
@@ -88,6 +95,14 @@ public final class CatalogQuery {
 
   public int limit() {
     return limit;
+  }
+
+  public int page() {
+    return page;
+  }
+
+  public int offset() {
+    return page == 0 ? 0 : Math.multiplyExact(page - 1, limit);
   }
 
   private static @Nullable String normalize(@Nullable String value) {

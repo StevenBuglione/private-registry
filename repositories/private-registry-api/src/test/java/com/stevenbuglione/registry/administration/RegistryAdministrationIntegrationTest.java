@@ -245,7 +245,8 @@ class RegistryAdministrationIntegrationTest {
                 "The Registry will remain readable.",
                 "Status",
                 "/status",
-                List.of("provider/hashicorp/aws")),
+                List.of("provider/hashicorp/aws"),
+                List.of("module/terraform-aws-modules/iam/aws")),
             "admin-home");
 
     assertThat(updated.notificationTitle()).isEqualTo("Planned maintenance");
@@ -256,5 +257,7 @@ class RegistryAdministrationIntegrationTest {
     assertThat(event.detail().path("after").path("notificationTitle").stringValue())
         .isEqualTo("Planned maintenance");
     assertThat(Set.copyOf(updated.featuredProviderIds())).containsExactly("provider/hashicorp/aws");
+    assertThat(Set.copyOf(updated.featuredModuleIds()))
+        .containsExactly("module/terraform-aws-modules/iam/aws");
   }
 }

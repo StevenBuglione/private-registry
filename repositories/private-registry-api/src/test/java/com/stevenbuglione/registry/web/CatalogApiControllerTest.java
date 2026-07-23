@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -55,7 +56,9 @@ class CatalogApiControllerTest {
 
   @BeforeEach
   void setUp() {
-    when(identities.accessContext(nullable(Authentication.class))).thenReturn(accessContext);
+    lenient()
+        .when(identities.accessContext(nullable(Authentication.class)))
+        .thenReturn(accessContext);
     var json =
         JsonMapper.builder()
             .addMixIn(
@@ -107,6 +110,7 @@ class CatalogApiControllerTest {
                 .queryParam("tier", "partner")
                 .queryParam("category", "public-cloud,networking")
                 .queryParam("sort", "name")
+                .queryParam("page", "2")
                 .queryParam("limit", "30"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.total").value(17))
@@ -127,6 +131,8 @@ class CatalogApiControllerTest {
     assertThat(query.getValue().categories()).containsExactly("public-cloud", "networking");
     assertThat(query.getValue().sort()).isEqualTo("name");
     assertThat(query.getValue().limit()).isEqualTo(30);
+    assertThat(query.getValue().page()).isEqualTo(2);
+    assertThat(query.getValue().offset()).isEqualTo(30);
   }
 
   @Test
@@ -138,6 +144,18 @@ class CatalogApiControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("not_found"))
         .andExpect(jsonPath("$.error.message").value("Package not found"));
+  }
+
+  @Test
+  void rejectsInvalidOrAmbiguousPageRequests() throws Exception {
+    mvc.perform(
+            get("/api/v1/catalog/packages").queryParam("page", "2").queryParam("cursor", "opaque"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("bad_request"));
+
+    mvc.perform(get("/api/v1/catalog/packages").queryParam("page", "0"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("bad_request"));
   }
 
   @Test

@@ -46,7 +46,9 @@ public class CatalogApiController {
       @RequestParam(required = false) @Nullable String category,
       @RequestParam(defaultValue = "updated") String sort,
       @RequestParam(required = false) @Nullable String cursor,
+      @RequestParam(required = false) @Nullable Integer page,
       @RequestParam(defaultValue = "25") int limit) {
+    validatePagination(cursor, page);
     var context = identities.accessContext(authentication);
     return catalog.findPackages(
         context,
@@ -60,7 +62,17 @@ public class CatalogApiController {
                 sort,
                 cursor,
                 limit,
-                namespace)));
+                namespace),
+            page));
+  }
+
+  private static void validatePagination(@Nullable String cursor, @Nullable Integer page) {
+    if (cursor != null && page != null) {
+      throw new IllegalArgumentException("cursor and page cannot be combined");
+    }
+    if (page != null && (page < 1 || page > 10_000)) {
+      throw new IllegalArgumentException("page must be between 1 and 10000");
+    }
   }
 
   @GetMapping("/counts")

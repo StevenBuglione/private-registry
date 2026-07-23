@@ -2,7 +2,6 @@ import {
   ActivityIcon,
   ArrowClockwiseIcon,
   ChartBarIcon,
-  GearIcon,
   HouseLineIcon,
   KeyIcon,
   ListMagnifyingGlassIcon,
@@ -70,15 +69,12 @@ export function AdminSettingsPage() {
     <div className="admin-page">
       <header className="admin-page-header">
         <div className="page-shell">
-          <div className="admin-title-icon">
-            <GearIcon size={23} weight="fill" />
-          </div>
           <div>
-            <span>Registry administration</span>
-            <h1>Settings and operations</h1>
+            <span>Administration</span>
+            <h1>Registry settings and operations</h1>
             <p>
-              Configure the public experience, monitor ingestion, and manage
-              automation access.
+              Curate the signed-in experience, manage automation access, monitor
+              ingestion, and review administrator activity.
             </p>
           </div>
         </div>

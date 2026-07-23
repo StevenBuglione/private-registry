@@ -4,6 +4,7 @@ import com.stevenbuglione.registry.model.CatalogPackage;
 import com.stevenbuglione.registry.model.Governance;
 import com.stevenbuglione.registry.model.PackageKind;
 import com.stevenbuglione.registry.security.identity.AccessContext;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 public interface CatalogService {
@@ -11,6 +12,8 @@ public interface CatalogService {
   CatalogPage<CatalogPackage> findPackages(AccessContext accessContext, CatalogQuery query);
 
   long countPackages(AccessContext accessContext, PackageKind kind);
+
+  List<String> filterAccessiblePackageIds(AccessContext accessContext, List<String> packageIds);
 
   CatalogPackage getPackage(AccessContext accessContext, String id);
 

@@ -46,26 +46,8 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     params["namespace"] ?? searchParams.get("namespace") ?? undefined;
   const q = searchParams.get("q") ?? "";
   const sort = q ? "relevance" : "updated";
-  const pageSize = effectiveKind === "module" ? 9 : 50;
-  const cursorScope = [
-    q,
-    effectiveKind,
-    namespace,
-    filters.provider,
-    filters.tier,
-    filters.category,
-    sort,
-  ].join("|");
-  const [cursorState, setCursorState] = useState<{
-    scope: string;
-    values: string[];
-  }>({ scope: cursorScope, values: [] });
-  if (cursorState.scope !== cursorScope) {
-    setCursorState({ scope: cursorScope, values: [] });
-  }
-  const cursorHistory =
-    cursorState.scope === cursorScope ? cursorState.values : [];
-  const cursor = cursorHistory.at(-1);
+  const pageSize = 9;
+  const pageNumber = positiveIntegerParam(searchParams.get("page"));
   const result = useCatalogPage({
     q,
     kind: effectiveKind,
@@ -74,16 +56,15 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     tier: filters.tier,
     category: filters.category,
     sort,
-    cursor,
+    page: pageNumber,
     limit: pageSize,
   });
-  const nextCursor = result.data?.nextCursor;
-  const pageNumber = cursorHistory.length + 1;
 
   const updateParam = (key: string, value?: string) => {
     const next = new URLSearchParams(searchParams);
     if (hasText(value)) next.set(key, value);
     else next.delete(key);
+    next.delete("page");
     setSearchParams(next, { replace: true });
   };
   const updateFilter = <K extends keyof FilterState>(
@@ -189,21 +170,12 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
               pageSize={pageSize}
               itemCount={result.data?.items.length ?? 0}
               total={result.data?.total ?? 0}
-              hasPrevious={cursorHistory.length > 0}
-              hasNext={hasText(nextCursor)}
-              onPrevious={() => {
-                setCursorState((state) => ({
-                  ...state,
-                  values: state.values.slice(0, -1),
-                }));
-              }}
-              onNext={() => {
-                if (hasText(nextCursor)) {
-                  setCursorState((state) => ({
-                    ...state,
-                    values: [...state.values, nextCursor],
-                  }));
-                }
+              onPageChange={(page) => {
+                const next = new URLSearchParams(searchParams);
+                if (page === 1) next.delete("page");
+                else next.set("page", String(page));
+                setSearchParams(next);
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             />
           ) : null}
@@ -298,22 +270,18 @@ function CatalogPagination({
   pageSize,
   itemCount,
   total,
-  hasPrevious,
-  hasNext,
-  onPrevious,
-  onNext,
+  onPageChange,
 }: {
   pageNumber: number;
   pageSize: number;
   itemCount: number;
   total: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
+  onPageChange: (page: number) => void;
 }) {
   const first = (pageNumber - 1) * pageSize + 1;
   const last = first + itemCount - 1;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pages = paginationItems(pageNumber, totalPages);
   return (
     <div className="catalog-pagination-row">
       <span className="catalog-result-count">
@@ -322,17 +290,47 @@ function CatalogPagination({
       <nav className="pagination" aria-label="Catalog pages">
         <button
           type="button"
-          disabled={!hasPrevious}
-          onClick={onPrevious}
+          disabled={pageNumber <= 1}
+          onClick={() => {
+            onPageChange(pageNumber - 1);
+          }}
           aria-label="Previous page"
         >
           <CaretLeftIcon size={16} />
         </button>
-        <span aria-current="page">{pageNumber}</span>
+        <ol>
+          {pages.map((page, index) =>
+            page === "ellipsis" ? (
+              <li
+                className="pagination-ellipsis"
+                aria-hidden="true"
+                key={`ellipsis-${String(index)}`}
+              >
+                …
+              </li>
+            ) : (
+              <li key={page}>
+                <button
+                  type="button"
+                  className={page === pageNumber ? "active" : ""}
+                  aria-current={page === pageNumber ? "page" : undefined}
+                  aria-label={`Page ${String(page)}`}
+                  onClick={() => {
+                    onPageChange(page);
+                  }}
+                >
+                  {page}
+                </button>
+              </li>
+            ),
+          )}
+        </ol>
         <button
           type="button"
-          disabled={!hasNext}
-          onClick={onNext}
+          disabled={pageNumber >= totalPages}
+          onClick={() => {
+            onPageChange(pageNumber + 1);
+          }}
           aria-label="Next page"
         >
           <CaretRightIcon size={16} />
@@ -340,6 +338,22 @@ function CatalogPagination({
       </nav>
     </div>
   );
+}
+
+function paginationItems(
+  current: number,
+  total: number,
+): (number | "ellipsis")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, "ellipsis", total - 1, total];
+  }
+  if (current >= total - 3) {
+    return [1, 2, "ellipsis", total - 3, total - 2, total - 1, total];
+  }
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
 }
 
 function providerTier(
@@ -386,4 +400,12 @@ function csvParam(
     .split(",")
     .filter((candidate) => allowed.includes(candidate));
   return values.length > 0 ? [...new Set(values)].join(",") : undefined;
+}
+
+function positiveIntegerParam(value: string | null): number {
+  if (value === null) return 1;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= 10_000
+    ? parsed
+    : 1;
 }

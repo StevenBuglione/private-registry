@@ -26,3 +26,8 @@ Object.defineProperty(globalThis, "ResizeObserver", {
     disconnect(): void {}
   },
 });
+
+Object.defineProperty(window, "scrollTo", {
+  writable: true,
+  value: () => undefined,
+});

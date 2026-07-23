@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.stevenbuglione.registry.catalog.CatalogService;
 import com.stevenbuglione.registry.catalog.HomepageSettings;
 import com.stevenbuglione.registry.catalog.HomepageSettingsService;
 import com.stevenbuglione.registry.security.identity.AccessContext;
@@ -22,17 +23,28 @@ import org.springframework.security.core.Authentication;
 class HomepageSettingsControllerTest {
 
   private final HomepageSettingsService settings = mock(HomepageSettingsService.class);
+  private final CatalogService catalog = mock(CatalogService.class);
   private final RegistryIdentityService identities = mock(RegistryIdentityService.class);
   private final Authentication authentication = mock(Authentication.class);
   private final HomepageSettingsController controller =
-      new HomepageSettingsController(settings, identities);
+      new HomepageSettingsController(settings, catalog, identities);
 
   @Test
   void returnsHomepageSettingsToAuthenticatedUsers() {
     var expected = settings();
     when(settings.get()).thenReturn(expected);
+    when(identities.accessContext(authentication))
+        .thenReturn(new AccessContext("member-subject", Set.of("APM0000001"), false));
+    when(catalog.filterAccessiblePackageIds(any(), eq(List.of("provider/hashicorp/aws"))))
+        .thenReturn(List.of("provider/hashicorp/aws"));
+    when(catalog.filterAccessiblePackageIds(
+            any(), eq(List.of("module/terraform-aws-modules/iam/aws"))))
+        .thenReturn(List.of());
 
-    assertThat(controller.get()).isEqualTo(expected);
+    var filtered = controller.get(authentication);
+
+    assertThat(filtered.featuredProviderIds()).containsExactly("provider/hashicorp/aws");
+    assertThat(filtered.featuredModuleIds()).isEmpty();
   }
 
   @Test
@@ -48,7 +60,8 @@ class HomepageSettingsControllerTest {
             "Approved content is available.",
             null,
             null,
-            List.of("provider/hashicorp/aws"));
+            List.of("provider/hashicorp/aws"),
+            List.of("module/terraform-aws-modules/iam/aws"));
 
     assertThat(controller.update(authentication, request)).isEqualTo(expected);
     verify(settings).update(any(), eq("admin-subject"));
@@ -65,7 +78,8 @@ class HomepageSettingsControllerTest {
             "Approved content is available.",
             null,
             null,
-            List.of("provider/hashicorp/aws"));
+            List.of("provider/hashicorp/aws"),
+            List.of("module/terraform-aws-modules/iam/aws"));
 
     assertThatThrownBy(() -> controller.update(authentication, request))
         .isInstanceOf(AccessDeniedException.class)
@@ -80,6 +94,7 @@ class HomepageSettingsControllerTest {
         null,
         null,
         List.of("provider/hashicorp/aws"),
+        List.of("module/terraform-aws-modules/iam/aws"),
         Instant.parse("2026-07-22T12:00:00Z"));
   }
 }

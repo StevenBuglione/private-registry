@@ -79,4 +79,16 @@ class CatalogQueryTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("tier none");
   }
+
+  @Test
+  void calculatesValidatedPageOffsetsWithoutBreakingCursorClients() {
+    var paged =
+        new CatalogQuery(
+            new CatalogQuery.Criteria(
+                null, PackageKind.MODULE, null, null, null, "updated", null, 9, null),
+            4);
+
+    assertThat(paged.page()).isEqualTo(4);
+    assertThat(paged.offset()).isEqualTo(27);
+  }
 }

@@ -22,15 +22,19 @@ export function HomePage() {
   const modules = useCatalogPage({
     kind: "module",
     sort: "name",
-    limit: 1,
+    limit: 100,
   });
   const providerCount = providers.data?.total ?? 0;
   const moduleCount = modules.data?.total ?? 0;
   const catalogError = providers.isError || modules.isError;
   const homepageSettings = settings.data ?? DEFAULT_HOMEPAGE_SETTINGS;
-  const featured = featuredProviders(
+  const featured = featuredPackages(
     providers.data?.items ?? [],
     homepageSettings.featuredProviderIds,
+  );
+  const featuredModules = featuredPackages(
+    modules.data?.items ?? [],
+    homepageSettings.featuredModuleIds,
   );
 
   return (
@@ -96,6 +100,14 @@ export function HomePage() {
             items={featured}
             variant="providers"
           />
+          <CatalogSection
+            eyebrow="Featured modules"
+            description="Reusable Terraform configurations selected for your teams."
+            href="/modules"
+            loading={modules.isPending}
+            items={featuredModules}
+            variant="modules"
+          />
           <HowTerraformWorks />
         </div>
       )}
@@ -112,40 +124,50 @@ const DEFAULT_FEATURED_PROVIDER_IDS = [
   "provider/datadog/datadog",
 ];
 
+const DEFAULT_FEATURED_MODULE_IDS = [
+  "module/terraform-module/release/helm",
+  "module/terraform-aws-modules/iam/aws",
+  "module/terraform-google-modules/project-factory/google",
+  "module/terraform-google-modules/network/google",
+  "module/terraform-google-modules/kubernetes-engine/google",
+  "module/Azure/avm-res-web-site/azurerm",
+];
+
 const DEFAULT_HOMEPAGE_SETTINGS: HomepageSettings = {
   notificationEnabled: true,
   notificationTitle: "Your private Registry is ready",
   notificationMessage:
     "Browse Terraform providers and modules available to your account.",
   featuredProviderIds: DEFAULT_FEATURED_PROVIDER_IDS,
+  featuredModuleIds: DEFAULT_FEATURED_MODULE_IDS,
   updatedAt: "",
 };
 
-function featuredProviders(
+function featuredPackages(
   items: Parameters<typeof PackageCard>[0]["item"][],
   selectedIds: string[],
 ) {
-  const order = selectedIds.length
-    ? selectedIds
-    : DEFAULT_FEATURED_PROVIDER_IDS;
   return [...items]
     .sort((left, right) => {
-      const leftRank = order.indexOf(providerId(left));
-      const rightRank = order.indexOf(providerId(right));
+      const leftRank = selectedIds.indexOf(packageId(left));
+      const rightRank = selectedIds.indexOf(packageId(right));
       return (
         (leftRank < 0 ? Number.MAX_SAFE_INTEGER : leftRank) -
           (rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank) ||
         left.name.localeCompare(right.name)
       );
     })
-    .filter(
-      (item) => !selectedIds.length || selectedIds.includes(providerId(item)),
-    )
+    .filter((item) => selectedIds.includes(packageId(item)))
     .slice(0, 6);
 }
 
-function providerId(item: Parameters<typeof PackageCard>[0]["item"]) {
-  return `provider/${item.namespace}/${item.name}`;
+function packageId(item: Parameters<typeof PackageCard>[0]["item"]) {
+  return [
+    item.kind,
+    item.namespace,
+    item.name,
+    ...(item.target === undefined ? [] : [item.target]),
+  ].join("/");
 }
 
 function NotificationLink({ label, href }: { label: string; href: string }) {
