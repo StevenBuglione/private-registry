@@ -35,8 +35,6 @@ locals {
   service_log_groups = {
     ui         = "/ecs/${local.name}/ui"
     api        = "/ecs/${local.name}/api"
-    indexer    = "/ecs/${local.name}/indexer"
-    reconciler = "/ecs/${local.name}/reconciler"
     migrations = "/ecs/${local.name}/migrations"
   }
 
@@ -48,15 +46,11 @@ locals {
     REGISTRY_DATABASE_NAME                   = var.database_name
     REGISTRY_DATABASE_USER                   = "registry_app"
     REGISTRY_DATABASE_SECRET_ARN             = local.database_proxy_secret_arn
-    REGISTRY_DOCUMENTS_BUCKET                = aws_s3_bucket.this["documentation"].id
-    REGISTRY_QUARANTINE_BUCKET               = aws_s3_bucket.this["quarantine"].id
-    REGISTRY_AUDIT_BUCKET                    = aws_s3_bucket.this["audit"].id
-    REGISTRY_RECONCILIATION_BUCKET           = aws_s3_bucket.this["reconciliation"].id
-    REGISTRY_OPENSEARCH_ENDPOINT             = "https://${aws_opensearch_domain.this.endpoint}"
     REGISTRY_JFROG_BASE_URL                  = "https://${var.jfrog_hostname}"
     REGISTRY_JFROG_TOKEN_SECRET_ARN          = var.jfrog_token_secret_arn == null ? "" : var.jfrog_token_secret_arn
-    REGISTRY_INGESTION_QUEUE_URL             = aws_sqs_queue.ingestion.url
-    REGISTRY_EVENT_BUS_NAME                  = aws_cloudwatch_event_bus.catalog.name
+    REGISTRY_EVENTING_ENABLED                = "true"
+    REGISTRY_INGESTION_ENABLED               = "true"
+    REGISTRY_RECONCILE_ON_STARTUP            = "false"
     REGISTRY_ALLOWED_ALB_SIGNER_ARN          = aws_lb.this.arn
     REGISTRY_ALLOWED_OIDC_ISSUER             = var.oidc_issuer
     REGISTRY_AUTHORIZATION_CONFIG_SECRET_ARN = var.authorization_config_secret_arn == null ? "" : var.authorization_config_secret_arn
@@ -179,72 +173,6 @@ resource "aws_ecs_task_definition" "api" {
   tags = local.common_tags
 }
 
-resource "aws_ecs_task_definition" "indexer" {
-  count = var.deploy_application_services ? 1 : 0
-
-  family                   = "${local.name}-indexer"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 1024
-  memory                   = 2048
-  execution_role_arn       = aws_iam_role.task_execution.arn
-  task_role_arn            = aws_iam_role.indexer_task.arn
-  ephemeral_storage { size_in_gib = 40 }
-  runtime_platform {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
-  }
-
-  container_definitions = jsonencode([{
-    name        = "catalog-indexer"
-    image       = "${aws_ecr_repository.service["indexer"].repository_url}:${var.indexer_image_tag}"
-    essential   = true
-    environment = [for key, value in merge(local.common_service_environment, { REGISTRY_DATABASE_USER = "registry_indexer" }) : { name = key, value = value }]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options   = { awslogs-group = aws_cloudwatch_log_group.service["indexer"].name, awslogs-region = var.aws_region, awslogs-stream-prefix = "indexer" }
-    }
-    linuxParameters        = { initProcessEnabled = true }
-    readonlyRootFilesystem = true
-    stopTimeout            = 120
-  }])
-
-  tags = local.common_tags
-}
-
-resource "aws_ecs_task_definition" "reconciler" {
-  count = var.deploy_application_services ? 1 : 0
-
-  family                   = "${local.name}-reconciler"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
-  cpu                      = 2048
-  memory                   = 4096
-  execution_role_arn       = aws_iam_role.task_execution.arn
-  task_role_arn            = aws_iam_role.reconciler_task.arn
-  ephemeral_storage { size_in_gib = 80 }
-  runtime_platform {
-    cpu_architecture        = "X86_64"
-    operating_system_family = "LINUX"
-  }
-
-  container_definitions = jsonencode([{
-    name        = "catalog-reconciler"
-    image       = "${aws_ecr_repository.service["reconciler"].repository_url}:${var.reconciler_image_tag}"
-    essential   = true
-    environment = [for key, value in merge(local.common_service_environment, { REGISTRY_DATABASE_USER = "registry_indexer" }) : { name = key, value = value }]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options   = { awslogs-group = aws_cloudwatch_log_group.service["reconciler"].name, awslogs-region = var.aws_region, awslogs-stream-prefix = "reconciler" }
-    }
-    linuxParameters        = { initProcessEnabled = true }
-    readonlyRootFilesystem = true
-    stopTimeout            = 120
-  }])
-
-  tags = local.common_tags
-}
-
 resource "aws_ecs_task_definition" "migrations" {
   count = var.deploy_application_services ? 1 : 0
 
@@ -341,33 +269,6 @@ resource "aws_ecs_service" "api" {
     container_name   = "catalog-api"
     container_port   = 8080
   }
-  depends_on = [aws_lb_listener_rule.api, aws_db_proxy_target.this, aws_opensearch_domain.this]
-  tags       = local.common_tags
-}
-
-resource "aws_ecs_service" "indexer" {
-  count = var.deploy_application_services ? 1 : 0
-
-  name                               = "${local.name}-indexer"
-  cluster                            = aws_ecs_cluster.this.id
-  task_definition                    = aws_ecs_task_definition.indexer[0].arn
-  desired_count                      = var.indexer_desired_count
-  launch_type                        = "FARGATE"
-  platform_version                   = var.fargate_platform_version
-  deployment_minimum_healthy_percent = var.ecs_deployment_minimum_healthy_percent
-  deployment_maximum_percent         = var.ecs_deployment_maximum_percent
-  enable_execute_command             = var.enable_execute_command
-  propagate_tags                     = "SERVICE"
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
-  network_configuration {
-    subnets          = values(aws_subnet.application)[*].id
-    security_groups  = [aws_security_group.services.id]
-    assign_public_ip = false
-  }
-  depends_on = [aws_db_proxy_target.this, aws_opensearch_domain.this]
+  depends_on = [aws_lb_listener_rule.api, aws_db_proxy_target.this]
   tags       = local.common_tags
 }

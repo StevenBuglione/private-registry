@@ -1,4 +1,4 @@
-/** Durable catalog event publication and signed JFrog webhook intake. */
+/** Durable PostgreSQL catalog event publication and signed JFrog webhook intake. */
 @ApplicationModule(
     displayName = "Eventing",
     allowedDependencies = {})

@@ -8,13 +8,3 @@ primary_alb_zone_id     = "ZREPLACE"
 dr_alb_dns_name         = "internal-dr-alb.example.invalid"
 dr_alb_zone_id          = "ZREPLACE"
 ecr_repository_prefix   = "private-registry"
-
-bucket_replications = {
-  documentation = {
-    source_bucket_id        = "replace-primary-docs"
-    source_bucket_arn       = "arn:aws:s3:::replace-primary-docs"
-    destination_bucket_arn  = "arn:aws:s3:::replace-dr-docs"
-    source_kms_key_arn      = "arn:aws:kms:us-east-1:111111111111:key/replace"
-    destination_kms_key_arn = "arn:aws:kms:us-west-2:111111111111:key/replace"
-  }
-}

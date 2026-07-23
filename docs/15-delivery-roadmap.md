@@ -1,5 +1,7 @@
 # Delivery roadmap
 
+> Historical blueprint. Runtime service topology in this document is superseded by ADR 0007 and the executable implementation status.
+
 ## Starter acceptance
 
 - Build and test Java and UI artifacts.

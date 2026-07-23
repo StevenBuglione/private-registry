@@ -13,8 +13,7 @@ public record IngestionProperties(
     long maximumManifestBytes,
     long maximumArtifactBytes,
     long maximumDocumentBytes,
-    int outboxBatchSize,
-    int outboxMaximumAttempts,
+    boolean reconcileOnStartup,
     int documentIngestionConcurrency) {
 
   private static final List<String> DEFAULT_REPOSITORIES =
@@ -29,8 +28,7 @@ public record IngestionProperties(
       long maximumManifestBytes,
       long maximumArtifactBytes,
       long maximumDocumentBytes,
-      int outboxBatchSize,
-      int outboxMaximumAttempts,
+      boolean reconcileOnStartup,
       int documentIngestionConcurrency) {
     this.enabled = enabled;
     this.governedRepositories =
@@ -57,16 +55,9 @@ public record IngestionProperties(
       maximumDocumentBytes = 16_777_216;
     }
     this.maximumDocumentBytes = maximumDocumentBytes;
-    if (outboxBatchSize < 1) {
-      outboxBatchSize = 25;
-    }
-    this.outboxBatchSize = outboxBatchSize;
-    if (outboxMaximumAttempts < 1) {
-      outboxMaximumAttempts = 10;
-    }
-    this.outboxMaximumAttempts = outboxMaximumAttempts;
+    this.reconcileOnStartup = reconcileOnStartup;
     if (documentIngestionConcurrency < 1 || documentIngestionConcurrency > 64) {
-      documentIngestionConcurrency = 24;
+      documentIngestionConcurrency = 8;
     }
     this.documentIngestionConcurrency = documentIngestionConcurrency;
   }

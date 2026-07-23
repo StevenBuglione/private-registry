@@ -1,6 +1,6 @@
 # Versioned contracts
 
-These contracts are copied into `private-registry-api/contracts/` and are the shared source of truth for package releases, EventBridge events, ingestion, reconciliation, and catalog display.
+These contracts are copied into `private-registry-api/contracts/` and are the shared source of truth for package releases, PostgreSQL-queued artifact events, ingestion, reconciliation, and catalog display.
 
 ## Compatibility rules
 

@@ -35,8 +35,7 @@ class CleanArchitectureTest {
               "com.fasterxml.jackson..",
               "tools.jackson..",
               "software.amazon..",
-              "org.jfrog..",
-              "org.opensearch..");
+              "org.jfrog..");
 
   @ArchTest
   static final ArchRule controllersMustNotReachRepositories =

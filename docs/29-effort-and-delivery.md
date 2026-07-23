@@ -1,5 +1,7 @@
 # Delivery Effort and Team Plan
 
+> Historical estimate. The runtime architecture was consolidated by ADR 0007.
+
 ## Recommended team
 
 - 1 product/platform lead;

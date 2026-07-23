@@ -46,18 +46,12 @@ registry:
     socket-timeout: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:5s}
     module-repository: ${REGISTRY_ARTIFACTORY_MODULE_REPOSITORY:iac-modules-public-remote}
     provider-repository: ${REGISTRY_ARTIFACTORY_PROVIDER_REPOSITORY:iac-providers-public-remote}
-  opensearch:
-    endpoint: ${REGISTRY_OPENSEARCH_ENDPOINT:http://localhost:9200}
   eventing:
     enabled: ${REGISTRY_EVENTING_ENABLED:false}
-    region: ${AWS_REGION:us-east-1}
-    endpoint: ${REGISTRY_EVENTING_ENDPOINT:}
-    event-bus-name: ${REGISTRY_EVENT_BUS_NAME:registry-catalog}
-    queue-url: ${REGISTRY_EVENT_QUEUE_URL:}
-    dead-letter-queue-url: ${REGISTRY_EVENT_DLQ_URL:}
-    document-bucket: ${REGISTRY_DOCUMENT_BUCKET:registry-documents}
-    poll-interval: ${REGISTRY_EVENT_POLL_INTERVAL:1s}
-    poll-batch-size: ${REGISTRY_EVENT_POLL_BATCH_SIZE:10}
+    poll-interval: ${REGISTRY_EVENT_POLL_INTERVAL:250ms}
+    claim-recovery-delay: ${REGISTRY_EVENT_CLAIM_RECOVERY_DELAY:1m}
+    claim-timeout: ${REGISTRY_EVENT_CLAIM_TIMEOUT:5m}
+    poll-batch-size: ${REGISTRY_EVENT_POLL_BATCH_SIZE:25}
     maximum-attempts: ${REGISTRY_EVENT_MAXIMUM_ATTEMPTS:5}
     webhook:
       enabled: ${REGISTRY_WEBHOOK_ENABLED:false}
@@ -74,11 +68,11 @@ registry:
     maximum-manifest-bytes: ${REGISTRY_MAXIMUM_MANIFEST_BYTES:8388608}
     maximum-artifact-bytes: ${REGISTRY_MAXIMUM_ARTIFACT_BYTES:536870912}
     maximum-document-bytes: ${REGISTRY_MAXIMUM_DOCUMENT_BYTES:16777216}
-    document-ingestion-concurrency: ${REGISTRY_DOCUMENT_INGESTION_CONCURRENCY:24}
+    reconcile-on-startup: ${REGISTRY_RECONCILE_ON_STARTUP:false}
+    document-ingestion-concurrency: ${REGISTRY_DOCUMENT_INGESTION_CONCURRENCY:8}
     incremental-reconciliation-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_DELAY:15m}
+    incremental-reconciliation-initial-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_INITIAL_DELAY:15m}
     full-reconciliation-cron: ${REGISTRY_FULL_RECONCILIATION_CRON:0 17 2 * * *}
-    outbox-delay: ${REGISTRY_OUTBOX_DELAY:1s}
-    claim-recovery-delay: ${REGISTRY_OUTBOX_RECOVERY_DELAY:1m}
   seed:
     enabled: ${REGISTRY_SEED_ENABLED:false}
   security:

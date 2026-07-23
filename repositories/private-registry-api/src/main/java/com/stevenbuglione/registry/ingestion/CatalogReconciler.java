@@ -7,8 +7,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Optional;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +38,9 @@ public class CatalogReconciler {
     this.runs = runs;
   }
 
-  @Scheduled(fixedDelayString = "${registry.ingestion.incremental-reconciliation-delay:15m}")
+  @Scheduled(
+      fixedDelayString = "${registry.ingestion.incremental-reconciliation-delay:15m}",
+      initialDelayString = "${registry.ingestion.incremental-reconciliation-initial-delay:15m}")
   public void incremental() {
     reconcile("repair", "changed-ready-manifests", runs.checkpoint(INCREMENTAL_CHECKPOINT));
   }
@@ -44,61 +50,94 @@ public class CatalogReconciler {
     reconcile("repair", "all-ready-manifests", null);
   }
 
+  @EventListener(ApplicationReadyEvent.class)
+  public void reconcileAfterStartup() {
+    if (properties.reconcileOnStartup()) {
+      full();
+    }
+  }
+
   private void reconcile(String mode, String scope, @Nullable Instant changedAfter) {
+    var lease = runs.tryAcquireLease();
+    if (lease.isEmpty()) {
+      return;
+    }
+    try (var reconciliationLease = lease.orElseThrow()) {
+      reconciliationLease.execute(() -> reconcileWithLease(mode, scope, changedAfter));
+    }
+  }
+
+  private void reconcileWithLease(String mode, String scope, @Nullable Instant changedAfter) {
+    runs.failAbandonedRuns();
     var runId = runs.start(mode, scope);
-    var discrepancies = 0;
-    var repaired = 0;
-    var newestModifiedAt = changedAfter == null ? Instant.EPOCH : changedAfter;
     try {
-      var manifests =
-          artifactory.searchByProperty(
-              properties.governedRepositories(), "registry.catalog.ready", "true");
-      for (var location : manifests) {
-        if (!location.path().endsWith(properties.manifestSuffix())) {
-          continue;
-        }
-        var metadata = artifactory.metadata(location.repository(), location.path());
-        var modifiedAt = metadata.modifiedAt() == null ? Instant.EPOCH : metadata.modifiedAt();
-        if (changedAfter != null && !modifiedAt.isAfter(changedAfter)) {
-          continue;
-        }
-        if (modifiedAt.isAfter(newestModifiedAt)) {
-          newestModifiedAt = modifiedAt;
-        }
-        var event =
-            new CatalogArtifactChanged(
-                1,
-                eventId(location, metadata, runId),
-                CatalogArtifactChanged.Action.PROPERTIES_CHANGED,
-                "registry-reconciler",
-                "scheduled-reconciliation",
-                location.repository(),
-                location.path(),
-                metadata.modifiedAt() == null ? Instant.now() : metadata.modifiedAt(),
-                runId.toString(),
-                java.util.Map.of("reconciliation_scope", scope));
-        var outcome = ingestion.accept(event);
-        if (outcome != CatalogIngestionService.Outcome.DUPLICATE) {
-          discrepancies++;
-        }
-        if (outcome == CatalogIngestionService.Outcome.COMPLETED) {
-          repaired++;
-        }
-      }
-      runs.complete(runId, discrepancies, repaired);
-      if (changedAfter != null) {
-        runs.saveCheckpoint(INCREMENTAL_CHECKPOINT, newestModifiedAt);
-      }
+      var result = reconcileManifests(scope, changedAfter, runId);
+      runs.complete(runId, result.discrepancies(), result.repaired());
+      saveIncrementalCheckpoint(changedAfter, result.newestModifiedAt());
     } catch (RuntimeException exception) {
       runs.fail(runId);
       throw exception;
     }
   }
 
+  private ReconciliationResult reconcileManifests(
+      String scope, @Nullable Instant changedAfter, UUID runId) {
+    var result = new ReconciliationAccumulator(changedAfter == null ? Instant.EPOCH : changedAfter);
+    var manifests =
+        artifactory.searchByProperty(
+            properties.governedRepositories(), "registry.catalog.ready", "true");
+    manifests.stream()
+        .map(location -> reconcileManifest(location, scope, changedAfter, runId))
+        .flatMap(Optional::stream)
+        .forEach(result::record);
+    return result.snapshot();
+  }
+
+  private Optional<ManifestOutcome> reconcileManifest(
+      ArtifactoryGateway.ArtifactLocation location,
+      String scope,
+      @Nullable Instant changedAfter,
+      UUID runId) {
+    if (!location.path().endsWith(properties.manifestSuffix())) {
+      return Optional.empty();
+    }
+    var metadata = artifactory.metadata(location.repository(), location.path());
+    var modifiedAt = metadata.modifiedAt() == null ? Instant.EPOCH : metadata.modifiedAt();
+    if (changedAfter != null && !modifiedAt.isAfter(changedAfter)) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        new ManifestOutcome(modifiedAt, ingestion.accept(event(location, metadata, runId, scope))));
+  }
+
+  private static CatalogArtifactChanged event(
+      ArtifactoryGateway.ArtifactLocation location,
+      ArtifactoryGateway.ArtifactMetadata metadata,
+      UUID runId,
+      String scope) {
+    return new CatalogArtifactChanged(
+        1,
+        eventId(location, metadata, runId),
+        CatalogArtifactChanged.Action.PROPERTIES_CHANGED,
+        "registry-reconciler",
+        "scheduled-reconciliation",
+        location.repository(),
+        location.path(),
+        metadata.modifiedAt() == null ? Instant.now() : metadata.modifiedAt(),
+        runId.toString(),
+        java.util.Map.of("reconciliation_scope", scope));
+  }
+
+  private void saveIncrementalCheckpoint(@Nullable Instant changedAfter, Instant newestModifiedAt) {
+    if (changedAfter != null) {
+      runs.saveCheckpoint(INCREMENTAL_CHECKPOINT, newestModifiedAt);
+    }
+  }
+
   private static String eventId(
       ArtifactoryGateway.ArtifactLocation location,
       ArtifactoryGateway.ArtifactMetadata metadata,
-      java.util.UUID runId) {
+      UUID runId) {
     var input =
         runId
             + ":"
@@ -115,6 +154,38 @@ public class CatalogReconciler {
       return "reconcile-" + HexFormat.of().formatHex(digest);
     } catch (NoSuchAlgorithmException exception) {
       throw new IllegalStateException("SHA-256 is not available", exception);
+    }
+  }
+
+  private record ManifestOutcome(
+      Instant modifiedAt, CatalogIngestionService.Outcome ingestionOutcome) {}
+
+  private record ReconciliationResult(int discrepancies, int repaired, Instant newestModifiedAt) {}
+
+  private static final class ReconciliationAccumulator {
+
+    private int discrepancies;
+    private int repaired;
+    private Instant newestModifiedAt;
+
+    private ReconciliationAccumulator(Instant newestModifiedAt) {
+      this.newestModifiedAt = newestModifiedAt;
+    }
+
+    private void record(ManifestOutcome outcome) {
+      if (outcome.modifiedAt().isAfter(newestModifiedAt)) {
+        newestModifiedAt = outcome.modifiedAt();
+      }
+      if (outcome.ingestionOutcome() != CatalogIngestionService.Outcome.DUPLICATE) {
+        discrepancies++;
+      }
+      if (outcome.ingestionOutcome() == CatalogIngestionService.Outcome.COMPLETED) {
+        repaired++;
+      }
+    }
+
+    private ReconciliationResult snapshot() {
+      return new ReconciliationResult(discrepancies, repaired, newestModifiedAt);
     }
   }
 }

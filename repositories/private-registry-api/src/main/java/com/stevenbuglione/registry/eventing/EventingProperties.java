@@ -1,44 +1,29 @@
 package com.stevenbuglione.registry.eventing;
 
-import java.net.URI;
 import java.time.Duration;
-import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("registry.eventing")
 public record EventingProperties(
     boolean enabled,
-    String region,
-    @Nullable URI endpoint,
-    String eventBusName,
-    String queueUrl,
-    String deadLetterQueueUrl,
-    String documentBucket,
     Duration pollInterval,
+    Duration claimRecoveryDelay,
+    Duration claimTimeout,
     int pollBatchSize,
     int maximumAttempts) {
 
   public EventingProperties {
-    if (region == null || region.isBlank()) {
-      region = "us-east-1";
-    }
-    if (eventBusName == null || eventBusName.isBlank()) {
-      eventBusName = "registry-catalog";
-    }
-    if (queueUrl == null) {
-      queueUrl = "";
-    }
-    if (deadLetterQueueUrl == null) {
-      deadLetterQueueUrl = "";
-    }
-    if (documentBucket == null || documentBucket.isBlank()) {
-      documentBucket = "registry-documents";
-    }
     if (pollInterval == null) {
-      pollInterval = Duration.ofSeconds(1);
+      pollInterval = Duration.ofMillis(250);
     }
-    if (pollBatchSize < 1 || pollBatchSize > 10) {
-      pollBatchSize = 10;
+    if (claimRecoveryDelay == null) {
+      claimRecoveryDelay = Duration.ofMinutes(1);
+    }
+    if (claimTimeout == null || claimTimeout.isNegative() || claimTimeout.isZero()) {
+      claimTimeout = Duration.ofMinutes(5);
+    }
+    if (pollBatchSize < 1 || pollBatchSize > 100) {
+      pollBatchSize = 25;
     }
     if (maximumAttempts < 1) {
       maximumAttempts = 5;

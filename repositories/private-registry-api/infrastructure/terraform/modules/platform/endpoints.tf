@@ -6,8 +6,6 @@ locals {
     "monitoring",
     "secretsmanager",
     "kms",
-    "sqs",
-    "events",
     "sts",
     "ssmmessages",
     "xray"

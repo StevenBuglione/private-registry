@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -94,15 +93,10 @@ public class JdbcCatalogService implements CatalogService {
           .formatted(PUBLIC_ID);
 
   private final JdbcClient jdbc;
-  private final Optional<DocumentContentResolver> documentContentResolver;
   private final CatalogTextSearch catalogTextSearch;
 
-  public JdbcCatalogService(
-      JdbcClient jdbc,
-      Optional<DocumentContentResolver> documentContentResolver,
-      CatalogTextSearch catalogTextSearch) {
+  public JdbcCatalogService(JdbcClient jdbc, CatalogTextSearch catalogTextSearch) {
     this.jdbc = jdbc;
-    this.documentContentResolver = documentContentResolver;
     this.catalogTextSearch = catalogTextSearch;
   }
 
@@ -274,7 +268,7 @@ public class JdbcCatalogService implements CatalogService {
       var document =
           jdbc.sql(
                   """
-                            SELECT dp.content, dp.content_type, dp.s3_key, dp.digest
+                            SELECT dp.content, dp.content_type
                               FROM documentation_pages dp
                               JOIN package_versions pv ON pv.id = dp.package_version_id
                               JOIN packages p ON p.id = pv.package_id
@@ -294,18 +288,12 @@ public class JdbcCatalogService implements CatalogService {
               .query(
                   (resultSet, rowNumber) ->
                       new StoredDocument(
-                          resultSet.getString("content"),
-                          resultSet.getString("content_type"),
-                          resultSet.getString("s3_key"),
-                          resultSet.getString("digest")))
+                          resultSet.getString("content"), resultSet.getString("content_type")))
               .single();
-      var content =
-          document.content() != null
-              ? document.content()
-              : documentContentResolver
-                  .map(resolver -> resolver.readVerified(document.s3Key(), document.digest()))
-                  .orElseThrow(() -> new NotFoundException("Documentation not found"));
-      return new DocumentContent(content, document.contentType());
+      if (document.content() == null) {
+        throw new NotFoundException("Documentation is awaiting PostgreSQL reconciliation");
+      }
+      return new DocumentContent(document.content(), document.contentType());
     } catch (EmptyResultDataAccessException exception) {
       throw new NotFoundException("Documentation not found");
     }
@@ -322,8 +310,7 @@ public class JdbcCatalogService implements CatalogService {
     };
   }
 
-  private record StoredDocument(
-      @Nullable String content, String contentType, String s3Key, String digest) {}
+  private record StoredDocument(@Nullable String content, String contentType) {}
 
   private List<Symbol> symbolsForVersion(UUID packageId, String version) {
     return jdbc.sql(

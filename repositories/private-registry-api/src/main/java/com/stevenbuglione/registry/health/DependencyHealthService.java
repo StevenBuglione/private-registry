@@ -2,7 +2,6 @@ package com.stevenbuglione.registry.health;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.opensearch.client.opensearch.OpenSearchClient;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -10,11 +9,9 @@ import org.springframework.stereotype.Service;
 public class DependencyHealthService {
 
   private final JdbcClient jdbc;
-  private final OpenSearchClient openSearch;
 
-  public DependencyHealthService(JdbcClient jdbc, OpenSearchClient openSearch) {
+  public DependencyHealthService(JdbcClient jdbc) {
     this.jdbc = jdbc;
-    this.openSearch = openSearch;
   }
 
   public HealthReport check() {
@@ -24,13 +21,6 @@ public class DependencyHealthService {
       dependencies.put("postgresql", "up");
     } catch (RuntimeException exception) {
       dependencies.put("postgresql", "down");
-    }
-
-    try {
-      var health = openSearch.cluster().health();
-      dependencies.put("opensearch", health.status().jsonValue());
-    } catch (Exception exception) {
-      dependencies.put("opensearch", "down");
     }
 
     var ready = dependencies.values().stream().noneMatch("down"::equals);

@@ -1,5 +1,7 @@
 # Required Inputs Before Deployment
 
+> Historical blueprint checklist. OpenSearch, application S3, SQS, and EventBridge inputs are no longer required; ADR 0007 is authoritative.
+
 Claude or another implementation agent must not invent these values.
 
 ## AWS organization

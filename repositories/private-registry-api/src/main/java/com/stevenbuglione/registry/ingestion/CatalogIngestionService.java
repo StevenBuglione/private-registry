@@ -75,7 +75,7 @@ public class CatalogIngestionService {
             manifestLocation.repository(),
             manifestLocation.path(),
             properties.maximumManifestBytes());
-    var actualManifestDigest = S3DocumentStore.sha256(bytes);
+    var actualManifestDigest = ContentDigest.sha256(bytes);
     if (metadata.sha256() != null
         && !metadata.sha256().isBlank()
         && !actualManifestDigest.equals(prefixDigest(metadata.sha256()))) {
@@ -154,7 +154,7 @@ public class CatalogIngestionService {
             manifest.registry().repository(),
             manifest.registry().artifactPath(),
             properties.maximumArtifactBytes());
-    var actualDigest = S3DocumentStore.sha256(artifact);
+    var actualDigest = ContentDigest.sha256(artifact);
     if (metadata.sha256() != null
         && !metadata.sha256().isBlank()
         && !actualDigest.equals(prefixDigest(metadata.sha256()))) {

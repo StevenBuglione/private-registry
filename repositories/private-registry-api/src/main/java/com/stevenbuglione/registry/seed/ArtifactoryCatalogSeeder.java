@@ -3,7 +3,7 @@ package com.stevenbuglione.registry.seed;
 import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import com.stevenbuglione.registry.config.ArtifactoryProperties;
 import com.stevenbuglione.registry.ingestion.CatalogManifestV1;
-import com.stevenbuglione.registry.ingestion.S3DocumentStore;
+import com.stevenbuglione.registry.ingestion.ContentDigest;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -334,7 +334,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
           new java.util.LinkedHashMap<String, Object>(
               artifactProperties(entry, version, "manifest"));
       completionProperties.put("registry.catalog.ready", "true");
-      completionProperties.put("registry.sha256", S3DocumentStore.sha256(bytes));
+      completionProperties.put("registry.sha256", ContentDigest.sha256(bytes));
       uploadManifestMetadata(manifestPath, bytes, manifest, completionProperties);
     } catch (JacksonException exception) {
       throw new IllegalStateException("Unable to serialize catalog manifest", exception);
@@ -382,7 +382,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
         document.path().equals("README.md")
             ? basePath + "/README.md"
             : basePath + "/docs/" + document.path();
-    var digest = S3DocumentStore.sha256(document.content());
+    var digest = ContentDigest.sha256(document.content());
     var documentationProperties =
         new java.util.LinkedHashMap<String, Object>(
             artifactProperties(entry, version, "documentation"));
@@ -403,7 +403,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
       byte[] content,
       CatalogManifestV1 expectedManifest,
       Map<String, ?> artifactProperties) {
-    var digest = S3DocumentStore.sha256(content);
+    var digest = ContentDigest.sha256(content);
     try {
       var existing = existingArtifact(properties.catalogRepository(), path, digest);
       if (existing != null) {
@@ -725,7 +725,7 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
   private ArtifactoryGateway.ArtifactMetadata uploadCatalogMetadata(
       String path, byte[] content, Map<String, ?> artifactProperties) {
     validateCatalogMetadataPath(path);
-    var digest = S3DocumentStore.sha256(content);
+    var digest = ContentDigest.sha256(content);
     try {
       var existing = existingArtifact(properties.catalogRepository(), path, digest);
       if (existing != null) {

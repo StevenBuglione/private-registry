@@ -10,7 +10,7 @@ providers: candidate-local -> release-local -> virtual (+ network mirror where r
 catalog:   candidate-local -> release-local -> virtual
 ```
 
-The indexer/reconciler identity is read-only and restricted to approved release/catalog repositories. Publishing and promotion identities are separate. A promoted event includes repository, normalized package identity, version, package digest, documentation digest/path, source commit, event ID, and timestamp.
+The combined API/worker identity is read-only and restricted to approved release/catalog repositories. Publishing and promotion identities are separate. A promoted event includes repository, normalized package identity, version, package digest, documentation digest/path, source commit, event ID, and timestamp.
 
 The JFrog client must:
 

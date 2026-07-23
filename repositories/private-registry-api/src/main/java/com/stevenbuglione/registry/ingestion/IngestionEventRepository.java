@@ -36,7 +36,7 @@ public class IngestionEventRepository {
                             last_attempt_at = now(),
                             error_code = NULL,
                             error_detail = NULL
-                        WHERE ingestion_events.status = 'failed'
+                        WHERE ingestion_events.status IN ('failed', 'processing')
                         """)
             .param("eventId", event.eventId())
             .param("idempotencyKey", event.idempotencyKey())

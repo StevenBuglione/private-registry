@@ -447,7 +447,7 @@ paths:
               $ref: '#/components/schemas/JfrogWebhookPayload'
       responses:
         '202':
-          description: The normalized event was durably accepted by EventBridge.
+          description: The normalized event was durably accepted by the PostgreSQL event queue.
           content:
             application/json:
               schema:
@@ -461,7 +461,7 @@ paths:
         '415':
           description: Content type is not application/json.
         '503':
-          description: Signing is not configured or EventBridge did not accept the event.
+          description: Signing is not configured or PostgreSQL did not accept the event.
   /health/live:
     get:
       tags: [Health]
@@ -479,7 +479,7 @@ paths:
       tags: [Health]
       operationId: getApiReadiness
       summary: Report API read dependencies
-      description: API readiness covers PostgreSQL and OpenSearch; Artifactory is deliberately a worker dependency.
+      description: API readiness covers PostgreSQL; Artifactory is deliberately a worker dependency.
       security: []
       responses:
         '200':
@@ -497,7 +497,7 @@ paths:
       tags: [Health]
       operationId: getWorkerReadiness
       summary: Report worker dependencies
-      description: Present when eventing is enabled; probes PostgreSQL, OpenSearch, Artifactory, SQS, and S3.
+      description: Present when ingestion is enabled; probes PostgreSQL and Artifactory.
       security: []
       responses:
         '200':

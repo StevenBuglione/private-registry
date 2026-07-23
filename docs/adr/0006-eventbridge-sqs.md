@@ -1,6 +1,6 @@
 # ADR: EventBridge and SQS ingestion
 
-- Status: Accepted for blueprint
+- Status: Superseded by ADR 0007
 - Date: 2026-07-21
 
 ## Decision

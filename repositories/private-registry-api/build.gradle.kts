@@ -44,7 +44,6 @@ repositories {
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.0"))
     implementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
-    implementation(platform("software.amazon.awssdk:bom:2.49.0"))
 
     constraints {
         implementation("org.apache.tomcat.embed:tomcat-embed-core:11.0.24") {
@@ -84,12 +83,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
-    implementation("org.opensearch.client:opensearch-java:3.9.0")
-    implementation("org.apache.httpcomponents.client5:httpclient5")
     implementation("com.github.ben-manes.caffeine:caffeine")
-    implementation("software.amazon.awssdk:eventbridge")
-    implementation("software.amazon.awssdk:s3")
-    implementation("software.amazon.awssdk:sqs")
 
     compileOnly("org.jspecify:jspecify:1.0.0")
     compileOnly("org.checkerframework:checker-qual:4.2.1")
@@ -111,7 +105,6 @@ dependencies {
     testCompileOnly("org.checkerframework:checker-qual:4.2.1")
     testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
-    testImplementation("org.testcontainers:testcontainers-localstack")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

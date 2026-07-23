@@ -1,5 +1,7 @@
 # End-to-End Execution Checklist
 
+> Historical blueprint checklist. Runtime topology and gates involving separate search, object storage, and brokers are superseded by ADR 0007.
+
 This checklist is the implementation order for a deployment agent. Each stage has a hard exit gate. Do not advance by bypassing a failed gate.
 
 ## Stage 0 — Create the two production repositories

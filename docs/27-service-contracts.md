@@ -1,60 +1,26 @@
-# ECS Service and Task Contracts
+# Service contracts
 
 ## `registry-web`
 
-- long-running ECS service, port 8080;
-- ALB health: `GET /healthz`;
-- static Registry UI assets served by Nginx;
-- startup writes non-secret `/config/runtime.json`;
-- no AWS/JFrog credentials and no runtime internet requirement;
-- read-only root filesystem with ephemeral mounts for Nginx cache/run/tmp/runtime config;
-- minimum production tasks: 3; scale by ALB requests/CPU.
+- Serves the first-party React application.
+- Proxies same-origin API traffic.
+- Contains no service credentials and performs no security filtering on behalf of the API.
 
-## `catalog-api`
+## `registry-api`
 
-- long-running ECS service, port 8080;
-- liveness: `GET /health/live`; readiness: `GET /health/ready`;
-- browser reaches it only through authenticated ALB routes;
-- validates ALB-signed identity and performs server-side authorization;
-- reads Aurora through RDS Proxy, OpenSearch, and S3;
-- never serves package archives or returns service credentials;
-- minimum production tasks: 3; scale by request/latency/CPU.
+- Handles OIDC sessions, Graph entitlements, authorized catalog reads, governance, admin settings, and SSE.
+- Queries PostgreSQL directly for metadata, documentation, and search.
+- Accepts signed JFrog webhooks into the PostgreSQL event queue.
+- Runs queue consumers and scheduled reconciliation in the same Spring Modulith process.
+- Uses the official JFrog Artifactory Java Client to validate current artifact state before activation.
 
-## `catalog-indexer`
+## PostgreSQL
 
-- long-running ECS service with no load balancer;
-- consumes the encrypted SQS ingestion queue;
-- validates JFrog release and documentation digests;
-- writes S3/Aurora/audit then derived OpenSearch state;
-- extends message visibility during long processing;
-- deletes only after durable success;
-- minimum production tasks: 2; scale by queue backlog and oldest age.
+- Is the only stateful application dependency.
+- Owns catalog, APM grants, documentation, search vectors, incoming events, attempts, dead letters, ingestion/audit history, reconciliation checkpoints, and homepage settings.
+- Uses durable tables for truth and `LISTEN`/`NOTIFY` only for low-latency signals.
 
-## `catalog-reconciler`
+## JFrog
 
-- scheduled one-off Fargate task;
-- incremental and full schedules through EventBridge Scheduler;
-- compares JFrog, Aurora, S3, and OpenSearch;
-- default mode is dry-run; repair requires a distinct authorization path;
-- emits immutable reports and drift metrics;
-- no public endpoint.
-
-## `catalog-migrations`
-
-- manually/protected one-off Fargate task;
-- runs before an application rollout;
-- uses a migration-specific role and database identity;
-- migrations must support rolling deployment and forward-compatible rollback;
-- cannot be scheduled or invoked by normal application identities.
-
-## Shared runtime rules
-
-- Fargate `awsvpc`, private subnets, no public IP;
-- X86_64 images unless the build and task platform are changed together;
-- SHA/digest image promotion, never `latest`;
-- awslogs with KMS-encrypted log groups;
-- least-privilege task role per workload;
-- ECS deployment circuit breaker with rollback;
-- graceful SIGTERM and bounded stop time;
-- OpenTelemetry correlation IDs and structured logs;
-- no shell/debug access unless a time-bound break-glass control enables ECS Exec.
+- Owns immutable package bytes, checksums, governed repositories, and promotion properties.
+- Remains independently usable if the catalog is unavailable.

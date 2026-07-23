@@ -16,8 +16,6 @@ locals {
   repository_names = {
     ui         = "${local.name}-ui"
     api        = "${local.name}-api"
-    indexer    = "${local.name}-indexer"
-    reconciler = "${local.name}-reconciler"
     migrations = "${local.name}-migrations"
   }
 

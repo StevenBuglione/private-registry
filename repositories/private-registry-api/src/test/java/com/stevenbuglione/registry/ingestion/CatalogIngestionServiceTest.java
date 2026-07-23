@@ -12,6 +12,7 @@ import com.stevenbuglione.registry.artifactory.ArtifactoryGateway;
 import com.stevenbuglione.registry.eventing.CatalogArtifactChanged;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +35,10 @@ class CatalogIngestionServiceTest {
       "v1/providers/hashicorp/null/3.2.4/catalog-manifest.json";
   private static final String ARTIFACT_PATH = "hashicorp/null/3.2.4/provider.zip";
   private static final byte[] PACKAGE_BYTES = packageBytes();
-  private static final String PACKAGE_DIGEST = S3DocumentStore.sha256(PACKAGE_BYTES);
+  private static final String PACKAGE_DIGEST = ContentDigest.sha256(PACKAGE_BYTES);
   private static final byte[] DOCUMENT_BYTES =
       "# Resource\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-  private static final String DOCUMENT_DIGEST = S3DocumentStore.sha256(DOCUMENT_BYTES);
+  private static final String DOCUMENT_DIGEST = ContentDigest.sha256(DOCUMENT_BYTES);
   private static final String DOCUMENT_ARTIFACT_PATH =
       "v1/providers/hashicorp/null/3.2.4/docs/resources/example.md";
 
@@ -64,8 +65,7 @@ class CatalogIngestionServiceTest {
             1_048_576,
             536_870_912,
             16_777_216,
-            25,
-            10,
+            false,
             16);
     service =
         new CatalogIngestionService(
@@ -86,7 +86,7 @@ class CatalogIngestionServiceTest {
   @Test
   void outOfOrderHintsAlwaysReReadAndStageCurrentArtifactoryState() {
     var manifest = manifestBytes();
-    var manifestDigest = S3DocumentStore.sha256(manifest);
+    var manifestDigest = ContentDigest.sha256(manifest);
     when(events.claim(any())).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
@@ -132,7 +132,7 @@ class CatalogIngestionServiceTest {
   @Test
   void providerArtifactHintReconcilesItsReadyCatalogManifest() {
     var manifest = manifestBytes();
-    var manifestDigest = S3DocumentStore.sha256(manifest);
+    var manifestDigest = ContentDigest.sha256(manifest);
     var artifactEvent =
         new CatalogArtifactChanged(
             1,
@@ -191,7 +191,7 @@ class CatalogIngestionServiceTest {
                 CATALOG_REPOSITORY,
                 MANIFEST_PATH,
                 manifestBytes.length,
-                S3DocumentStore.sha256(manifestBytes),
+                ContentDigest.sha256(manifestBytes),
                 Instant.parse("2026-07-21T13:00:00Z"),
                 Map.of(
                     "registry.catalog.ready", List.of("true"),
@@ -227,10 +227,11 @@ class CatalogIngestionServiceTest {
         .thenAnswer(
             invocation ->
                 new DocumentStore.StoredDocument(
-                    invocation.getArgument(0),
+                    invocation.<String>getArgument(0),
                     DOCUMENT_DIGEST,
                     DOCUMENT_BYTES.length,
-                    "text/markdown"));
+                    "text/markdown",
+                    new String(DOCUMENT_BYTES, StandardCharsets.UTF_8)));
 
     assertThat(service.accept(event)).isEqualTo(CatalogIngestionService.Outcome.COMPLETED);
 
@@ -256,7 +257,8 @@ class CatalogIngestionServiceTest {
                 + "/resources/example.md",
             DOCUMENT_DIGEST,
             DOCUMENT_BYTES.length,
-            "text/markdown");
+            "text/markdown",
+            new String(DOCUMENT_BYTES, StandardCharsets.UTF_8));
     when(events.claim(event)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
         .thenReturn(
@@ -264,7 +266,7 @@ class CatalogIngestionServiceTest {
                 CATALOG_REPOSITORY,
                 MANIFEST_PATH,
                 manifestBytes.length,
-                S3DocumentStore.sha256(manifestBytes),
+                ContentDigest.sha256(manifestBytes),
                 Instant.parse("2026-07-21T13:00:00Z"),
                 Map.of(
                     "registry.catalog.ready", List.of("true"),
@@ -315,7 +317,7 @@ class CatalogIngestionServiceTest {
     var event = event("event-unsafe-archive", Instant.parse("2026-07-21T13:00:00Z"));
     var manifest = manifestBytes();
     var unsafe = zipBytes("../escape", "unsafe");
-    var unsafeDigest = S3DocumentStore.sha256(unsafe);
+    var unsafeDigest = ContentDigest.sha256(unsafe);
     var unsafeManifest = currentManifestWithDigest(unsafeDigest);
     when(events.claim(event)).thenReturn(true);
     when(artifactory.metadata(CATALOG_REPOSITORY, MANIFEST_PATH))
@@ -324,7 +326,7 @@ class CatalogIngestionServiceTest {
                 CATALOG_REPOSITORY,
                 MANIFEST_PATH,
                 manifest.length,
-                S3DocumentStore.sha256(manifest),
+                ContentDigest.sha256(manifest),
                 Instant.parse("2026-07-21T13:00:00Z"),
                 Map.of(
                     "registry.catalog.ready", List.of("true"),

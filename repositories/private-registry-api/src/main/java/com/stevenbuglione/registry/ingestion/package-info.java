@@ -1,4 +1,4 @@
-/** Reconciliation, quarantine, activation, and search-outbox processing. */
+/** PostgreSQL-backed event processing, reconciliation, quarantine, and catalog activation. */
 @ApplicationModule(
     displayName = "Catalog ingestion",
     allowedDependencies = {"artifactory", "catalog", "eventing", "model"})

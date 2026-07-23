@@ -103,5 +103,10 @@
   },
   "simple-git-hooks": {
     "pre-commit": "corepack pnpm --dir repositories/private-registry-ui/web precommit"
+  },
+  "pnpm": {
+    "overrides": {
+      "tmp": "0.2.7"
+    }
   }
 }
