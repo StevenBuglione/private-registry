@@ -2804,6 +2804,25 @@ h2 {
   color: var(--muted);
   font-size: 13px;
 }
+.admin-api-reference {
+  min-height: 34px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.admin-api-reference:hover {
+  border-color: var(--muted);
+  background: var(--surface-subtle);
+}
 .admin-layout {
   padding-block: 24px 48px;
   display: grid;
@@ -2878,29 +2897,6 @@ h2 {
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
-}
-.admin-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.admin-toolbar-actions > a {
-  min-height: 34px;
-  padding: 7px 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.admin-toolbar-actions > a:hover {
-  border-color: var(--muted);
-  background: var(--surface-subtle);
 }
 .admin-section-toolbar button,
 .admin-primary-button {
@@ -4142,7 +4138,12 @@ h2 {
     padding-block: 22px;
   }
   .admin-page-header .page-shell {
+    align-items: stretch;
+    flex-direction: column;
     gap: 10px;
+  }
+  .admin-api-reference {
+    align-self: flex-start;
   }
   .admin-page-header h1 {
     font-size: 21px;
@@ -4164,14 +4165,6 @@ h2 {
   }
   .admin-section-toolbar > button {
     align-self: flex-start;
-  }
-  .admin-toolbar-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .admin-toolbar-actions > a,
-  .admin-toolbar-actions > button {
-    width: 100%;
   }
   .admin-metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4336,7 +4329,7 @@ h2 {
 [data-theme="dark"] .admin-navigation,
 [data-theme="dark"] .admin-content,
 [data-theme="dark"] .admin-section-toolbar button,
-[data-theme="dark"] .admin-toolbar-actions > a,
+[data-theme="dark"] .admin-api-reference,
 [data-theme="dark"]
   .credential-create-actions
   > button:not(.admin-primary-button),

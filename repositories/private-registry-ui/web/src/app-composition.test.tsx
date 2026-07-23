@@ -416,11 +416,11 @@ describe("application composition", () => {
       }),
     );
 
-    await user.click(screen.getByRole("button", { name: "Sync credentials" }));
-    expect(screen.getByRole("link", { name: "Swagger API" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "API reference" })).toHaveAttribute(
       "href",
       "/swagger-ui.html",
     );
+    await user.click(screen.getByRole("button", { name: "Sync credentials" }));
     const createButtons = screen.getAllByRole("button", {
       name: "Create credential",
     });

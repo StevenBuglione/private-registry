@@ -1,6 +1,7 @@
 import {
   ActivityIcon,
   ArrowClockwiseIcon,
+  ArrowSquareOutIcon,
   ChartBarIcon,
   HouseLineIcon,
   KeyIcon,
@@ -18,6 +19,7 @@ import {
   useAdminOperations,
   useAuditEvents,
 } from "../hooks";
+import { runtimeConfig } from "../runtime-config";
 import type { AdminDashboard, AuditEvent, OperationalEvent } from "../types";
 import { useRegistry } from "../use-registry";
 import {
@@ -57,6 +59,7 @@ const sections: {
 export function AdminSettingsPage() {
   const { session } = useRegistry();
   const [searchParams, setSearchParams] = useSearchParams();
+  const swaggerUrl = swaggerUiUrl(runtimeConfig().apiBaseUrl);
   if (!session.admin) {
     return (
       <div className="page-shell admin-access-denied">
@@ -77,6 +80,14 @@ export function AdminSettingsPage() {
               ingestion, and review administrator activity.
             </p>
           </div>
+          <a
+            className="admin-api-reference"
+            href={swaggerUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            API reference <ArrowSquareOutIcon size={15} />
+          </a>
         </div>
       </header>
       <div className="page-shell admin-layout">
@@ -112,6 +123,11 @@ export function AdminSettingsPage() {
       </div>
     </div>
   );
+}
+
+function swaggerUiUrl(apiBaseUrl: string): string {
+  const apiSuffix = "/api/v1";
+  return `${apiBaseUrl.endsWith(apiSuffix) ? apiBaseUrl.slice(0, -apiSuffix.length) : apiBaseUrl}/swagger-ui.html`;
 }
 
 function OverviewPanel() {

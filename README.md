@@ -59,9 +59,9 @@ Invoke-RestMethod http://localhost:8080/health/ready
 Open <http://localhost:3000/>. The local profile uses the real Entra application and keeps OAuth and Graph tokens server-side.
 
 Interactive API documentation is available at <http://localhost:3000/swagger-ui.html> after sign-in.
-The Swagger page uses the checked-in OpenAPI contract and has dedicated **Sync API keys** and
-**Artifact sync** sections. Create a credential in the Registry administration workspace, choose
-**Authorize** in Swagger, and paste the returned `rgs.…` token without the `Bearer` prefix.
+Springdoc generates the specification from the running Spring controllers so the page always lists
+the complete application API, including catalog, administration, synchronization, compatibility,
+webhook, and health endpoints.
 
 Seed the governed JFrog repositories and curated catalog with the dedicated, resumable seeder:
 

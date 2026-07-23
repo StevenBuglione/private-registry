@@ -136,13 +136,6 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
-tasks.named<ProcessResources>("processResources") {
-    from("api/openapi.yaml") {
-        into("static")
-        rename { "openapi.yaml" }
-    }
-}
-
 tasks.named<Jar>("jar") {
     enabled = false
 }

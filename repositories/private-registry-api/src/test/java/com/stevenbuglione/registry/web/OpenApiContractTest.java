@@ -75,7 +75,7 @@ class OpenApiContractTest {
   }
 
   @Test
-  void syncCredentialWorkflowIsExplicitAndSafeForSwagger() throws IOException {
+  void syncCredentialContractIsExplicitAndDoesNotHideTheOneTimeResponse() throws IOException {
     var document = mapping(new Yaml().load(Files.readString(Path.of("api", "openapi.yaml"))));
     var paths = mapping(document.get("paths"));
     var credentialOperations = mapping(paths.get("/api/v1/admin/sync-credentials"));

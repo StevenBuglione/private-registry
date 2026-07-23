@@ -24,19 +24,14 @@ Entra remains the system of record for administrators and APM memberships. The R
 
 Tokens use 256 bits of cryptographic randomness, are limited to 365 days, can be revoked immediately, and are never recoverable from the database.
 
-## Swagger API key workflow
+## API reference
 
-Open `/swagger-ui.html` from the **Sync credentials** administration page. The Swagger contract
-provides separate **Sync API keys** and **Artifact sync** sections:
+Open `/swagger-ui.html` from the administration header to inspect the complete API generated from
+the running Spring controllers. Swagger lists the catalog, administration, synchronization,
+compatibility, webhook, and health endpoints and supports filtering by path, operation, or tag.
 
-1. Create a scoped credential and copy the one-time `rgs.…` token.
-2. Select **Authorize** in Swagger.
-3. Paste only the token. Swagger adds the `Bearer` prefix.
-4. Open **Artifact sync**, select `POST /api/v1/sync/artifacts`, and provide a unique
-   `Idempotency-Key`.
-
-Swagger does not persist authorization across browser reloads. Do not paste production credentials
-into shared browsers, screenshots, logs, or issue reports.
+The page uses the administrator's existing server-side Entra session. Runner sync credentials remain
+one-time secrets and must not be pasted into shared browsers, screenshots, logs, or issue reports.
 
 ## GitHub Actions request
 

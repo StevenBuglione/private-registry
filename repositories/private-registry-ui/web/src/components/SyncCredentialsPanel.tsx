@@ -1,5 +1,4 @@
 import {
-  ArrowSquareOutIcon,
   CheckCircleIcon,
   CopyIcon,
   KeyIcon,
@@ -14,7 +13,6 @@ import {
   useRevokeSyncCredential,
   useSyncCredentials,
 } from "../hooks";
-import { runtimeConfig } from "../runtime-config";
 import type {
   CreatedSyncCredential,
   CreateSyncCredential,
@@ -38,7 +36,6 @@ export function SyncCredentialsPanel() {
   const revoke = useRevokeSyncCredential(session.csrfToken);
   const [showCreate, setShowCreate] = useState(false);
   const [created, setCreated] = useState<CreatedSyncCredential>();
-  const swaggerUrl = swaggerUiUrl(runtimeConfig().apiBaseUrl);
 
   if (credentials.isPending) {
     return <StatePanel kind="loading" />;
@@ -79,20 +76,15 @@ export function SyncCredentialsPanel() {
             without granting interactive Registry access.
           </p>
         </div>
-        <div className="admin-toolbar-actions">
-          <a href={swaggerUrl} target="_blank" rel="noreferrer">
-            Swagger API <ArrowSquareOutIcon size={15} />
-          </a>
-          <button
-            className="admin-primary-button"
-            type="button"
-            onClick={() => {
-              setShowCreate(true);
-            }}
-          >
-            <PlusIcon size={17} /> Create credential
-          </button>
-        </div>
+        <button
+          className="admin-primary-button"
+          type="button"
+          onClick={() => {
+            setShowCreate(true);
+          }}
+        >
+          <PlusIcon size={17} /> Create credential
+        </button>
       </div>
 
       {showCreate ? (
@@ -129,11 +121,6 @@ export function SyncCredentialsPanel() {
       />
     </div>
   );
-}
-
-function swaggerUiUrl(apiBaseUrl: string): string {
-  const apiSuffix = "/api/v1";
-  return `${apiBaseUrl.endsWith(apiSuffix) ? apiBaseUrl.slice(0, -apiSuffix.length) : apiBaseUrl}/swagger-ui.html`;
 }
 
 function CreateCredentialForm({

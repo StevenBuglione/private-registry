@@ -28,14 +28,18 @@ server:
   shutdown: graceful
 
 springdoc:
+  api-docs:
+    path: /v3/api-docs
+  packages-to-scan: com.stevenbuglione.registry
   swagger-ui:
     path: /swagger-ui.html
-    url: /openapi.yaml
     csrf:
       enabled: true
+    deep-linking: true
     disable-swagger-default-url: true
     display-request-duration: true
-    doc-expansion: none
+    doc-expansion: list
+    filter: true
     operations-sorter: method
     tags-sorter: alpha
 

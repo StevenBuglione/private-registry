@@ -7,15 +7,6 @@ info:
     Package binaries remain in Artifactory and are never served by this API. Catalog responses are
     filtered by the caller's Microsoft Entra APM entitlements; unauthorized and nonexistent package
     identities intentionally return the same response.
-
-    ## Sync API key quick start
-    1. Sign in as a Registry administrator.
-    2. Create a scoped key under **Sync API keys** and copy the returned `rgs.…` token immediately.
-    3. Select **Authorize**, choose `syncCredential`, and paste only the token—not the `Bearer` prefix.
-    4. Call **Artifact sync** with a unique `Idempotency-Key`.
-
-    The plaintext key is returned once, stored only as a SHA-256 digest, expires automatically, and
-    can be revoked immediately.
 servers:
   - url: /
     description: Same-origin Registry deployment

@@ -7,7 +7,6 @@ COPY gradlew gradlew.bat build.gradle.kts settings.gradle.kts gradle.properties 
 RUN chmod +x gradlew
 
 COPY config config
-COPY api api
 COPY src src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew --no-daemon bootJar
 
