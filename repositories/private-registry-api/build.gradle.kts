@@ -84,7 +84,7 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
     implementation("org.apache.groovy:groovy")
-    compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
+    compileOnly("org.apache.httpcomponents:httpclient:4.5.14")
     implementation("com.github.ben-manes.caffeine:caffeine")
 
     compileOnly("org.jspecify:jspecify:1.0.0")
