@@ -55,10 +55,10 @@ dependencies {
         implementation("org.apache.tomcat.embed:tomcat-embed-websocket:11.0.24") {
             because("keep the embedded Tomcat components on one patched release")
         }
-        implementation("com.fasterxml.jackson.core:jackson-core:2.21.5") {
+        implementation("com.fasterxml.jackson.core:jackson-core:2.22.1") {
             because("keep Jackson 2 components aligned with the patched databind release")
         }
-        implementation("com.fasterxml.jackson.core:jackson-databind:2.21.5") {
+        implementation("com.fasterxml.jackson.core:jackson-databind:2.22.1") {
             because("2.21.5 fixes CVE-2026-54515")
         }
         implementation("org.apache.logging.log4j:log4j-api:2.25.5") {
