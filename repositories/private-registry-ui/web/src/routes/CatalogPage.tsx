@@ -17,7 +17,6 @@ import { PackageCard } from "../components/PackageCard";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage } from "../hooks";
 import type { PackageKind, PackageSummary } from "../types";
-import { useRegistry } from "../use-registry";
 import { hasText } from "../utils";
 
 const providerTierValues = providerTierOptions.map((option) => option.value);
@@ -27,7 +26,6 @@ const moduleProviderValues = moduleProviderOptions.map(([value]) => value);
 export function CatalogPage({ kind }: { kind?: PackageKind }) {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { selectedApmId } = useRegistry();
   const [mobileFilters, setMobileFilters] = useState(false);
   const filters: FilterState = useMemo(
     () => ({
@@ -57,7 +55,6 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     filters.tier,
     filters.category,
     sort,
-    selectedApmId,
   ].join("|");
   const [cursorState, setCursorState] = useState<{
     scope: string;
@@ -77,7 +74,6 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     tier: filters.tier,
     category: filters.category,
     sort,
-    apmId: selectedApmId,
     cursor,
     limit: pageSize,
   });
@@ -122,7 +118,7 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
         ? "Providers are a logical abstraction of an upstream API. They are responsible for understanding API interactions and exposing resources."
         : effectiveKind === "module"
           ? "Modules are self-contained packages of Terraform configurations that are managed as a group."
-          : "Browse every authorized provider and module available through your Registry access.";
+          : "Browse providers and modules available through your Registry.";
 
   const providerItems =
     result.data?.items.filter((item) => item.kind === "provider") ?? [];

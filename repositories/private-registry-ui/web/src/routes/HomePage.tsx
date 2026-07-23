@@ -4,7 +4,6 @@ import {
   GlobeSimpleIcon,
   InfoIcon,
   PackageIcon,
-  ShieldCheckIcon,
 } from "@phosphor-icons/react";
 import { Link } from "react-router";
 import { PackageCard } from "../components/PackageCard";
@@ -12,20 +11,16 @@ import { RegistryMark } from "../components/RegistryMark";
 import { StatePanel } from "../components/StatePanel";
 import { useCatalogPage, useHomepageSettings } from "../hooks";
 import type { HomepageSettings } from "../types";
-import { useRegistry } from "../use-registry";
 
 export function HomePage() {
-  const { session } = useRegistry();
   const settings = useHomepageSettings();
   const providers = useCatalogPage({
     kind: "provider",
-    approval: "approved",
     sort: "name",
     limit: 50,
   });
   const modules = useCatalogPage({
     kind: "module",
-    approval: "approved",
     sort: "name",
     limit: 1,
   });
@@ -65,8 +60,8 @@ export function HomePage() {
         <RegistryMark />
         <h1>Registry</h1>
         <p>
-          Discover approved Terraform providers and reusable modules for
-          building secure, reliable infrastructure.
+          Discover Terraform providers and reusable modules for building secure,
+          reliable infrastructure.
         </p>
         <div className="hero-actions">
           <Link to="/providers">
@@ -79,18 +74,6 @@ export function HomePage() {
         <div className="hero-counts">
           <strong>{providerCount}</strong> providers,{" "}
           <strong>{moduleCount}</strong> modules available to you
-        </div>
-      </section>
-
-      <section className="access-strip">
-        <div className="source-container">
-          <ShieldCheckIcon size={20} />
-          <strong>APM-authorized catalog</strong>
-          <span>
-            {session.admin
-              ? "Registry administrators can see every approved package."
-              : `Showing packages across all ${String(session.apms.length)} APM group${session.apms.length === 1 ? "" : "s"} you belong to.`}
-          </span>
         </div>
       </section>
 
@@ -107,7 +90,7 @@ export function HomePage() {
         <div className="home-catalog source-container">
           <CatalogSection
             eyebrow="Featured providers"
-            description="Popular infrastructure plugins approved for your access context."
+            description="Popular infrastructure plugins available in your Registry."
             href="/providers"
             loading={providers.isPending}
             items={featured}
@@ -133,7 +116,7 @@ const DEFAULT_HOMEPAGE_SETTINGS: HomepageSettings = {
   notificationEnabled: true,
   notificationTitle: "Your private Registry is ready",
   notificationMessage:
-    "Browse approved providers and modules from every APM group you belong to.",
+    "Browse Terraform providers and modules available to your account.",
   featuredProviderIds: DEFAULT_FEATURED_PROVIDER_IDS,
   updatedAt: "",
 };
@@ -182,7 +165,7 @@ function HowTerraformWorks() {
     <section className="how-terraform">
       <img
         src="/assets/registry-flow.png"
-        alt="Approved Registry packages flow into Terraform and provision infrastructure"
+        alt="Registry packages flow into Terraform and provision infrastructure"
       />
       <div>
         <h2>How Terraform, providers and modules work</h2>
@@ -196,7 +179,7 @@ function HowTerraformWorks() {
           consistent infrastructure delivery.
         </p>
         <p>
-          <strong>The Registry</strong> gives your teams approved versions of
+          <strong>The Registry</strong> helps your teams discover and reuse
           both. Add a provider or module to your configuration and run{" "}
           <code>terraform init</code> to retrieve it from the configured private
           source.

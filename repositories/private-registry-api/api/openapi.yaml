@@ -3,7 +3,7 @@ info:
   title: Registry API
   version: 1.0.0
   description: |
-    Authenticated catalog, governance, event-stream, and operational interfaces for Registry.
+    Authenticated catalog, event-stream, and operational interfaces for Registry.
     Package binaries remain in Artifactory and are never served by this API. Catalog responses are
     filtered by the caller's Microsoft Entra APM entitlements; unauthorized and nonexistent package
     identities intentionally return the same response.
@@ -88,24 +88,12 @@ paths:
           schema:
             type: string
             example: public-cloud,networking
-        - $ref: '#/components/parameters/ApmId'
-        - name: lifecycle
-          in: query
-          schema:
-            type: string
-            enum: [draft, candidate, approved, maintenance, deprecated, revoked, archived]
-        - name: approval
-          in: query
-          schema: {type: string, enum: [approved, rejected, waived]}
-        - name: risk
-          in: query
-          schema: {type: string, enum: [low, medium, high, critical]}
         - name: sort
           in: query
           description: Relevance applies when q is present; without q it is normalized to updated.
           schema:
             type: string
-            enum: [relevance, updated, name, risk]
+            enum: [relevance, updated, name, downloads]
             default: updated
         - name: cursor
           in: query
@@ -151,7 +139,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -166,7 +153,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -180,7 +166,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -195,7 +180,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -209,7 +193,6 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
@@ -225,39 +208,9 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/provider/{namespace}/{name}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getLatestProviderGovernance
-      summary: Return latest authorized provider governance
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/provider/{namespace}/{name}/{version}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getProviderGovernance
-      summary: Return authorized provider governance for one version
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/PackageNotFound'}
         '503': {$ref: '#/components/responses/IdentityUnavailable'}
@@ -270,7 +223,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -286,7 +238,6 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageSummary'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -301,7 +252,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -317,7 +267,6 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200': {$ref: '#/components/responses/PackageVersions'}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -332,7 +281,6 @@ paths:
         - $ref: '#/components/parameters/Namespace'
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
@@ -349,41 +297,9 @@ paths:
         - $ref: '#/components/parameters/Name'
         - $ref: '#/components/parameters/Target'
         - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
         - $ref: '#/components/parameters/DocumentPath'
       responses:
         '200': {$ref: '#/components/responses/MarkdownDocument'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/module/{namespace}/{name}/{target}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getLatestModuleGovernance
-      summary: Return latest authorized module governance
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '404': {$ref: '#/components/responses/PackageNotFound'}
-        '503': {$ref: '#/components/responses/IdentityUnavailable'}
-  /api/v1/catalog/packages/module/{namespace}/{name}/{target}/{version}/governance:
-    get:
-      tags: [Catalog]
-      operationId: getModuleGovernance
-      summary: Return authorized module governance for one version
-      parameters:
-        - $ref: '#/components/parameters/Namespace'
-        - $ref: '#/components/parameters/Name'
-        - $ref: '#/components/parameters/Target'
-        - $ref: '#/components/parameters/Version'
-        - $ref: '#/components/parameters/ApmId'
-      responses:
-        '200': {$ref: '#/components/responses/Governance'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/PackageNotFound'}
         '503': {$ref: '#/components/responses/IdentityUnavailable'}
@@ -393,8 +309,6 @@ paths:
       operationId: streamCatalogEvents
       summary: Stream authorized catalog changes
       description: Events never include APM assignment lists. Clients should invalidate affected catalog queries.
-      parameters:
-        - $ref: '#/components/parameters/ApmId'
       responses:
         '200':
           description: Server-sent event stream containing connected and catalog-change events.
@@ -558,11 +472,6 @@ components:
       required: true
       description: Exact non-revoked package version, or latest.
       schema: {type: string, minLength: 1}
-    ApmId:
-      name: apm_id
-      in: query
-      description: Optional selected APM context. Unknown or unauthorized values fail closed.
-      schema: {type: string, pattern: '^APM[0-9]{7}$'}
     DocumentPath:
       name: path
       in: query
@@ -595,11 +504,6 @@ components:
       content:
         text/markdown:
           schema: {type: string}
-    Governance:
-      description: Authorized governance metadata
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/Governance'}
     BadRequest:
       description: A filter, cursor, route, or request value is invalid.
       content:
@@ -608,7 +512,7 @@ components:
     Unauthorized:
       description: No valid OIDC session or verified ALB identity is present.
     PackageNotFound:
-      description: Package or version does not exist, is revoked, or is not authorized for the selected APM context.
+      description: Package or version does not exist, is revoked, or is not available to the caller.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ApiError'}
@@ -689,11 +593,7 @@ components:
         - title
         - description
         - latest_version
-        - owners
-        - support_level
-        - lifecycle
         - verification
-        - risk_tier
         - source_address
         - updated_at
         - versions
@@ -709,11 +609,7 @@ components:
         latest_version:
           type: string
           description: Latest visible version, or the selected version on an explicit version route.
-        owners: {type: array, items: {type: string}}
-        support_level: {type: string, enum: [supported, maintenance, experimental, deprecated, revoked, archived]}
-        lifecycle: {type: string, enum: [draft, candidate, approved, maintenance, deprecated, revoked, archived]}
         verification: {type: string}
-        risk_tier: {type: string, enum: [low, medium, high, critical]}
         source_address: {type: string}
         updated_at: {type: string, format: date-time}
         versions:
@@ -760,43 +656,6 @@ components:
           description: Raw HCL default expression. Registry returns but never evaluates this value.
         required: {type: boolean}
         sensitive: {type: boolean}
-      additionalProperties: false
-    Governance:
-      type: object
-      required:
-        - package_id
-        - owners
-        - support_level
-        - lifecycle
-        - risk_tier
-        - verification
-        - approvals
-        - source_address
-        - version_constraint
-      properties:
-        package_id: {type: string}
-        owners: {type: array, items: {type: string}}
-        support_level: {type: string}
-        lifecycle: {type: string}
-        risk_tier: {type: string}
-        verification: {type: string}
-        approvals:
-          type: array
-          items: {$ref: '#/components/schemas/Approval'}
-        source_address: {type: string}
-        version_constraint: {type: string}
-        support_url: {type: [string, 'null'], format: uri}
-        source_repository_url: {type: [string, 'null'], format: uri}
-        jfrog_console_url: {type: [string, 'null'], format: uri}
-      additionalProperties: false
-    Approval:
-      type: object
-      required: [type, status, decided_by, decided_at]
-      properties:
-        type: {type: string}
-        status: {type: string, enum: [approved, rejected, waived]}
-        decided_by: {type: string}
-        decided_at: {type: string, format: date-time}
       additionalProperties: false
     WebhookReceipt:
       type: object

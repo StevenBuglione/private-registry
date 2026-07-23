@@ -53,7 +53,7 @@ public class PostgresCatalogTextSearch implements CatalogTextSearch {
                           AND NOT visible_version.revoked)
             """
                 .formatted(PUBLIC_ID));
-    appendAuthorization(sql, parameters, accessContext, query);
+    appendAuthorization(sql, parameters, accessContext);
     sql.append(
         """
                AND (
@@ -80,10 +80,7 @@ public class PostgresCatalogTextSearch implements CatalogTextSearch {
   }
 
   private static void appendAuthorization(
-      StringBuilder sql,
-      Map<String, Object> parameters,
-      AccessContext accessContext,
-      CatalogQuery query) {
+      StringBuilder sql, Map<String, Object> parameters, AccessContext accessContext) {
     if (!accessContext.registryAdmin()) {
       sql.append(
           """
@@ -94,17 +91,6 @@ public class PostgresCatalogTextSearch implements CatalogTextSearch {
                         AND authorized_apm.apm_id IN (:authorizedApmIds))
               """);
       parameters.put("authorizedApmIds", accessContext.apmIds());
-    }
-    if (query.apmId() != null) {
-      sql.append(
-          """
-               AND EXISTS (
-                     SELECT 1
-                       FROM package_apm_access selected_apm
-                      WHERE selected_apm.package_id = p.id
-                        AND selected_apm.apm_id = :selectedApmId)
-              """);
-      parameters.put("selectedApmId", query.apmId());
     }
   }
 }

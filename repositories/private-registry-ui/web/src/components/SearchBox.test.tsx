@@ -13,15 +13,10 @@ const packages: PackageSummary[] = [
     namespace: "platform",
     name: "aws",
     version: "6.5.0",
-    description: "Approved AWS provider",
+    description: "AWS provider",
     provider: "AWS",
-    owner: "Platform Engineering",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
     verified: true,
     updatedAt: "2026-07-21T12:00:00Z",
-    apmIds: ["APM0001042"],
   },
   {
     kind: "module",
@@ -29,15 +24,10 @@ const packages: PackageSummary[] = [
     name: "vpc",
     target: "aws",
     version: "1.4.0",
-    description: "Approved network module",
+    description: "Network module",
     provider: "AWS",
-    owner: "Platform Engineering",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
     verified: true,
     updatedAt: "2026-07-21T12:00:00Z",
-    apmIds: ["APM0001042"],
   },
 ];
 
@@ -78,7 +68,7 @@ describe("SearchBox", () => {
 
     await user.type(
       screen.getByRole("textbox", {
-        name: "Search approved providers and modules",
+        name: "Search providers and modules",
       }),
       "aws",
     );
@@ -109,7 +99,7 @@ describe("SearchBox", () => {
     );
 
     const input = screen.getByRole("textbox", {
-      name: "Search approved providers and modules",
+      name: "Search providers and modules",
     });
     await user.type(input, "aws");
 
@@ -140,7 +130,7 @@ describe("SearchBox", () => {
 
     await user.type(
       screen.getByRole("textbox", {
-        name: "Search approved providers and modules",
+        name: "Search providers and modules",
       }),
       "aws",
     );

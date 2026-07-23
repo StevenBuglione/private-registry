@@ -1,14 +1,4 @@
 export type PackageKind = "provider" | "module";
-export type Approval = "approved" | "rejected" | "waived";
-export type Lifecycle =
-  | "draft"
-  | "candidate"
-  | "approved"
-  | "maintenance"
-  | "deprecated"
-  | "revoked"
-  | "archived";
-export type Risk = "low" | "medium" | "high" | "critical";
 
 export interface ApmAccess {
   id: string;
@@ -47,27 +37,9 @@ export interface PackageSummary {
   version: string;
   description: string;
   provider: string;
-  owner: string;
-  approval: Approval;
-  lifecycle: Lifecycle;
-  risk: Risk;
   verified: boolean;
   updatedAt: string;
-  apmIds: string[];
   downloadStatistics?: DownloadStatistics | undefined;
-}
-
-export interface GovernanceRecord {
-  owner: string;
-  support: string;
-  approval: Approval;
-  lifecycle: Lifecycle;
-  risk: Risk;
-  verifiedAt?: string | undefined;
-  sourceRepository?: string | undefined;
-  artifactRepository?: string | undefined;
-  checksum?: string | undefined;
-  apmIds: string[];
 }
 
 export interface PackageDetail extends PackageSummary {
@@ -76,7 +48,6 @@ export interface PackageDetail extends PackageSummary {
   examples: PackageExample[];
   submodules: PackageModuleChild[];
   documentation?: string | undefined;
-  governance?: GovernanceRecord | undefined;
   installSource?: string | undefined;
   artifactRepository?: string | undefined;
   artifactPath?: string | undefined;
@@ -132,11 +103,7 @@ export interface CatalogQuery {
   provider?: string | undefined;
   tier?: string | undefined;
   category?: string | undefined;
-  apmId?: string | undefined;
-  lifecycle?: Lifecycle | undefined;
-  approval?: Approval | undefined;
-  risk?: Risk | undefined;
-  sort?: "relevance" | "updated" | "name" | "risk" | "downloads" | undefined;
+  sort?: "relevance" | "updated" | "name" | "downloads" | undefined;
   cursor?: string | undefined;
   limit?: number | undefined;
 }

@@ -29,12 +29,8 @@ const moduleDetail: PackageDetail = {
   versions: ["2.4.1"],
   examples: [{ name: "complete", path: "examples/complete" }],
   submodules: [{ name: "network", path: "modules/network" }],
-  description: "Approved VPC module.",
+  description: "VPC module.",
   provider: "aws",
-  owner: "Cloud Platform",
-  approval: "approved",
-  lifecycle: "approved",
-  risk: "low",
   verified: true,
   updatedAt: "2026-07-22T12:00:00Z",
   publishedAt: "2025-04-02T00:00:00Z",
@@ -56,7 +52,6 @@ const moduleDetail: PackageDetail = {
     year: 294_700,
     observedAt: "2026-07-22T12:00:00Z",
   },
-  apmIds: ["APM0000001"],
   documentation: "# VPC Module\n\nModule readme.",
   symbols: [
     {
@@ -128,15 +123,6 @@ const providerDetail: PackageDetail = {
   documentation: "# AWS Provider\n\nProvider overview.",
   artifactRepository: "iac-provider-release-local",
   artifactPath: "hashicorp/aws/6.8.0/provider.zip",
-  governance: {
-    owner: "Cloud Platform",
-    support: "supported",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
-    sourceRepository: "https://github.com/hashicorp/terraform-provider-aws",
-    apmIds: ["APM0000001"],
-  },
   symbols: [
     {
       kind: "guide",
@@ -199,12 +185,6 @@ vi.mock("../hooks", () => ({
       refetch: vi.fn(),
     };
   },
-  usePackageGovernance: () => ({
-    data: undefined,
-    isPending: false,
-    isError: false,
-    refetch: vi.fn(),
-  }),
   useCatalogPage: () => ({
     data: { items: [moduleDetail], total: 7 },
     isPending: false,

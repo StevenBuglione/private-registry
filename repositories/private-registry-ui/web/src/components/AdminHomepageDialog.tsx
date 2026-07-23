@@ -31,7 +31,6 @@ export function AdminHomepageDialog({
   const settings = useHomepageSettings();
   const providers = useCatalogPage({
     kind: "provider",
-    approval: "approved",
     sort: "name",
     limit: 100,
   });

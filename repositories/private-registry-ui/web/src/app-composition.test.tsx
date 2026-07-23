@@ -72,13 +72,8 @@ const provider: PackageSummary = {
   provider: "aws",
   version: "6.8.0",
   description: "AWS infrastructure provider",
-  lifecycle: "approved",
-  approval: "approved",
-  risk: "low",
   verified: true,
   updatedAt: "2026-07-20T12:00:00Z",
-  owner: "Cloud Platform",
-  apmIds: ["APM0000001"],
 };
 
 const modulePackage: PackageSummary = {
@@ -152,7 +147,7 @@ beforeEach(() => {
     data: {
       notificationEnabled: true,
       notificationTitle: "Registry notice",
-      notificationMessage: "Approved catalog content.",
+      notificationMessage: "Terraform catalog content.",
       featuredProviderIds: ["provider/hashicorp/aws"],
       updatedAt: "2026-07-22T12:00:00Z",
     },
@@ -229,13 +224,13 @@ describe("application composition", () => {
       screen.queryByRole("combobox", { name: "Access context" }),
     ).toBeNull();
     await user.click(screen.getByRole("button", { name: /Ada Lovelace/i }));
-    expect(screen.getByText(/All eligible APM groups/)).toBeVisible();
+    expect(screen.queryByText(/APM group/i)).toBeNull();
     await user.click(
       screen.getByRole("menuitem", { name: "Switch to dark mode" }),
     );
     expect(document.documentElement.dataset["theme"]).toBe("dark");
     await user.click(screen.getByRole("button", { name: "Browse" }));
-    expect(screen.getByRole("menuitem", { name: /Providers/i })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: /^Providers/ })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Browse" }));
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     expect(
@@ -313,7 +308,7 @@ describe("application composition", () => {
         name: "How Terraform, providers and modules work",
       }),
     ).toBeVisible();
-    expect(screen.getByText(/all 2 APM groups/)).toBeVisible();
+    expect(screen.queryByText(/APM group/i)).toBeNull();
   });
 
   it("renders home loading, empty, error, and administrator states truthfully", () => {
@@ -360,7 +355,7 @@ describe("application composition", () => {
     );
     const adminSession = { ...session, admin: true, apms: [] };
     renderWithRegistry(<HomePage />, "/", adminSession);
-    expect(screen.getByText(/Registry administrators can see/)).toBeVisible();
+    expect(screen.queryByText(/administrator|APM group/i)).toBeNull();
     expect(
       screen.getAllByRole("heading", {
         name: "No packages match these filters",

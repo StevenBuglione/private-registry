@@ -12,13 +12,8 @@ const item: PackageSummary = {
   version: "4.36.0",
   description: "Manage Microsoft Azure resources.",
   provider: "Azure",
-  owner: "Cloud Platform",
-  approval: "approved",
-  lifecycle: "approved",
-  risk: "low",
   verified: true,
   updatedAt: "2026-07-21T18:00:00Z",
-  apmIds: ["APM0001042"],
 };
 
 describe("PackageTable", () => {

@@ -8,17 +8,12 @@ const provider = {
   provider: "azurerm",
   version: "4.40.0",
   versions: ["4.40.0", "4.39.0"],
-  description: "Manage approved Azure infrastructure.",
-  lifecycle: "approved",
-  approval: "approved",
-  risk: "low",
+  description: "Manage Azure infrastructure.",
   verified: true,
   updated_at: "2026-07-21T12:00:00Z",
-  owner: "Cloud Platform",
-  apm_ids: ["APM0000001"],
   artifact_repository: "iac-provider-release-local",
   artifact_path: "hashicorp/azurerm/4.40.0/provider.zip",
-  documentation: "# AzureRM Provider\n\nUse approved Azure resources.",
+  documentation: "# AzureRM Provider\n\nUse Azure resources.",
   symbols: [
     {
       kind: "resource",
@@ -33,14 +28,6 @@ const provider = {
       description: "Reads the active Azure client configuration.",
     },
   ],
-  governance: {
-    owner: "Cloud Platform",
-    support: "#registry-support",
-    approval: "approved",
-    lifecycle: "approved",
-    risk: "low",
-    apm_ids: ["APM0000001"],
-  },
 };
 
 const modulePackage = {
@@ -51,15 +38,10 @@ const modulePackage = {
   provider: "azurerm",
   version: "1.0.0",
   versions: ["1.0.0", "0.9.0"],
-  description: "Creates a governed Azure virtual network.",
-  lifecycle: "approved",
-  approval: "approved",
-  risk: "medium",
+  description: "Creates an Azure virtual network.",
   verified: true,
   updated_at: "2026-07-20T12:00:00Z",
-  owner: "Network Platform",
-  apm_ids: ["APM0000001"],
-  documentation: "# Virtual network module\n\nA governed Azure network.",
+  documentation: "# Virtual network module\n\nAn Azure network.",
   symbols: [
     {
       kind: "input",
@@ -114,7 +96,7 @@ async function mockRegistry(page: Page): Promise<string[]> {
           notification_enabled: true,
           notification_title: "Your private Registry is ready",
           notification_message:
-            "Browse approved providers and modules from every APM group you belong to.",
+            "Browse Terraform providers and modules available to your account.",
           featured_provider_ids: ["provider/hashicorp/azurerm"],
           updated_at: "2026-07-22T12:00:00Z",
         },
@@ -132,11 +114,6 @@ async function mockRegistry(page: Page): Promise<string[]> {
               : provider.documentation,
         },
       });
-      return;
-    }
-
-    if (url.pathname.endsWith("/governance")) {
-      await route.fulfill({ json: provider.governance });
       return;
     }
 
@@ -229,7 +206,7 @@ test("global search clears its query and closes results after navigation", async
 }) => {
   await page.goto("/");
   const search = page.getByRole("textbox", {
-    name: "Search approved providers and modules",
+    name: "Search providers and modules",
   });
 
   await search.fill("azure");
@@ -386,6 +363,13 @@ test("catalog requests aggregate server-side APM access without a client selecto
   ).toHaveCount(0);
   expect(requests.length).toBeGreaterThan(0);
   for (const request of requests) {
-    expect(new URL(request).searchParams.get("apm_id")).toBeNull();
+    const url = new URL(request);
+    expect(url.searchParams.get("apm_id")).toBeNull();
+    expect(url.searchParams.get("approval")).toBeNull();
+    expect(url.searchParams.get("lifecycle")).toBeNull();
+    expect(url.searchParams.get("risk")).toBeNull();
   }
+  await expect(page.getByText(/APM group|Lifecycle|Governance/i)).toHaveCount(
+    0,
+  );
 });

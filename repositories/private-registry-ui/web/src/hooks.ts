@@ -7,13 +7,11 @@ import {
   getHomepageSettings,
   getPackage,
   getPackageDocumentation,
-  getPackageGovernance,
   getSession,
   updateHomepageSettings,
 } from "./api";
 import type {
   CatalogQuery,
-  GovernanceRecord,
   HomepageSettingsUpdate,
   PackageKind,
 } from "./types";
@@ -61,14 +59,12 @@ export function useUpdateHomepageSettings(csrfToken?: string) {
   });
 }
 
-export function useCatalogSuggestions(q: string, apmId?: string) {
+export function useCatalogSuggestions(q: string) {
   return useQuery({
-    queryKey: ["catalog-suggestions", q, apmId],
+    queryKey: ["catalog-suggestions", q],
     queryFn: () =>
       getCatalogPage({
         q,
-        apmId,
-        approval: "approved",
         sort: "relevance",
         limit: 8,
       }),
@@ -84,7 +80,6 @@ interface PackageIdentity {
   name: string;
   target: string | undefined;
   version: string | undefined;
-  apmId: string | undefined;
 }
 
 export function usePackage(identity: PackageIdentity) {
@@ -97,7 +92,6 @@ export function usePackage(identity: PackageIdentity) {
         identity.name,
         identity.target,
         identity.version,
-        identity.apmId,
       ),
     retry: queryRetry,
   });
@@ -117,7 +111,6 @@ export function usePackageDocumentation(
         identity.name,
         identity.target,
         identity.version,
-        identity.apmId,
         documentPath,
       ),
     initialData:
@@ -128,32 +121,12 @@ export function usePackageDocumentation(
   });
 }
 
-export function usePackageGovernance(
-  identity: PackageIdentity,
-  initial?: GovernanceRecord,
-) {
-  return useQuery({
-    queryKey: ["package-governance", identity],
-    queryFn: () =>
-      getPackageGovernance(
-        identity.kind,
-        identity.namespace,
-        identity.name,
-        identity.target,
-        identity.version,
-        identity.apmId,
-      ),
-    initialData: initial,
-    retry: queryRetry,
-  });
-}
-
-export function useCatalogEvents(apmId?: string) {
+export function useCatalogEvents() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!("EventSource" in window)) return;
-    const eventSource = new EventSource(catalogEventsUrl(apmId), {
+    const eventSource = new EventSource(catalogEventsUrl(), {
       withCredentials: true,
     });
     const refresh = () => {
@@ -165,7 +138,6 @@ export function useCatalogEvents(apmId?: string) {
       void queryClient.invalidateQueries({
         queryKey: ["package-documentation"],
       });
-      void queryClient.invalidateQueries({ queryKey: ["package-governance"] });
     };
 
     eventSource.addEventListener("catalog-change", refresh);
@@ -173,5 +145,5 @@ export function useCatalogEvents(apmId?: string) {
     return () => {
       eventSource.close();
     };
-  }, [apmId, queryClient]);
+  }, [queryClient]);
 }

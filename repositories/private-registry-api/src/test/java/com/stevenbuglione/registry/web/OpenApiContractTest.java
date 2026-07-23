@@ -33,7 +33,7 @@ class OpenApiContractTest {
             "/api/v1/auth/logout",
             "/api/v1/catalog/packages",
             "/api/v1/catalog/packages/provider/{namespace}/{name}/{version}/documentation",
-            "/api/v1/catalog/packages/module/{namespace}/{name}/{target}/{version}/governance",
+            "/api/v1/catalog/packages/module/{namespace}/{name}/{target}/{version}/documentation",
             "/api/v1/catalog/events",
             "/internal/webhooks/jfrog",
             "/health/live",
@@ -45,6 +45,7 @@ class OpenApiContractTest {
                 path.contains("..")
                     || path.startsWith("/registry/docs")
                     || path.startsWith("/api/v1/enterprise")
+                    || path.endsWith("/governance")
                     || path.startsWith("/top/"));
 
     var operationIds = new ArrayList<String>();

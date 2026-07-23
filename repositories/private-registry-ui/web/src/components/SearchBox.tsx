@@ -2,7 +2,6 @@ import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { type FocusEvent, type SyntheticEvent, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useCatalogSuggestions } from "../hooks";
-import { useRegistry } from "../use-registry";
 import { packageHref } from "../utils";
 import { PackageIcon } from "./PackageIcon";
 
@@ -20,8 +19,7 @@ export function SearchBox({
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { selectedApmId } = useRegistry();
-  const suggestions = useCatalogSuggestions(value, selectedApmId);
+  const suggestions = useCatalogSuggestions(value);
   const providers =
     suggestions.data?.items
       .filter((item) => item.kind === "provider")
@@ -68,7 +66,7 @@ export function SearchBox({
         className="sr-only"
         htmlFor={compact ? "catalog-search-compact" : "catalog-search"}
       >
-        Search approved providers and modules
+        Search providers and modules
       </label>
       <input
         ref={inputRef}
@@ -109,14 +107,12 @@ export function SearchBox({
           aria-label="Search suggestions"
         >
           {suggestions.isPending ? (
-            <div className="suggestion-status">
-              Searching approved packages…
-            </div>
+            <div className="suggestion-status">Searching packages…</div>
           ) : null}
           {!suggestions.isPending &&
           providers.length === 0 &&
           modules.length === 0 ? (
-            <div className="suggestion-status">No approved packages found.</div>
+            <div className="suggestion-status">No packages found.</div>
           ) : null}
           {providers.length ? (
             <SuggestionGroup

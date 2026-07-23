@@ -1,6 +1,6 @@
 import { InfoIcon, XIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
-import type { Approval, Lifecycle, PackageKind, Risk } from "../types";
+import type { PackageKind } from "../types";
 import {
   moduleProviderOptions,
   providerCategoryOptions,
@@ -15,9 +15,6 @@ export interface FilterState {
   provider?: string | undefined;
   tier?: string | undefined;
   category?: string | undefined;
-  lifecycle?: Lifecycle | undefined;
-  approval?: Approval | undefined;
-  risk?: Risk | undefined;
 }
 
 export function Filters({

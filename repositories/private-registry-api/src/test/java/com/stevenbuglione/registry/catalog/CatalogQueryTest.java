@@ -18,10 +18,6 @@ class CatalogQueryTest {
                 "aws,azurerm",
                 "official,partner",
                 "public-cloud,networking",
-                null,
-                null,
-                null,
-                null,
                 "relevance",
                 null,
                 25,
@@ -37,8 +33,7 @@ class CatalogQueryTest {
   void normalizesRelevanceWithoutAQueryToUpdated() {
     var query =
         new CatalogQuery(
-            new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, null, null, "relevance", null, 25, null));
+            new CatalogQuery.Criteria(null, null, null, null, null, "relevance", null, 25, null));
 
     assertThat(query.sort()).isEqualTo("updated");
   }
@@ -48,19 +43,7 @@ class CatalogQueryTest {
     var query =
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null,
-                PackageKind.MODULE,
-                "azurerm",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "downloads",
-                null,
-                4,
-                null));
+                null, PackageKind.MODULE, "azurerm", null, null, "downloads", null, 4, null));
 
     assertThat(query.sort()).isEqualTo("downloads");
   }
@@ -70,8 +53,7 @@ class CatalogQueryTest {
     var query =
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, null, null, "updated", null, 25,
-                " Azure "));
+                null, null, null, null, null, "updated", null, 25, " Azure "));
 
     assertThat(query.namespace()).isEqualTo("Azure");
   }
@@ -80,19 +62,7 @@ class CatalogQueryTest {
   void rejectsUnsafeNamespaceFilters() {
     var criteria =
         new CatalogQuery.Criteria(
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            "updated",
-            null,
-            25,
-            "Azure/../../secret");
+            null, null, null, null, null, "updated", null, 25, "Azure/../../secret");
 
     assertThatThrownBy(() -> new CatalogQuery(criteria))
         .isInstanceOf(IllegalArgumentException.class)
@@ -103,19 +73,7 @@ class CatalogQueryTest {
   void rejectsNoneCombinedWithAProviderTier() {
     var criteria =
         new CatalogQuery.Criteria(
-            null,
-            PackageKind.PROVIDER,
-            null,
-            "none,official",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "updated",
-            null,
-            25,
-            null);
+            null, PackageKind.PROVIDER, null, "none,official", null, "updated", null, 25, null);
 
     assertThatThrownBy(() -> new CatalogQuery(criteria))
         .isInstanceOf(IllegalArgumentException.class)

@@ -9,17 +9,14 @@ import {
   useCatalogSuggestions,
   usePackage,
   usePackageDocumentation,
-  usePackageGovernance,
   useSession,
 } from "./hooks";
-import type { GovernanceRecord } from "./types";
 
 const apiMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   getCatalogPage: vi.fn(),
   getPackage: vi.fn(),
   getPackageDocumentation: vi.fn(),
-  getPackageGovernance: vi.fn(),
   catalogEventsUrl: vi.fn(),
 }));
 
@@ -42,7 +39,6 @@ const identity = {
   name: "aws",
   target: undefined,
   version: "6.8.0",
-  apmId: "APM0000001",
 };
 
 beforeEach(() => {
@@ -53,7 +49,6 @@ beforeEach(() => {
   apiMocks.getCatalogPage.mockResolvedValue({ items: [], total: 0 });
   apiMocks.getPackage.mockResolvedValue({ name: "aws" });
   apiMocks.getPackageDocumentation.mockResolvedValue("# AWS");
-  apiMocks.getPackageGovernance.mockResolvedValue({ owner: "Platform" });
   apiMocks.catalogEventsUrl.mockReturnValue("/api/v1/catalog/events");
 });
 
@@ -91,8 +86,6 @@ describe("query hooks", () => {
     });
     expect(apiMocks.getCatalogPage).toHaveBeenCalledWith({
       q: "aws",
-      apmId: undefined,
-      approval: "approved",
       sort: "relevance",
       limit: 8,
     });
@@ -103,7 +96,7 @@ describe("query hooks", () => {
     expect(apiMocks.getCatalogPage).not.toHaveBeenCalled();
   });
 
-  it("loads package details, documentation, and governance", async () => {
+  it("loads package details and documentation", async () => {
     const packageHook = renderHook(() => usePackage(identity), {
       wrapper: Wrapper,
     });
@@ -116,7 +109,6 @@ describe("query hooks", () => {
       "aws",
       undefined,
       "6.8.0",
-      "APM0000001",
     );
 
     const docsHook = renderHook(
@@ -132,23 +124,8 @@ describe("query hooks", () => {
       "aws",
       undefined,
       "6.8.0",
-      "APM0000001",
       "resources/aws.md",
     );
-
-    const governance: GovernanceRecord = {
-      owner: "Platform",
-      support: "Teams",
-      approval: "approved",
-      risk: "low",
-      lifecycle: "approved",
-      apmIds: ["APM0000001"],
-    };
-    const governanceHook = renderHook(
-      () => usePackageGovernance(identity, governance),
-      { wrapper: Wrapper },
-    );
-    expect(governanceHook.result.current.data).toEqual(governance);
   });
 });
 
@@ -176,7 +153,7 @@ describe("catalog event stream", () => {
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const stream = renderHook(
       () => {
-        useCatalogEvents("APM0000001");
+        useCatalogEvents();
       },
       {
         wrapper: Wrapper,
@@ -191,9 +168,7 @@ describe("catalog event stream", () => {
     currentSource.listeners.get("catalog-change")?.();
     currentSource.onmessage?.();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["catalog"] });
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: ["package-governance"],
-    });
+    expect(apiMocks.catalogEventsUrl).toHaveBeenCalledWith();
 
     stream.unmount();
     expect(currentSource.close).toHaveBeenCalledOnce();

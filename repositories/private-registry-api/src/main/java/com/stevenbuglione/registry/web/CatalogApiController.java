@@ -44,10 +44,6 @@ public class CatalogApiController {
       @RequestParam(required = false) @Nullable String provider,
       @RequestParam(required = false) @Nullable String tier,
       @RequestParam(required = false) @Nullable String category,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId,
-      @RequestParam(required = false) @Nullable String lifecycle,
-      @RequestParam(required = false) @Nullable String approval,
-      @RequestParam(required = false) @Nullable String risk,
       @RequestParam(defaultValue = "updated") String sort,
       @RequestParam(required = false) @Nullable String cursor,
       @RequestParam(defaultValue = "25") int limit) {
@@ -61,10 +57,6 @@ public class CatalogApiController {
                 provider,
                 tier,
                 category,
-                apmId,
-                lifecycle,
-                approval,
-                risk,
                 sort,
                 cursor,
                 limit,
@@ -83,9 +75,8 @@ public class CatalogApiController {
   public ResponseEntity<?> packageResource(
       Authentication authentication,
       @PathVariable String path,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId,
       @RequestParam(name = "path", required = false) @Nullable String documentPath) {
-    var context = identities.accessContext(authentication).scopedToApm(apmId);
+    var context = identities.accessContext(authentication);
     var route = PackageRoute.parse(path);
     return switch (route.resource()) {
       case "summary" ->
@@ -93,8 +84,6 @@ public class CatalogApiController {
       case "versions" ->
           ResponseEntity.ok(
               catalog.getPackage(context, route.packageId(), route.version()).versions());
-      case "governance" ->
-          ResponseEntity.ok(catalog.getGovernance(context, route.packageId(), route.version()));
       case "documentation" -> {
         var requestedPath = safeDocumentPath(documentPath, route.defaultDocument());
         var document =
@@ -127,16 +116,13 @@ public class CatalogApiController {
   }
 
   @GetMapping(path = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public SseEmitter events(
-      Authentication authentication,
-      @RequestParam(name = "apm_id", required = false) @Nullable String apmId) {
-    return notifier.subscribe(identities.accessContext(authentication).scopedToApm(apmId));
+  public SseEmitter events(Authentication authentication) {
+    return notifier.subscribe(identities.accessContext(authentication));
   }
 
   private static final class PackageRoute {
 
-    private static final List<String> RESOURCES =
-        List.of("versions", "documentation", "governance");
+    private static final List<String> RESOURCES = List.of("versions", "documentation");
     private final String packageId;
     private final @Nullable String version;
     private final String resource;

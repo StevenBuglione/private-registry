@@ -4,7 +4,6 @@ import {
   getHomepageSettings,
   getPackage,
   getPackageDocumentation,
-  getPackageGovernance,
   getSession,
   logout,
   normalizeCatalogPage,
@@ -106,7 +105,7 @@ describe("OpenAPI response normalization", () => {
         jsonResponse({
           notification_enabled: true,
           notification_title: "Registry notice",
-          notification_message: "Approved packages are available.",
+          notification_message: "Terraform packages are available.",
           featured_provider_ids: ["provider/hashicorp/aws"],
           updated_at: "2026-07-22T12:00:00Z",
         }),
@@ -184,11 +183,7 @@ describe("OpenAPI response normalization", () => {
           title: "AWS",
           description: "AWS infrastructure provider",
           latest_version: "6.8.0",
-          owners: ["Cloud Platform"],
-          support_level: "supported",
-          lifecycle: "approved",
           verification: "enterprise-verified",
-          risk_tier: "medium",
           source_address: "registry.example/hashicorp/aws",
           updated_at: "2026-07-22T12:00:00Z",
           versions: [
@@ -229,10 +224,7 @@ describe("OpenAPI response normalization", () => {
     expect(page.items[0]).toMatchObject({
       kind: "provider",
       provider: "aws",
-      owner: "Cloud Platform",
       version: "6.8.0",
-      lifecycle: "approved",
-      risk: "medium",
       verified: true,
       downloadStatistics: {
         allTime: 18,
@@ -241,75 +233,54 @@ describe("OpenAPI response normalization", () => {
     });
   });
 
-  it("normalizes snake_case package and governance source fields", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({
-          kind: "provider",
-          namespace: "hashicorp",
-          name: "aws",
-          target: "",
-          description: "AWS infrastructure provider",
-          latest_version: "6.8.0",
-          owners: ["Cloud Platform"],
-          lifecycle: "approved",
-          verification: "enterprise-verified",
-          risk_tier: "medium",
-          source_address: "registry.example/hashicorp/aws",
-          updated_at: "2026-07-22T12:00:00Z",
-          versions: [
-            {
-              version: "6.8.0",
-              artifact_repository: "iac-provider-release-local",
-              artifact_path:
-                "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
-              package_digest: `sha256:${"a".repeat(64)}`,
-              download_statistics: {
-                download_count: 11,
-                week_downloads: 4,
-                observed_at: "2026-07-22T12:00:00Z",
-              },
+  it("normalizes snake_case package source fields", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        kind: "provider",
+        namespace: "hashicorp",
+        name: "aws",
+        target: "",
+        description: "AWS infrastructure provider",
+        latest_version: "6.8.0",
+        verification: "enterprise-verified",
+        source_address: "registry.example/hashicorp/aws",
+        updated_at: "2026-07-22T12:00:00Z",
+        versions: [
+          {
+            version: "6.8.0",
+            artifact_repository: "iac-provider-release-local",
+            artifact_path:
+              "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
+            package_digest: `sha256:${"a".repeat(64)}`,
+            download_statistics: {
+              download_count: 11,
+              week_downloads: 4,
+              observed_at: "2026-07-22T12:00:00Z",
             },
-            {
-              version: "6.7.0",
-              download_statistics: {
-                download_count: 7,
-                week_downloads: 3,
-                observed_at: "2026-07-22T11:00:00Z",
-              },
+          },
+          {
+            version: "6.7.0",
+            download_statistics: {
+              download_count: 7,
+              week_downloads: 3,
+              observed_at: "2026-07-22T11:00:00Z",
             },
-          ],
-          symbols: [
-            {
-              kind: "input",
-              name: "region",
-              description: "Deployment region.",
-              path: "#inputs",
-              type: "string",
-              default_value: "us-east-1",
-              required: false,
-              sensitive: false,
-            },
-          ],
-        }),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          package_id: "provider/hashicorp/aws",
-          owners: ["Cloud Platform"],
-          support_level: "supported",
-          lifecycle: "approved",
-          risk_tier: "medium",
-          verification: "enterprise-verified",
-          approvals: [],
-          source_address: "registry.example/hashicorp/aws",
-          version_constraint: ">= 6.0",
-          support_url: null,
-          source_repository_url: "https://example.test/source",
-          jfrog_console_url: "https://example.test/artifactory",
-        }),
-      );
+          },
+        ],
+        symbols: [
+          {
+            kind: "input",
+            name: "region",
+            description: "Deployment region.",
+            path: "#inputs",
+            type: "string",
+            default_value: "us-east-1",
+            required: false,
+            sensitive: false,
+          },
+        ],
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -337,16 +308,7 @@ describe("OpenAPI response normalization", () => {
         },
       ],
     });
-    await expect(
-      getPackageGovernance("provider", "hashicorp", "aws"),
-    ).resolves.toMatchObject({
-      owner: "Cloud Platform",
-      support: "supported",
-      lifecycle: "approved",
-      risk: "medium",
-      sourceRepository: "https://example.test/source",
-      artifactRepository: "registry.example/hashicorp/aws",
-    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("requests an authorized selected documentation path", async () => {
@@ -365,14 +327,11 @@ describe("OpenAPI response normalization", () => {
         "aws",
         undefined,
         "6.8.0",
-        "APM0000001",
         "resources/aws_vpc.md",
       ),
     ).resolves.toBe("# aws_vpc Resource");
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /documentation\?apm_id=APM0000001&path=resources%2Faws_vpc\.md$/,
-      ),
+      expect.stringMatching(/documentation\?path=resources%2Faws_vpc\.md$/),
       expect.any(Object),
     );
   });

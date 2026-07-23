@@ -8,8 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class CatalogQuery {
 
-  private static final Set<String> SORTS =
-      Set.of("updated", "name", "risk", "relevance", "downloads");
+  private static final Set<String> SORTS = Set.of("updated", "name", "relevance", "downloads");
   private static final Set<String> TIERS =
       Set.of("official", "partner", "partner-premier", "community", "none");
   private static final Set<String> CATEGORIES =
@@ -38,10 +37,6 @@ public final class CatalogQuery {
   private final List<String> providers;
   private final List<String> tiers;
   private final List<String> categories;
-  private final @Nullable String apmId;
-  private final @Nullable String lifecycle;
-  private final @Nullable String approval;
-  private final @Nullable String risk;
   private final String sort;
   private final @Nullable String cursor;
   private final int limit;
@@ -54,10 +49,6 @@ public final class CatalogQuery {
     this.tiers = csvValues(criteria.tier(), TIERS, "tier");
     validateTierCombination(this.tiers);
     this.categories = csvValues(criteria.category(), CATEGORIES, "category");
-    this.apmId = normalize(criteria.apmId());
-    this.lifecycle = normalize(criteria.lifecycle());
-    this.approval = normalize(criteria.approval());
-    this.risk = normalize(criteria.risk());
     this.sort = normalizeSort(criteria.sort(), this.q);
     this.cursor = normalize(criteria.cursor());
     this.limit = criteria.limit() <= 0 ? 25 : Math.min(criteria.limit(), 100);
@@ -85,22 +76,6 @@ public final class CatalogQuery {
 
   public List<String> categories() {
     return categories;
-  }
-
-  public @Nullable String apmId() {
-    return apmId;
-  }
-
-  public @Nullable String lifecycle() {
-    return lifecycle;
-  }
-
-  public @Nullable String approval() {
-    return approval;
-  }
-
-  public @Nullable String risk() {
-    return risk;
   }
 
   public String sort() {
@@ -141,7 +116,7 @@ public final class CatalogQuery {
     }
     if (!SORTS.contains(selected)) {
       throw new IllegalArgumentException(
-          "sort must be one of relevance, updated, name, risk, or downloads");
+          "sort must be one of relevance, updated, name, or downloads");
     }
     return selected;
   }
@@ -175,10 +150,6 @@ public final class CatalogQuery {
       @Nullable String provider,
       @Nullable String tier,
       @Nullable String category,
-      @Nullable String apmId,
-      @Nullable String lifecycle,
-      @Nullable String approval,
-      @Nullable String risk,
       String sort,
       @Nullable String cursor,
       int limit,

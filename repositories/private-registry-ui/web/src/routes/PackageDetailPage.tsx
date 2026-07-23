@@ -11,7 +11,6 @@ import {
   LinkSimpleIcon,
   ListIcon,
   MagnifyingGlassIcon,
-  ShieldCheckIcon,
   WarningCircleIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
@@ -27,19 +26,13 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { ApiError } from "../api";
-import { ApprovalBadge } from "../components/Badges";
+import { VerificationBadge } from "../components/Badges";
 import { PackageIcon } from "../components/PackageIcon";
 import { StatePanel } from "../components/StatePanel";
-import {
-  useCatalogPage,
-  usePackage,
-  usePackageDocumentation,
-  usePackageGovernance,
-} from "../hooks";
+import { useCatalogPage, usePackage, usePackageDocumentation } from "../hooks";
 import { runtimeConfig } from "../runtime-config";
 import type {
   DownloadStatistics,
-  GovernanceRecord,
   PackageDetail,
   PackageExample,
   PackageKind,
@@ -47,7 +40,6 @@ import type {
   PackageSummary,
   PackageSymbol,
 } from "../types";
-import { useRegistry } from "../use-registry";
 import { formatRelativeDate, hasText, packageHref } from "../utils";
 
 type ModuleChildKind = "submodule" | "example";
@@ -62,14 +54,12 @@ export function PackageDetailPage({
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { selectedApmId } = useRegistry();
   const identity = {
     kind,
     namespace: params["namespace"] ?? "",
     name: params["name"] ?? "",
     target: kind === "module" ? params["target"] : undefined,
     version: params["version"],
-    apmId: selectedApmId,
   };
   const defaultTab = kind === "provider" ? "overview" : "readme";
   const tab = searchParams.get("tab") ?? defaultTab;
@@ -92,12 +82,9 @@ export function PackageDetailPage({
       : undefined,
     documentPath ?? moduleChildDocumentPath,
   );
-  const governance = usePackageGovernance(identity, detail.data?.governance);
   const related = useCatalogPage({
     kind: "module",
     provider: detail.data?.provider,
-    apmId: selectedApmId,
-    approval: "approved",
     sort: "downloads",
     limit: 4,
   });
@@ -133,15 +120,12 @@ export function PackageDetailPage({
       ? undefined
       : item.documentation) ??
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
-  const governanceData = governance.data ?? item.governance;
   const installSnippet =
     moduleChildKind === undefined || !hasText(moduleChildName)
       ? buildInstallSnippet(item, runtimeConfig().jfrogHostname)
       : buildModuleChildInstallSnippet(item, moduleChildKind, moduleChildName);
   const providerSnippet = buildProviderConfigurationSnippet(item);
-  const sourceRepository = safeExternalUrl(
-    item.sourceRepository ?? governanceData?.sourceRepository,
-  );
+  const sourceRepository = safeExternalUrl(item.sourceRepository);
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", value);
@@ -218,12 +202,8 @@ export function PackageDetailPage({
             <div>
               <div className="package-name-line">
                 <h1>{item.name}</h1>
-                {kind === "provider" ? (
-                  <ApprovalBadge
-                    value={item.approval}
-                    verified={item.verified}
-                    {...(item.verified ? { label: "Official" } : {})}
-                  />
+                {kind === "provider" && item.verified ? (
+                  <VerificationBadge label="Official" />
                 ) : null}
               </div>
               {kind === "provider" ? (
@@ -351,8 +331,6 @@ export function PackageDetailPage({
               moduleTotal={related.data?.total ?? 0}
               modulesPending={related.isPending}
               snippet={providerSnippet}
-              governance={governanceData}
-              selectedApmId={selectedApmId}
               sourceRepository={sourceRepository}
             />
           ) : (
@@ -381,7 +359,7 @@ export function PackageDetailPage({
               </main>
               <aside
                 className="source-install-sidebar"
-                aria-label="Installation and governance"
+                aria-label="Installation"
               >
                 {kind === "module" && moduleChildKind === undefined ? (
                   <ModuleDownloadsCard
@@ -390,13 +368,6 @@ export function PackageDetailPage({
                   />
                 ) : null}
                 <InstallPanel snippet={installSnippet} kind={kind} />
-                {moduleChildKind === undefined ? (
-                  <GovernanceCard
-                    item={item}
-                    governance={governanceData}
-                    selectedApmId={selectedApmId}
-                  />
-                ) : null}
               </aside>
             </div>
           )}
@@ -547,7 +518,6 @@ function ProviderFacts({
           <strong>{item.namespace}</strong>
         </div>
       </div>
-      <span className="package-category">{capitalize(item.lifecycle)}</span>
     </div>
   );
 }
@@ -846,8 +816,6 @@ function ProviderOverview({
   moduleTotal,
   modulesPending,
   snippet,
-  governance,
-  selectedApmId,
   sourceRepository,
 }: {
   item: PackageDetail;
@@ -855,8 +823,6 @@ function ProviderOverview({
   moduleTotal: number;
   modulesPending: boolean;
   snippet: string;
-  governance: GovernanceRecord | undefined;
-  selectedApmId: string | undefined;
   sourceRepository: string | undefined;
 }) {
   const sourceIssuesUrl = hasText(sourceRepository)
@@ -996,50 +962,8 @@ function ProviderOverview({
               }
             : {})}
         />
-        <GovernanceCard
-          item={item}
-          governance={governance}
-          selectedApmId={selectedApmId}
-        />
       </aside>
     </div>
-  );
-}
-
-function GovernanceCard({
-  item,
-  governance,
-  selectedApmId,
-}: {
-  item: PackageDetail;
-  governance: GovernanceRecord | undefined;
-  selectedApmId: string | undefined;
-}) {
-  return (
-    <section className="source-governance-card">
-      <h2>
-        <ShieldCheckIcon size={18} /> Governance
-      </h2>
-      <dl>
-        <div>
-          <dt>Owner</dt>
-          <dd>{governance?.owner ?? item.owner}</dd>
-        </div>
-        <div>
-          <dt>Support</dt>
-          <dd>{governance?.support ?? "Internal support"}</dd>
-        </div>
-        <div>
-          <dt>APM access</dt>
-          <dd>
-            {(governance?.apmIds.length ?? 0) > 0
-              ? governance?.apmIds.join(", ")
-              : item.apmIds.join(", ") ||
-                (hasText(selectedApmId) ? selectedApmId : "Administrator")}
-          </dd>
-        </div>
-      </dl>
-    </section>
   );
 }
 
@@ -2019,7 +1943,7 @@ function InstallPanel({
       </button>
       {hasText(artifactLabel) ? (
         <small className="artifact-source-note">
-          Approved binary source: <code>{artifactLabel}</code>
+          Artifact source: <code>{artifactLabel}</code>
         </small>
       ) : null}
     </section>
@@ -2060,7 +1984,7 @@ function buildInstallSnippet(
     const mirrorDirectory = `.terraform/providers/${source}`;
     const download = hasText(artifactUrl)
       ? `mkdir -p "${mirrorDirectory}"\ncurl --fail --location --header "Authorization: Bearer $JFROG_ACCESS_TOKEN" "${artifactUrl}" --output "${mirrorDirectory}/${filename}"`
-      : `# Resolve the approved archive in Artifactory before installing ${source}.`;
+      : `# Resolve the mirrored archive in Artifactory before installing ${source}.`;
     const checksum = item.packageDigest?.replace(/^sha256:/, "");
     return `${download}${
       hasText(checksum)

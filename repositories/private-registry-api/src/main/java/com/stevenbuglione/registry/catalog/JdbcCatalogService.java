@@ -39,16 +39,6 @@ public class JdbcCatalogService implements CatalogService {
             END
             """;
 
-  private static final String RISK_RANK =
-      """
-            CASE p.risk_tier
-                WHEN 'critical' THEN 4
-                WHEN 'high' THEN 3
-                WHEN 'medium' THEN 2
-                ELSE 1
-            END
-            """;
-
   private static final String RELEVANCE_RANK =
       """
             CASE
@@ -121,10 +111,6 @@ public class JdbcCatalogService implements CatalogService {
 
   @Override
   public CatalogPage<CatalogPackage> findPackages(AccessContext accessContext, CatalogQuery query) {
-    if (query.apmId() != null && !accessContext.mayUseApm(query.apmId())) {
-      return new CatalogPage<>(List.of(), null, 0);
-    }
-
     var filters = filters(accessContext, query);
     var sql = new StringBuilder(PACKAGE_SELECT).append(filters.sql());
     var parameters = new HashMap<>(filters.parameters());
@@ -145,8 +131,7 @@ public class JdbcCatalogService implements CatalogService {
     return countMatching(
         accessContext,
         new CatalogQuery(
-            new CatalogQuery.Criteria(
-                null, kind, null, null, null, null, null, null, null, "updated", null, 1, null)));
+            new CatalogQuery.Criteria(null, kind, null, null, null, "updated", null, 1, null)));
   }
 
   @Override
@@ -161,9 +146,7 @@ public class JdbcCatalogService implements CatalogService {
         filters(
             accessContext,
             new CatalogQuery(
-                new CatalogQuery.Criteria(
-                    null, null, null, null, null, null, null, null, null, "updated", null, 1,
-                    null)));
+                new CatalogQuery.Criteria(null, null, null, null, null, "updated", null, 1, null)));
     var parameters = new HashMap<>(filters.parameters());
     parameters.put("publicId", id);
     try {
@@ -390,12 +373,10 @@ public class JdbcCatalogService implements CatalogService {
         " AND EXISTS (SELECT 1 FROM package_versions visible_version"
             + " WHERE visible_version.package_id = p.id AND visible_version.active AND NOT visible_version.revoked)");
     appendAuthorizationFilter(sql, parameters, accessContext);
-    appendSelectedApmFilter(sql, parameters, query);
     appendKindFilter(sql, parameters, query);
     appendNamespaceFilter(sql, parameters, query);
     appendTextSearchFilter(sql, parameters, accessContext, query);
     appendTaxonomyFilters(sql, parameters, query);
-    appendGovernanceFilters(sql, parameters, query);
     return new QueryFilters(sql.toString(), parameters);
   }
 
@@ -418,23 +399,6 @@ public class JdbcCatalogService implements CatalogService {
                      )
                     """);
     parameters.put("authorizedApmIds", accessContext.apmIds());
-  }
-
-  private static void appendSelectedApmFilter(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.apmId() == null) {
-      return;
-    }
-    sql.append(
-        """
-                 AND EXISTS (
-                       SELECT 1
-                         FROM package_apm_access selected_apm
-                        WHERE selected_apm.package_id = p.id
-                          AND selected_apm.apm_id = :selectedApmId
-                 )
-                """);
-    parameters.put("selectedApmId", query.apmId());
   }
 
   private static void appendKindFilter(
@@ -501,39 +465,11 @@ public class JdbcCatalogService implements CatalogService {
     parameters.put("registryTiers", query.tiers());
   }
 
-  private static void appendGovernanceFilters(
-      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
-    if (query.lifecycle() != null) {
-      sql.append(" AND p.lifecycle::text = :lifecycle");
-      parameters.put("lifecycle", query.lifecycle());
-    }
-    if (query.risk() != null) {
-      sql.append(" AND p.risk_tier = :risk");
-      parameters.put("risk", query.risk());
-    }
-    if (query.approval() == null) {
-      return;
-    }
-    sql.append(
-        """
-                 AND EXISTS (
-                       SELECT 1
-                         FROM package_versions approved_version
-                         JOIN approvals approval ON approval.package_version_id = approved_version.id
-                        WHERE approved_version.package_id = p.id
-                          AND approved_version.active
-                          AND approval.decision = :approval
-                 )
-                """);
-    parameters.put("approval", query.approval());
-  }
-
   private QueryFilters authorizationFilters(AccessContext accessContext) {
     return filters(
         accessContext,
         new CatalogQuery(
-            new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, null, null, "updated", null, 1, null)));
+            new CatalogQuery.Criteria(null, null, null, null, null, "updated", null, 1, null)));
   }
 
   private static String additionalPredicates(QueryFilters filters) {
@@ -567,20 +503,6 @@ public class JdbcCatalogService implements CatalogService {
           throw new IllegalArgumentException("Invalid catalog cursor", exception);
         }
         sql.append(" AND (p.updated_at < :cursorUpdated OR (p.updated_at = :cursorUpdated AND ")
-            .append(PUBLIC_ID)
-            .append(" > :cursorId))");
-      }
-      case "risk" -> {
-        try {
-          parameters.put("cursorRisk", Integer.parseInt(cursor.value()));
-        } catch (NumberFormatException exception) {
-          throw new IllegalArgumentException("Invalid catalog cursor", exception);
-        }
-        sql.append(" AND (")
-            .append(RISK_RANK)
-            .append(" < :cursorRisk OR (")
-            .append(RISK_RANK)
-            .append(" = :cursorRisk AND ")
             .append(PUBLIC_ID)
             .append(" > :cursorId))");
       }
@@ -619,7 +541,6 @@ public class JdbcCatalogService implements CatalogService {
   private static String orderBy(String sort) {
     return switch (sort) {
       case "name" -> " ORDER BY public_id ASC";
-      case "risk" -> " ORDER BY " + RISK_RANK + " DESC, public_id ASC";
       case "relevance" -> " ORDER BY " + RELEVANCE_RANK + " DESC, public_id ASC";
       case "downloads" -> " ORDER BY " + DOWNLOAD_COUNT + " DESC, public_id ASC";
       case "updated" -> " ORDER BY p.updated_at DESC, public_id ASC";
@@ -632,7 +553,6 @@ public class JdbcCatalogService implements CatalogService {
         switch (query.sort()) {
           case "name" -> "";
           case "updated" -> row.item().updatedAt().toString();
-          case "risk" -> Integer.toString(riskRank(row.item().riskTier()));
           case "relevance" -> Integer.toString(relevanceRank(row.item(), query.q()));
           case "downloads" -> Long.toString(row.downloadCount());
           default -> throw new IllegalArgumentException("Unsupported catalog sort");
@@ -807,15 +727,6 @@ public class JdbcCatalogService implements CatalogService {
             List.of());
     return new PackageRow(
         resultSet.getObject("database_id", UUID.class), item, resultSet.getLong("download_count"));
-  }
-
-  private static int riskRank(String riskTier) {
-    return switch (riskTier) {
-      case "critical" -> 4;
-      case "high" -> 3;
-      case "medium" -> 2;
-      default -> 1;
-    };
   }
 
   private static int relevanceRank(CatalogPackage item, @Nullable String query) {

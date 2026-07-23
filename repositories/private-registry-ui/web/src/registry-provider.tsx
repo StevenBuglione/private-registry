@@ -12,7 +12,6 @@ export function RegistryProvider({
   const value = useMemo(
     () => ({
       session,
-      selectedApmId: undefined,
     }),
     [session],
   );

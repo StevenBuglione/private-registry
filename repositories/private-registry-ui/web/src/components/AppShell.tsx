@@ -155,7 +155,7 @@ function AuthenticatedShell() {
           <RegistryMark compact />
           <span>Registry</span>
         </div>
-        <p>Approved infrastructure building blocks for your teams.</p>
+        <p>Terraform providers and modules for your teams.</p>
         <span className="environment-label">{runtimeConfig().environment}</span>
       </footer>
     </div>
@@ -210,21 +210,6 @@ function HeaderActions() {
                   <div className="user-menu-identity">
                     <strong>{session.displayName}</strong>
                     <span>{session.email}</span>
-                  </div>
-                  <div className="user-menu-access">
-                    <strong>Catalog access</strong>
-                    <span>
-                      {session.admin
-                        ? "Registry administrator · all approved packages"
-                        : "All eligible APM groups are included"}
-                    </span>
-                    {!session.admin
-                      ? session.apms.map((apm) => (
-                          <small key={apm.id}>
-                            {apm.id} · {apm.name}
-                          </small>
-                        ))
-                      : null}
                   </div>
                   {session.admin ? (
                     <MenuItem>
@@ -298,7 +283,7 @@ function BrowseMenu() {
             <MagnifyingGlassIcon size={19} />
             <span>
               <strong>Search all packages</strong>
-              <small>Search across every approved artifact.</small>
+              <small>Search providers and modules.</small>
             </span>
           </Link>
         </MenuItem>
@@ -314,11 +299,7 @@ function MobileAccount() {
       <span>
         <UserCircleIcon size={17} /> {session.displayName}
       </span>
-      <small>
-        {session.admin
-          ? "Registry administrator"
-          : `${String(session.apms.length)} APM groups`}
-      </small>
+      <small>{session.admin ? "Registry administrator" : session.email}</small>
       <ThemeToggle showLabel />
     </div>
   );

@@ -5,7 +5,6 @@ import type {
   CatalogPage,
   CatalogQuery,
   DownloadStatistics,
-  GovernanceRecord,
   HomepageSettings,
   HomepageSettingsUpdate,
   PackageDetail,
@@ -25,8 +24,6 @@ const wireKeys = [
   "apmId",
   "apmIds",
   "apms",
-  "approval",
-  "approved",
   "artifact_path",
   "artifact_repository",
   "artifactPath",
@@ -58,7 +55,6 @@ const wireKeys = [
   "entitledApms",
   "error",
   "error_code",
-  "governance",
   "group_id",
   "groupId",
   "id",
@@ -73,7 +69,6 @@ const wireKeys = [
   "last_updated",
   "latest_version",
   "latestVersion",
-  "lifecycle",
   "login_url",
   "loginUrl",
   "logout_url",
@@ -87,9 +82,7 @@ const wireKeys = [
   "next_cursor",
   "nextCursor",
   "organization",
-  "owner",
   "owner_namespace",
-  "owners",
   "package_digest",
   "package_name",
   "packageDigest",
@@ -108,9 +101,6 @@ const wireKeys = [
   "redirectUri",
   "redirectUrl",
   "required",
-  "risk",
-  "risk_tier",
-  "riskTier",
   "roles",
   "sensitive",
   "sha256",
@@ -126,11 +116,6 @@ const wireKeys = [
   "sub",
   "subject",
   "summary",
-  "support",
-  "support_channel",
-  "support_level",
-  "support_owner",
-  "supportLevel",
   "symbols",
   "system",
   "target",
@@ -276,10 +261,6 @@ export async function getCatalogPage(
   addParam(params, "provider", query.provider);
   addParam(params, "tier", query.tier);
   addParam(params, "category", query.category);
-  addParam(params, "apm_id", query.apmId);
-  addParam(params, "lifecycle", query.lifecycle);
-  addParam(params, "approval", query.approval);
-  addParam(params, "risk", query.risk);
   addParam(params, "sort", query.sort);
   addParam(params, "cursor", query.cursor);
   addParam(params, "limit", query.limit?.toString());
@@ -297,16 +278,12 @@ export async function getPackage(
   name: string,
   target?: string,
   version?: string,
-  apmId?: string,
 ): Promise<PackageDetail> {
   const parts = [kind, namespace, name, target, version]
     .filter(isNonEmptyString)
     .map((part) => encodeURIComponent(part));
-  const params = new URLSearchParams();
-  addParam(params, "apm_id", apmId);
-  const suffix = params.size ? `?${params.toString()}` : "";
   const raw = await request(
-    `/catalog/packages/${parts.join("/")}${suffix}`,
+    `/catalog/packages/${parts.join("/")}`,
     jsonObjectSchema,
   );
   return normalizePackageDetail(raw);
@@ -318,14 +295,12 @@ export async function getPackageDocumentation(
   name: string,
   target?: string,
   version?: string,
-  apmId?: string,
   documentPath?: string,
 ): Promise<string> {
   const parts = [kind, namespace, name, target, version]
     .filter(isNonEmptyString)
     .map((part) => encodeURIComponent(part));
   const params = new URLSearchParams();
-  addParam(params, "apm_id", apmId);
   addParam(params, "path", documentPath);
   const suffix = params.size ? `?${params.toString()}` : "";
   const raw = await request(
@@ -337,31 +312,8 @@ export async function getPackageDocumentation(
   return firstString(raw.markdown, raw.documentation, raw.content, raw.readme);
 }
 
-export async function getPackageGovernance(
-  kind: PackageKind,
-  namespace: string,
-  name: string,
-  target?: string,
-  version?: string,
-  apmId?: string,
-): Promise<GovernanceRecord> {
-  const parts = [kind, namespace, name, target, version]
-    .filter(isNonEmptyString)
-    .map((part) => encodeURIComponent(part));
-  const params = new URLSearchParams();
-  addParam(params, "apm_id", apmId);
-  const suffix = params.size ? `?${params.toString()}` : "";
-  const raw = await request(
-    `/catalog/packages/${parts.join("/")}/governance${suffix}`,
-    jsonObjectSchema,
-  );
-  return normalizeGovernance(raw);
-}
-
-export function catalogEventsUrl(apmId?: string): string {
-  const params = new URLSearchParams();
-  addParam(params, "apm_id", apmId);
-  return `${runtimeConfig().apiBaseUrl}/catalog/events${params.size ? `?${params.toString()}` : ""}`;
+export function catalogEventsUrl(): string {
+  return `${runtimeConfig().apiBaseUrl}/catalog/events`;
 }
 
 export function normalizeCatalogPage(raw: JsonObject): CatalogPage {
@@ -430,38 +382,8 @@ function normalizePackage(raw: JsonObject): PackageSummary {
       raw.namespace,
       "Other",
     ),
-    owner: firstString(
-      raw.owner,
-      raw.support_owner,
-      stringList(raw.owners)[0],
-      raw.namespace,
-      "Registry team",
-    ),
-    approval: enumValue(
-      raw.approval,
-      ["approved", "rejected", "waived"],
-      "approved",
-    ),
-    lifecycle: enumValue(
-      raw.lifecycle,
-      [
-        "draft",
-        "candidate",
-        "approved",
-        "maintenance",
-        "deprecated",
-        "revoked",
-        "archived",
-      ],
-      "approved",
-    ),
-    risk: enumValue(
-      raw.risk ?? raw.riskTier ?? raw.risk_tier,
-      ["low", "medium", "high", "critical"],
-      "low",
-    ),
     verified:
-      Boolean(raw.verified ?? raw.approved) ||
+      Boolean(raw.verified) ||
       ["verified", "enterprise-verified", "official", "partner"].includes(
         firstString(raw.verification).toLowerCase(),
       ),
@@ -471,7 +393,6 @@ function normalizePackage(raw: JsonObject): PackageSummary {
       raw.last_updated,
       raw.published_at,
     ),
-    apmIds: stringList(raw.apmIds ?? raw.apm_ids ?? raw.apms),
     downloadStatistics,
   };
 }
@@ -479,7 +400,6 @@ function normalizePackage(raw: JsonObject): PackageSummary {
 function normalizePackageDetail(raw: JsonObject): PackageDetail {
   const envelope = objectValue(raw.data) ?? raw;
   const summary = normalizePackage(envelope);
-  const rawGovernance = objectValue(envelope.governance);
   const rawVersions = firstArray(envelope.versions);
   const selectedVersion = rawVersions
     .filter(isObject)
@@ -515,10 +435,6 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
       envelope.markdown,
       envelope.readme,
     ),
-    governance:
-      rawGovernance !== undefined
-        ? normalizeGovernance(rawGovernance)
-        : undefined,
     installSource: optionalString(
       envelope.installSource,
       envelope.install_source,
@@ -667,62 +583,6 @@ function normalizeSymbol(value: unknown): PackageSymbol | null {
     ),
     provider: optionalString(value.provider, value.provider_name),
     source: optionalString(value.source, value.source_address),
-  };
-}
-
-function normalizeGovernance(raw: JsonObject): GovernanceRecord {
-  return {
-    owner: firstString(
-      raw.owner,
-      raw.support_owner,
-      stringList(raw.owners)[0],
-      "Registry team",
-    ),
-    support: firstString(
-      raw.support,
-      raw.supportLevel,
-      raw.support_level,
-      raw.support_channel,
-      "Internal support",
-    ),
-    approval: enumValue(
-      raw.approval,
-      ["approved", "rejected", "waived"],
-      "approved",
-    ),
-    lifecycle: enumValue(
-      raw.lifecycle,
-      [
-        "draft",
-        "candidate",
-        "approved",
-        "maintenance",
-        "deprecated",
-        "revoked",
-        "archived",
-      ],
-      "approved",
-    ),
-    risk: enumValue(
-      raw.risk ?? raw.riskTier ?? raw.risk_tier,
-      ["low", "medium", "high", "critical"],
-      "low",
-    ),
-    verifiedAt: optionalString(raw.verifiedAt, raw.verified_at),
-    sourceRepository: optionalString(
-      raw.sourceRepository,
-      raw.sourceRepositoryUrl,
-      raw.source_repository_url,
-      raw.source_repository,
-    ),
-    artifactRepository: optionalString(
-      raw.artifactRepository,
-      raw.sourceAddress,
-      raw.source_address,
-      raw.artifact_repository,
-    ),
-    checksum: optionalString(raw.checksum, raw.sha256),
-    apmIds: stringList(raw.apmIds ?? raw.apm_ids ?? raw.apms),
   };
 }
 
@@ -910,13 +770,4 @@ function stringList(value: unknown): string[] {
           : "",
     )
     .filter(Boolean);
-}
-
-function enumValue<T extends string>(
-  value: unknown,
-  values: readonly T[],
-  fallback: T,
-): T {
-  const normalized = typeof value === "string" ? value.toLowerCase() : "";
-  return values.includes(normalized as T) ? (normalized as T) : fallback;
 }

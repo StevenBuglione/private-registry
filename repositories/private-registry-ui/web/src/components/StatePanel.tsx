@@ -20,7 +20,7 @@ type StateKind =
 const copy: Record<StateKind, { title: string; description: string }> = {
   loading: {
     title: "Loading your registry",
-    description: "We’re confirming your access and finding approved packages.",
+    description: "We’re finding providers and modules available to you.",
   },
   empty: {
     title: "No packages match these filters",
@@ -54,7 +54,7 @@ const copy: Record<StateKind, { title: string; description: string }> = {
   "not-found": {
     title: "Package not found",
     description:
-      "The package may not exist, or it may not be approved for your current APM context.",
+      "The package may not exist or may not be available to your account.",
   },
 };
 
