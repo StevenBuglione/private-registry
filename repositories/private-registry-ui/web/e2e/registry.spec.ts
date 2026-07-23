@@ -201,6 +201,66 @@ test("authorized home and theme are accessible at desktop and mobile sizes", asy
   expect(mobileScan.violations).toEqual([]);
 });
 
+test("header and search geometry match the Terraform Registry shell", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  await expect(page.locator(".site-header")).toBeVisible();
+  await expect(page.locator(".global-search-row .search-box")).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const header = document.querySelector<HTMLElement>(".site-header");
+    const brand = document.querySelector<HTMLElement>(".brand-link");
+    const searchRow = document.querySelector<HTMLElement>(".global-search-row");
+    const search = document.querySelector<HTMLElement>(
+      ".global-search-row .search-box",
+    );
+    if (
+      header === null ||
+      brand === null ||
+      searchRow === null ||
+      search === null
+    ) {
+      throw new Error("Expected the Registry header and global search shell");
+    }
+    const rect = (element: HTMLElement) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      };
+    };
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      header: rect(header),
+      brand: rect(brand),
+      searchRow: rect(searchRow),
+      search: rect(search),
+      searchRadius: getComputedStyle(search).borderRadius,
+    };
+  });
+
+  expect(geometry.header.height).toBe(60);
+  expect(geometry.brand.x).toBe(16);
+  expect(geometry.brand.height).toBe(35);
+  expect(geometry.searchRow.y).toBe(60);
+  expect(geometry.searchRow.height).toBe(62);
+  expect(geometry.search.y).toBe(70);
+  expect(geometry.search.height).toBe(42);
+  expect(geometry.search.width).toBe(1152);
+  expect(geometry.search.x).toBe((geometry.clientWidth - 1152) / 2);
+  expect(geometry.searchRadius).toBe("6px");
+
+  const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
+  await expect(favicon).toHaveAttribute("href", "/assets/registry-mark.svg");
+  const faviconResponse = await page.request.get("/assets/registry-mark.svg");
+  expect(faviconResponse.ok()).toBe(true);
+  expect(await faviconResponse.text()).toContain('fill="#844fba"');
+});
+
 test("global search clears its query and closes results after navigation", async ({
   page,
 }) => {
