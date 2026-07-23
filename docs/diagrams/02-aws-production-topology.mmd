@@ -1,0 +1,97 @@
+flowchart TB
+  readiness["Target topology after every mandatory readiness-audit blocker is closed"]
+
+  subgraph corporate["Corporate network and identity"]
+    users["Corporate users"]
+    resolver["Corporate DNS forwarding"]
+    entra["Microsoft Entra ID and Graph"]
+    onCall["Operations and on-call"]
+  end
+
+  subgraph awsRegion["AWS production region"]
+    route53["Route 53 private zone and Resolver"]
+    waf["AWS WAF"]
+    alb["Internal Application Load Balancer"]
+
+    subgraph vpc["Registry VPC across three Availability Zones"]
+      subgraph ingressTier["Ingress subnets"]
+        albNodes["ALB nodes in multiple zones"]
+      end
+
+      subgraph appTier["Private application subnets"]
+        uiService["ECS UI service"]
+        apiService["ECS API service"]
+        workerService["ECS indexer service"]
+        migrationTask["ECS migration task"]
+        seederTask["ECS seeder task"]
+        endpoints["VPC endpoints and controlled egress"]
+      end
+
+      subgraph dataTier["Isolated database subnets"]
+        dbProxy["Optional RDS Proxy after auth validation"]
+        aurora[("Aurora or RDS PostgreSQL")]
+        backup["Automated backup and restore path"]
+      end
+    end
+
+    ecr["ECR immutable image repositories"]
+    secrets["Secrets Manager"]
+    kms["Customer-managed KMS keys"]
+    cloudwatch["CloudWatch logs, metrics, dashboards, alarms"]
+    sns["SNS or enterprise incident integration"]
+    githubRole["GitHub OIDC deployment roles"]
+  end
+
+  jfrog["JFrog Artifactory over PrivateLink, routed network, or allowlisted egress"]
+  github["Protected GitHub environments"]
+
+  readiness --> route53
+  users --> resolver --> route53 --> waf --> alb --> albNodes
+  albNodes -->|"static routes"| uiService
+  albNodes -->|"API, OAuth, Swagger, SSE routes"| apiService
+  albNodes -->|"signed webhook route with explicit auth rule"| apiService
+  alb <-->|"OIDC redirects and token exchange"| entra
+  apiService -->|"delegated group checks"| entra
+
+  apiService --> dbProxy
+  workerService --> dbProxy
+  dbProxy --> aurora
+  migrationTask --> aurora
+  aurora --> backup
+
+  workerService --> endpoints --> jfrog
+  apiService --> endpoints
+  seederTask --> endpoints --> jfrog
+  uiService --> ecr
+  apiService --> ecr
+  workerService --> ecr
+  migrationTask --> ecr
+  seederTask --> ecr
+
+  kms --> secrets
+  kms --> aurora
+  secrets --> apiService
+  secrets --> workerService
+  secrets --> migrationTask
+  secrets --> seederTask
+
+  uiService --> cloudwatch
+  apiService --> cloudwatch
+  workerService --> cloudwatch
+  migrationTask --> cloudwatch
+  seederTask --> cloudwatch
+  aurora --> cloudwatch --> sns --> onCall
+
+  github --> githubRole
+  githubRole -->|"plan, apply, images, migrations are separate roles"| awsRegion
+
+  classDef notice fill:#fff7d6,stroke:#a16207,color:#111827
+  classDef network fill:#e8f3ff,stroke:#2878bd,color:#111827
+  classDef compute fill:#f4edfb,stroke:#844fba,color:#111827
+  classDef data fill:#e9f7ef,stroke:#18864b,color:#111827
+  classDef security fill:#fff4e6,stroke:#b45309,color:#111827
+  class readiness notice
+  class route53,waf,alb,albNodes,resolver,endpoints network
+  class uiService,apiService,workerService,migrationTask,seederTask,ecr compute
+  class aurora,dbProxy,backup data
+  class entra,secrets,kms,githubRole security

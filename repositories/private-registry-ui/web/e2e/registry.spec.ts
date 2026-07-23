@@ -350,7 +350,10 @@ test("header and search geometry match the Terraform Registry shell", async ({
   expect(geometry.searchRadius).toBe("6px");
 
   const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(favicon).toHaveAttribute("href", "/assets/registry-mark.svg");
+  await expect(favicon).toHaveAttribute(
+    "href",
+    "/assets/registry-mark.svg?v=20260723",
+  );
   const faviconResponse = await page.request.get("/assets/registry-mark.svg");
   expect(faviconResponse.ok()).toBe(true);
   expect(await faviconResponse.text()).toContain('fill="#844fba"');

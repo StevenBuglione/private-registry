@@ -8,7 +8,7 @@ coordinates for the target environment.
 Set credentials only in the current process:
 
 ```powershell
-$env:JFROG_URL = 'https://trialwbgt07.jfrog.io/artifactory'
+$env:JFROG_URL = 'https://your-company.jfrog.io/artifactory'
 $env:JFROG_ACCESS_TOKEN = '<access-token>'
 ```
 

@@ -41,6 +41,19 @@ The full gate covers Biome, strict TypeScript, typed ESLint, React Hooks, JSX ac
 
 Runtime configuration is public browser configuration. It must never contain credentials, tokens, client secrets, group membership data, or internal database values.
 
+## Brand assets
+
+`public/assets/registry-mark.svg` is the canonical header, favicon, PWA, and social-card
+mark. Regenerate every derived asset together after changing it:
+
+```bash
+cd web
+corepack pnpm assets:brand
+```
+
+Do not hand-edit the generated PNG or ICO files. The HTML and web manifest use a versioned
+asset query so a release can invalidate long-lived immutable browser caches.
+
 ## Security boundary
 
 - The browser never calls Microsoft Graph or Artifactory directly.

@@ -15,6 +15,10 @@ tests/registry-mirror/ Module/provider pull-through smoke test
 
 The regional module supports `deploy_application_services = false` so durable infrastructure and ECR repositories can be created before images exist. After images, migrations, secrets, and search initialization are ready, set the flag to `true` and apply again.
 
+The current application-service definitions have known contract gaps and must not be
+enabled unchanged. Review the repository-level
+`docs/32-deployment-readiness-audit.md` before using this sequence.
+
 ## State
 
 Use S3 native state locking (`use_lockfile = true`) with bucket versioning, SSE-KMS, access logging, and tightly scoped deployment roles. Do not use local state for shared environments.
@@ -47,9 +51,10 @@ public Terraform Registry before the mirrors exist.
 The `tests/registry-mirror/` root proves that a pinned public module and provider resolve
 through JFrog. Its `mirror.tfrc` excludes `hashicorp/null` from direct installation, so
 the smoke test cannot silently fall back to the public provider registry. Supply the
-same token as `TF_TOKEN_trialwbgt07_jfrog_io` and point `TF_CLI_CONFIG_FILE` at that
-file only while running the smoke test.
+same token through the hostname-derived `TF_TOKEN_*` variable and point
+`TF_CLI_CONFIG_FILE` at that file only while running the smoke test. Replace the
+non-routable `artifacts.example.invalid` placeholder in the fixture first.
 
-These repositories are caches only. Candidate, release, virtual, permission, promotion,
-and internal signed-provider repositories remain part of the later governed-release
-milestone.
+These two Terraform-managed repositories are caches only. The Java seeder owns the three
+governed local release repositories and their curated catalog; see the deployment
+handoff for the token and process boundary.

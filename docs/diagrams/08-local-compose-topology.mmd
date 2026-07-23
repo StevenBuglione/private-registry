@@ -1,0 +1,79 @@
+flowchart TB
+  developer["Developer or receiving coding agent"]
+
+  subgraph inputs["Ignored local configuration"]
+    jfrogEnv[".env.artifactory: JPD hostname and token"]
+    eventEnv[".env.eventing: HMAC, origin, subscription, repositories"]
+    identityEnv[".env.identity-test: real Entra client, groups, and test users"]
+    runtimeUi["UI runtime environment and support metadata"]
+  end
+
+  subgraph compose["Docker Compose runtime"]
+    postgres[("postgres: PostgreSQL only application state")]
+    migrate["migrate: Flyway schema-owner job"]
+    roleBootstrap["role-bootstrap: local runtime-role passwords"]
+    api["api: Spring MVC, OIDC, catalog, admin, webhook, SSE"]
+    indexer["indexer: queue worker, reconciliation, JFrog statistics"]
+    ui["ui: Nginx and React runtime configuration"]
+    seeder["seeder profile: repositories and curated content"]
+  end
+
+  subgraph realDependencies["Real external dependencies"]
+    entra["Microsoft Entra ID"]
+    graphApi["Microsoft Graph"]
+    jfrog["Destination JFrog Artifactory"]
+  end
+
+  subgraph verification["Acceptance evidence"]
+    health["Container and HTTP health"]
+    auth["Real APM-A, APM-B, admin, and no-entitlement sessions"]
+    catalog["At least governed providers and modules with digest properties"]
+    event["Signed event to queue to searchable catalog to SSE"]
+    quality["Gradle, UI quality, Compose, Terraform, and secret scans"]
+  end
+
+  developer --> jfrogEnv
+  developer --> eventEnv
+  developer --> identityEnv
+  developer --> runtimeUi
+  jfrogEnv --> api
+  jfrogEnv --> indexer
+  jfrogEnv --> seeder
+  eventEnv --> api
+  identityEnv --> api
+  runtimeUi --> ui
+
+  postgres --> migrate --> roleBootstrap
+  roleBootstrap --> api
+  roleBootstrap --> indexer
+  ui --> api
+  api --> postgres
+  indexer --> postgres
+  seeder --> postgres
+
+  api <-->|"OAuth2 and delegated token"| entra
+  api -->|"checkMemberGroups"| graphApi
+  api -->|"read-only diagnostics through Java client"| jfrog
+  indexer -->|"authoritative reconciliation through Java client"| jfrog
+  seeder -->|"idempotent creation and uploads through Java client"| jfrog
+
+  api --> health
+  indexer --> health
+  postgres --> health
+  ui --> health
+  api --> auth
+  seeder --> catalog
+  api --> event
+  indexer --> event
+  developer --> quality
+
+  classDef input fill:#fff7d6,stroke:#a16207,color:#111827
+  classDef service fill:#f4edfb,stroke:#844fba,color:#111827
+  classDef data fill:#e9f7ef,stroke:#18864b,color:#111827
+  classDef external fill:#fff4e6,stroke:#b45309,color:#111827
+  classDef proof fill:#e8f3ff,stroke:#2878bd,color:#111827
+  class jfrogEnv,eventEnv,identityEnv,runtimeUi input
+  class migrate,roleBootstrap,api,indexer,ui,seeder service
+  class postgres data
+  class entra,graphApi,jfrog external
+  class health,auth,catalog,event,quality proof

@@ -1,0 +1,53 @@
+sequenceDiagram
+  autonumber
+  participant publisher as Artifact publisher
+  participant jfrog as JFrog Artifactory
+  participant intake as Registry webhook or sync intake
+  participant queue as PostgreSQL catalog_event_queue
+  participant worker as Java indexer and reconciler
+  participant journal as PostgreSQL catalog and ingestion journal
+  participant sse as Authorized SSE stream
+  participant ui as Registry UI
+
+  publisher->>jfrog: Upload immutable archive, documentation, manifest, checksum, and APM properties
+  publisher->>jfrog: Publish registry.catalog.ready only after all content is complete
+  jfrog->>intake: Deliver signed artifact or property event
+  intake->>intake: Enforce payload size, content type, HMAC, origin, subscription, repository, and safe path
+
+  alt intake validation fails
+    intake-->>jfrog: Reject without queue publication
+  else event is valid
+    intake->>queue: Insert normalized payload, unique transport ID, and semantic SHA-256 key
+    alt exact or semantic duplicate
+      queue-->>intake: Return existing publication identity
+    else new event
+      queue->>queue: Commit and pg_notify registry_catalog_work
+      queue-->>intake: Durable publication accepted
+    end
+    intake-->>jfrog: HTTP 202
+  end
+
+  worker->>queue: Claim available row with FOR UPDATE SKIP LOCKED and a lease token
+  queue-->>worker: Event payload and claim identity
+  worker->>jfrog: Re-read file information, properties, manifest, documentation, and archive through JFrog Java Client
+  jfrog-->>worker: Current authoritative artifact state
+  worker->>worker: Validate digest, immutability, schema, UTF-8, archive safety, and APM assignments
+
+  alt artifact is safe and complete
+    worker->>journal: Transactionally upsert package, version, docs, symbols, access, statistics, lifecycle, and audit data
+    worker->>journal: Mark version active and ingestion event completed
+    worker->>queue: Complete matching lease and retain terminal history
+    journal->>sse: PostgreSQL notification after commit
+    sse-->>ui: Authorized catalog-change event
+    ui->>ui: Invalidate only affected TanStack Query keys
+  else terminal governance or integrity failure
+    worker->>journal: Record quarantine reason and immutable evidence
+    worker->>queue: Move event to dead_letter
+  else transient JFrog or database failure
+    worker->>queue: Release claim with bounded timestamp retry
+  end
+
+  loop incremental and nightly reconciliation
+    worker->>jfrog: Compare governed Artifactory state
+    worker->>journal: Compare catalog projections and repair missing hints
+  end

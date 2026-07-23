@@ -1,0 +1,72 @@
+flowchart LR
+  subgraph consumers["Enterprise consumers"]
+    registryUser["Authenticated registry user"]
+    registryAdmin["Registry administrator"]
+    publisher["GitHub runner or artifact publisher"]
+    operator["Platform and security operators"]
+  end
+
+  subgraph access["Private access and edge"]
+    corporateDns["Corporate DNS and Route 53"]
+    waf["AWS WAF controls"]
+    alb["Internal ALB with TLS and OIDC"]
+    ui["React UI served by Nginx"]
+  end
+
+  subgraph application["Java 25 Spring Modulith application"]
+    api["Registry API process"]
+    indexer["Indexer and reconciler process"]
+    migration["One-shot Flyway migration"]
+    seeder["One-shot JFrog seeder"]
+  end
+
+  subgraph authority["Authoritative application data"]
+    postgres[("PostgreSQL catalog, search, queue, audit, settings")]
+  end
+
+  subgraph enterprise["Enterprise dependencies"]
+    entra["Microsoft Entra ID"]
+    graphApi["Microsoft Graph"]
+    jfrog["JFrog Artifactory"]
+    secrets["AWS Secrets Manager and KMS"]
+    telemetry["CloudWatch logs, metrics, alarms"]
+    github["GitHub Actions with AWS OIDC"]
+  end
+
+  registryUser --> corporateDns
+  registryAdmin --> corporateDns
+  corporateDns --> waf --> alb
+  alb --> ui
+  ui -->|"session-bound API calls and SSE"| api
+  alb -->|"OIDC identity headers"| api
+  publisher -->|"scoped sync token or signed webhook"| api
+  operator --> telemetry
+  operator -->|"admin settings, audit, traffic"| ui
+
+  alb <-->|"authorization flow"| entra
+  api -->|"delegated membership checks"| graphApi
+  api -->|"authorized reads and narrow writes"| postgres
+  indexer -->|"queue claims and catalog activation"| postgres
+  migration -->|"schema-owner DDL"| postgres
+  seeder -->|"bootstrap catalog state"| postgres
+
+  api -->|"official JFrog Java Client"| jfrog
+  indexer -->|"official JFrog Java Client"| jfrog
+  seeder -->|"official JFrog Java Client"| jfrog
+  github -->|"immutable images and deployment"| application
+  secrets --> api
+  secrets --> indexer
+  secrets --> migration
+  secrets --> seeder
+  application --> telemetry
+
+  classDef person fill:#fff,stroke:#52606d,color:#111827
+  classDef edge fill:#e8f3ff,stroke:#2878bd,color:#111827
+  classDef service fill:#f4edfb,stroke:#844fba,color:#111827
+  classDef data fill:#e9f7ef,stroke:#18864b,color:#111827
+  classDef external fill:#fff4e6,stroke:#b45309,color:#111827
+  class registryUser,registryAdmin,publisher,operator person
+  class corporateDns,waf,alb,ui edge
+  class api,indexer,migration,seeder service
+  class postgres data
+  class entra,graphApi,jfrog,secrets,telemetry,github external

@@ -1,0 +1,88 @@
+erDiagram
+  REGISTRY_HOMEPAGE_SETTINGS {
+    smallint id PK
+    boolean notification_enabled
+    varchar notification_title
+    text notification_message
+    text notification_link_url
+    text updated_by
+    timestamptz updated_at
+  }
+  REGISTRY_SYNC_CREDENTIALS {
+    uuid id PK
+    varchar name
+    varchar scope
+    bytea secret_hash
+    text created_by
+    timestamptz expires_at
+    timestamptz revoked_at
+    bigint use_count
+  }
+  REGISTRY_TRAFFIC_IDENTITIES {
+    uuid id PK
+    varchar subject
+    varchar display_name
+    varchar email
+    timestamptz first_seen_at
+    timestamptz last_seen_at
+  }
+  REGISTRY_PAGE_VIEWS {
+    bigint id PK
+    uuid identity_id FK
+    varchar path
+    timestamptz occurred_at
+  }
+  AUDIT_EVENTS {
+    uuid id PK
+    timestamptz occurred_at
+    text actor_id
+    text action
+    text resource_type
+    text resource_id
+    jsonb detail
+  }
+  CATALOG_EVENT_QUEUE {
+    uuid id PK
+    text event_id
+    text semantic_key
+    jsonb payload
+    text status
+    int attempts
+    uuid claim_token
+    timestamptz available_at
+  }
+  INGESTION_EVENTS {
+    uuid id PK
+    text event_id
+    text idempotency_key
+    text status
+    text package_digest
+    text source_repository
+    text source_path
+    int attempts
+  }
+  INGESTION_QUARANTINE {
+    uuid id PK
+    text event_id
+    text source_repository
+    text source_path
+    text reason_code
+    jsonb payload
+    timestamptz quarantined_at
+  }
+  INGESTION_CHECKPOINTS {
+    text checkpoint_name PK
+    text checkpoint_value
+    timestamptz updated_at
+  }
+  RECONCILIATION_RUNS {
+    uuid id PK
+    text mode
+    text scope
+    text status
+    int discrepancies
+    int repaired
+    timestamptz started_at
+  }
+
+  REGISTRY_TRAFFIC_IDENTITIES ||--o{ REGISTRY_PAGE_VIEWS : records

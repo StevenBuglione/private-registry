@@ -1,0 +1,84 @@
+flowchart TB
+  change["Reviewed source change"]
+
+  subgraph pullRequest["Pull request gates"]
+    direction LR
+    secretScan["Secret and credential scan"]
+    apiQuality["Java quality, Modulith, architecture, unit, integration"]
+    uiQuality["Biome, TypeScript, ESLint, architecture, tests, accessibility"]
+    infraQuality["Terraform format, validate, policy, and saved plan"]
+    supplyChain["CodeQL, dependency review, SBOM, image scan"]
+  end
+
+  subgraph build["Immutable build outputs"]
+    direction LR
+    sourceSha["Approved source SHA"]
+    javaImage["Java 25 API and indexer image"]
+    uiImage["React and Nginx UI image"]
+    imageDigests["ECR image digests and attestations"]
+  end
+
+  subgraph foundation["Phase A: protected foundation"]
+    direction LR
+    remoteState["Remote state, locking, and KMS"]
+    network["VPC, DNS, TLS, WAF, ALB, egress"]
+    database["PostgreSQL, backups, alarms"]
+    taskDefinitions["ECS cluster and one-shot task definitions"]
+  end
+
+  subgraph activate["Phase B and C: activate data plane"]
+    direction LR
+    injectSecrets["Inject role-specific Secrets Manager values"]
+    migrate["Run Flyway once as schema owner"]
+    seed["Run JFrog seeder with temporary bootstrap token"]
+    revokeBootstrap["Replace or revoke privileged bootstrap token"]
+    startWorker["Start private indexer and reconcile"]
+  end
+
+  subgraph services["Phase D: serving and acceptance"]
+    direction LR
+    startServices["Start UI and API with immutable digests"]
+    oidcAcceptance["Real ALB OIDC and Graph access-class tests"]
+    securityAcceptance["Unauthorized route, webhook, and sync-token tests"]
+    browserAcceptance["Responsive browser, accessibility, console, and network tests"]
+    operationsAcceptance["Queue latency, dead letter, alarms, load, backup, and restore tests"]
+  end
+
+  subgraph promotion["Phase E: controlled promotion"]
+    direction LR
+    evidence["Attach plans, scans, test evidence, SHA, and digests"]
+    approval["Protected environment and change approval"]
+    gradualTraffic["Gradual traffic enablement"]
+    observe["SLO monitoring and rollback decision"]
+  end
+
+  change --> secretScan
+  change --> apiQuality
+  change --> uiQuality
+  change --> infraQuality
+  secretScan --> supplyChain
+  apiQuality --> sourceSha
+  uiQuality --> sourceSha
+  supplyChain --> sourceSha
+  sourceSha --> javaImage
+  sourceSha --> uiImage
+  javaImage --> imageDigests
+  uiImage --> imageDigests
+
+  infraQuality --> remoteState --> network --> database --> taskDefinitions
+  taskDefinitions --> injectSecrets
+  imageDigests --> injectSecrets
+  injectSecrets --> migrate --> seed --> revokeBootstrap --> startWorker
+  startWorker --> startServices
+  startServices --> oidcAcceptance --> securityAcceptance --> browserAcceptance --> operationsAcceptance
+  operationsAcceptance --> evidence --> approval --> gradualTraffic --> observe
+  observe -.->|"rollback only with schema compatibility; otherwise forward-fix"| startServices
+
+  classDef gate fill:#fff7d6,stroke:#a16207,color:#111827
+  classDef artifact fill:#e8f3ff,stroke:#2878bd,color:#111827
+  classDef action fill:#f4edfb,stroke:#844fba,color:#111827
+  classDef acceptance fill:#e9f7ef,stroke:#18864b,color:#111827
+  class secretScan,apiQuality,uiQuality,infraQuality,supplyChain,approval gate
+  class sourceSha,javaImage,uiImage,imageDigests,evidence artifact
+  class remoteState,network,database,taskDefinitions,injectSecrets,migrate,seed,revokeBootstrap,startWorker,startServices action
+  class oidcAcceptance,securityAcceptance,browserAcceptance,operationsAcceptance,gradualTraffic,observe acceptance

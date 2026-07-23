@@ -1,5 +1,5 @@
 module "label" {
-  source  = "trialwbgt07.jfrog.io/iac-modules-public-remote__cloudposse/label/null"
+  source  = "artifacts.example.invalid/iac-modules-public-remote__cloudposse/label/null"
   version = "0.25.0"
 
   namespace = "private-registry"

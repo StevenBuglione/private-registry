@@ -15,7 +15,7 @@ public record ArtifactoryProperties(
 
   public ArtifactoryProperties {
     if (url == null) {
-      url = URI.create("https://trialwbgt07.jfrog.io/artifactory");
+      url = URI.create("https://artifacts.example.invalid/artifactory");
     }
     if (accessToken == null) {
       accessToken = "";

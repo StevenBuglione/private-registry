@@ -1,11 +1,20 @@
-# Deployment guide
+# Deployment
 
-## Local acceptance
+The authoritative deployment handoff is:
 
-From `repositories/private-registry-api`:
+1. [Complete configuration and deployment guide](docs/30-deployment-configuration-handoff.md)
+2. [Environment-variable reference](docs/31-environment-variable-reference.md)
+3. [Deployment-readiness audit and AWS blockers](docs/32-deployment-readiness-audit.md)
+4. [Enterprise architecture diagrams](docs/33-enterprise-architecture-diagrams.md)
+
+## Supported now
+
+The complete local Docker Compose topology is supported. From
+`repositories/private-registry-api`, configure the three ignored environment files, start
+Compose, and seed the destination JFrog instance:
 
 ```powershell
-.\scripts\export-jfrog-env.ps1
+.\scripts\export-jfrog-env.ps1 -ServerId registry
 .\scripts\bootstrap-local-eventing-env.ps1
 terraform -chdir=infrastructure/terraform/identity-test init
 terraform -chdir=infrastructure/terraform/identity-test apply
@@ -14,18 +23,17 @@ docker compose up --build --detach --wait
 docker compose --profile seed run --rm seeder
 ```
 
-Verify API readiness, worker dependencies, JFrog repositories, PostgreSQL documents/search/queue/DLQ state, and the authenticated UI. The three ignored `.env.*` files and Terraform state contain secrets and must never be printed or committed.
+Never print or commit `.env.artifactory`, `.env.eventing`, `.env.identity-test`, Terraform
+state, or saved plans.
 
-## Production sequence
+## Production warning
 
-1. Review and apply the existing AWS foundation Terraform with application services disabled.
-2. Provision secret-manager values for ALB signer/client/issuer verification, Graph entitlement mappings, JFrog access, and webhook validation.
-3. Build Java and UI images from an immutable source SHA; attach SBOM, provenance, scan results, and signatures.
-4. Run Flyway migrations as a dedicated task.
-5. Bootstrap the three governed local JFrog repositories with the Java client seeder.
-6. Seed or reconcile the curated catalog and validate digests/properties before catalog-ready activation.
-7. Deploy the combined API/worker and UI services behind the internal ALB.
-8. Configure signed JFrog webhooks only after the endpoint is reachable; keep in-process reconciliation enabled.
-9. Run the full identity, authorization, webhook-to-search latency, accessibility, load, PostgreSQL backup, and recovery acceptance gates.
+The checked-in AWS foundation is a scaffold. Its current ECS environment names,
+database-role/authentication model, secret injection, routing, image publication, and
+process topology do not yet match the implemented application. Do **not** enable
+`deploy_application_services` until every mandatory item in the readiness audit is fixed
+and verified.
 
-Production must never enable `REGISTRY_SECURITY_PERMIT_ALL`, expose the worker publicly, or make Artifactory a catalog API readiness dependency.
+The production target has only PostgreSQL as application state. Do not deploy the retired
+OpenSearch/SQS/EventBridge/S3 application topology described in historical planning
+documents.
