@@ -101,6 +101,18 @@ class CatalogManifestV1Test {
   }
 
   @Test
+  void acceptsSameSymbolNameInDifferentModuleChildren() {
+    var first =
+        new CatalogManifestV1.Symbol(
+            "input", "enabled", null, "modules/one/variables.tf", "bool", "true", false, false);
+    var second =
+        new CatalogManifestV1.Symbol(
+            "input", "enabled", null, "modules/two/variables.tf", "bool", "true", false, false);
+
+    manifest(List.of("APM0000001"), List.of(first, second)).validate();
+  }
+
+  @Test
   void quarantinesEveryMissingRequiredManifestField() throws Exception {
     var mapper = new ObjectMapper();
     ObjectNode valid = mapper.valueToTree(manifest(List.of("APM0000001")));

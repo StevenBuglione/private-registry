@@ -22,7 +22,12 @@
     "verification": "enterprise-verified",
     "lifecycle": "approved",
     "riskTier": "high",
-    "visibility": "enterprise"
+    "visibility": "enterprise",
+    "tier": "official",
+    "categories": [
+      "cloud-automation",
+      "public-cloud"
+    ]
   },
   "registry": {
     "hostname": "artifacts.example.invalid",

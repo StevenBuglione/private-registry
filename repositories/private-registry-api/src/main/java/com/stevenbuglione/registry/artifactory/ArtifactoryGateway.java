@@ -1,7 +1,6 @@
 package com.stevenbuglione.registry.artifactory;
 
 import com.stevenbuglione.registry.config.ArtifactoryProperties;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -18,12 +17,15 @@ import org.jfrog.artifactory.client.impl.ArtifactoryRequestImpl;
 import org.jfrog.artifactory.client.model.RepoPath;
 import org.jfrog.artifactory.client.model.repository.settings.impl.GenericRepositorySettingsImpl;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
 public class ArtifactoryGateway {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(ArtifactoryGateway.class);
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private final Artifactory client;
@@ -149,10 +151,24 @@ public class ArtifactoryGateway {
       String repositoryKey, String path, byte[] content, Map<String, ?> artifactProperties) {
     validateArtifactLocation(repositoryKey, path);
     Objects.requireNonNull(content, "content");
-    var upload = client.repository(repositoryKey).upload(path, new ByteArrayInputStream(content));
-    applyProperties(upload, artifactProperties);
-    var file = upload.withSize(content.length).doUpload();
-    return metadata(repositoryKey, path, file, artifactProperties);
+    @Nullable Path temporary = null;
+    try {
+      temporary = Files.createTempFile("registry-jfrog-upload-", ".tmp");
+      Files.write(temporary, content);
+      return upload(repositoryKey, path, temporary, artifactProperties);
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
+          "Unable to prepare repeatable Artifactory upload body", exception);
+    } finally {
+      if (temporary != null) {
+        try {
+          Files.deleteIfExists(temporary);
+        } catch (IOException exception) {
+          LOGGER.warn(
+              "Unable to remove temporary Artifactory upload body {}", temporary, exception);
+        }
+      }
+    }
   }
 
   /** Uploads a repeatable file body using the official JFrog Java Client. */

@@ -74,6 +74,7 @@ export interface PackageDetail extends PackageSummary {
   versions: string[];
   symbols: PackageSymbol[];
   examples: PackageExample[];
+  submodules: PackageModuleChild[];
   documentation?: string | undefined;
   governance?: GovernanceRecord | undefined;
   installSource?: string | undefined;
@@ -87,6 +88,11 @@ export interface PackageDetail extends PackageSummary {
 }
 
 export interface PackageExample {
+  name: string;
+  path: string;
+}
+
+export interface PackageModuleChild {
   name: string;
   path: string;
 }

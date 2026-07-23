@@ -79,7 +79,7 @@ class TerraformMetadataExtractorTest {
             "example:complete");
     assertThat(result.symbols())
         .extracting(TerraformMetadataExtractor.ExtractedSymbol::name)
-        .doesNotContain("example_only", "aws_vpc.nested_only");
+        .contains("example_only", "aws_vpc.nested_only");
     assertThat(result.symbols().stream().filter(symbol -> symbol.name().equals("name")).findFirst())
         .hasValueSatisfying(
             symbol -> {
@@ -100,6 +100,42 @@ class TerraformMetadataExtractorTest {
                 .filter(symbol -> symbol.name().equals("aws_vpc.this"))
                 .findFirst())
         .hasValueSatisfying(symbol -> assertThat(symbol.description()).isNull());
+  }
+
+  @Test
+  void extractsInternalSubmoduleAndExamplePagesWithScopedSymbols() throws IOException {
+    var archive =
+        archive(
+            Map.of(
+                "module-v1/README.md", "# Root module\n",
+                "module-v1/modules/iam-account/README.md",
+                    "# IAM Account\n\nManages the IAM account policy.",
+                "module-v1/modules/iam-account/variables.tf",
+                    "variable \"enabled\" { type = bool default = true }",
+                "module-v1/modules/iam-account/main.tf",
+                    "resource \"aws_iam_account_alias\" \"this\" {}",
+                "module-v1/examples/iam-account/README.md",
+                    "# IAM Account Example\n\nRuns the account submodule.",
+                "module-v1/examples/iam-account/main.tf",
+                    "module \"iam_account\" { source = \"../../modules/iam-account\" }",
+                "module-v1/examples/iam-account/outputs.tf",
+                    "output \"alias\" { value = module.iam_account.alias }"));
+
+    var result = TerraformMetadataExtractor.extract(archive, false);
+
+    assertThat(result.documents())
+        .extracting(TerraformMetadataExtractor.ExtractedDocument::path)
+        .containsExactly(
+            "README.md", "examples/iam-account/README.md", "modules/iam-account/README.md");
+    assertThat(result.symbols())
+        .extracting(symbol -> symbol.kind() + ":" + symbol.name() + ":" + symbol.path())
+        .contains(
+            "submodule:iam-account:modules/iam-account",
+            "example:iam-account:examples/iam-account",
+            "input:enabled:modules/iam-account/variables.tf",
+            "resource:aws_iam_account_alias.this:modules/iam-account/main.tf",
+            "dependency:iam_account:examples/iam-account/main.tf",
+            "output:alias:examples/iam-account/outputs.tf");
   }
 
   @Test

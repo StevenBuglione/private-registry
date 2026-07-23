@@ -29,6 +29,16 @@ export const router = createBrowserRouter([
         path: "modules/:namespace/:name/:target/:version?",
         element: <PackageDetailPage kind="module" />,
       },
+      {
+        path: "modules/:namespace/:name/:target/:version/submodules/:moduleChild",
+        element: (
+          <PackageDetailPage kind="module" moduleChildKind="submodule" />
+        ),
+      },
+      {
+        path: "modules/:namespace/:name/:target/:version/examples/:moduleChild",
+        element: <PackageDetailPage kind="module" moduleChildKind="example" />,
+      },
       { path: "docs", element: <Navigate replace to="/" /> },
       {
         path: "provider/:namespace/:name/:version?/*",

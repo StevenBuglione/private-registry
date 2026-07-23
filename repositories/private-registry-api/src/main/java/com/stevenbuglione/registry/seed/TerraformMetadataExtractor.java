@@ -42,10 +42,22 @@ final class TerraformMetadataExtractor {
   private TerraformMetadataExtractor() {}
 
   static Extraction extract(Path sourceArchive, boolean provider) {
-    var terraform = new LinkedHashMap<String, String>();
-    var documents = new LinkedHashMap<String, ExtractedDocument>();
-    var examples = new LinkedHashSet<String>();
-    @Nullable ExtractedDocument fallbackReadme = null;
+    var contents = readArchive(sourceArchive, provider);
+    finalizeRootDocuments(contents, provider);
+    var symbols =
+        provider
+            ? providerSymbols(contents.documents.values())
+            : moduleSymbols(contents.terraform, contents.examples, contents.submodules);
+    return new Extraction(
+        contents.documents.values().stream()
+            .sorted(Comparator.comparing(ExtractedDocument::path))
+            .toList(),
+        symbols,
+        archiveDigest(sourceArchive));
+  }
+
+  private static ArchiveContents readArchive(Path sourceArchive, boolean provider) {
+    var contents = new ArchiveContents();
     var entries = 0;
     try (var input = Files.newInputStream(sourceArchive);
         var archive = new ZipInputStream(input)) {
@@ -58,67 +70,99 @@ final class TerraformMetadataExtractor {
           continue;
         }
         var path = relativePath(entry.getName());
-        if (path == null) {
-          continue;
-        }
-        var lower = path.toLowerCase(Locale.ROOT);
-        var example = provider ? null : moduleExample(path);
-        if (example != null) {
-          examples.add(example);
-        }
-        if (lower.endsWith(".tf") && !provider && !path.contains("/")) {
-          terraform.put(path, decode(readTextEntry(archive, path)));
-          continue;
-        }
-        if (isReadme(lower)) {
-          var content = readTextEntry(archive, path);
-          var readme =
-              new ExtractedDocument(
-                  "README.md",
-                  markdownTitle(content, "README"),
-                  "text/markdown",
-                  markdownDescription(content),
-                  stripLeadingFrontmatter(content));
-          if (path.equalsIgnoreCase("README.md")) {
-            documents.put("README.md", readme);
-          } else if (fallbackReadme == null) {
-            fallbackReadme = readme;
-          }
-          continue;
-        }
-        if (provider) {
-          var classified = classifyProviderDocument(path);
-          if (classified != null) {
-            var content = readTextEntry(archive, path);
-            var document =
-                new ExtractedDocument(
-                    classified.path(),
-                    markdownTitle(content, classified.name()),
-                    "text/markdown",
-                    markdownDescription(content),
-                    stripLeadingFrontmatter(content));
-            if (classified.path().equals("index.md")
-                && lower.endsWith("website/docs/index.html.markdown")) {
-              documents.put("index.md", document);
-            } else {
-              documents.putIfAbsent(classified.path(), document);
-            }
-          }
+        if (path != null) {
+          processEntry(archive, path, provider, contents);
         }
       }
     } catch (IOException exception) {
       throw new IllegalStateException(
           "Unable to extract Terraform source metadata from " + sourceArchive, exception);
     }
-    if (!documents.containsKey("README.md") && fallbackReadme != null) {
-      documents.put("README.md", fallbackReadme);
+    return contents;
+  }
+
+  private static void processEntry(
+      ZipInputStream archive, String path, boolean provider, ArchiveContents contents)
+      throws IOException {
+    var lower = path.toLowerCase(Locale.ROOT);
+    if (!provider) {
+      recordModuleChild(path, contents);
     }
-    if (!documents.containsKey("README.md")) {
+    if (lower.endsWith(".tf") && !provider && isModuleTerraformPath(path)) {
+      contents.terraform.put(path, decode(readTextEntry(archive, path)));
+    } else if (isReadme(lower)) {
+      recordReadme(archive, path, provider, contents);
+    } else if (provider) {
+      recordProviderDocument(archive, path, lower, contents);
+    }
+  }
+
+  private static void recordModuleChild(String path, ArchiveContents contents) {
+    var example = moduleExample(path);
+    if (example != null) {
+      contents.examples.add(example);
+    }
+    var submodule = moduleChild(path, "modules");
+    if (submodule != null) {
+      contents.submodules.add(submodule);
+    }
+  }
+
+  private static void recordReadme(
+      ZipInputStream archive, String path, boolean provider, ArchiveContents contents)
+      throws IOException {
+    var documentPath = provider ? "README.md" : moduleReadmePath(path);
+    if (documentPath == null) {
+      return;
+    }
+    var content = readTextEntry(archive, path);
+    var readme =
+        new ExtractedDocument(
+            documentPath,
+            markdownTitle(content, "README"),
+            "text/markdown",
+            markdownDescription(content),
+            stripLeadingFrontmatter(content));
+    if (!provider || path.equalsIgnoreCase("README.md")) {
+      contents.documents.put(documentPath, readme);
+    } else if (contents.fallbackReadme == null) {
+      contents.fallbackReadme = readme;
+    }
+  }
+
+  private static void recordProviderDocument(
+      ZipInputStream archive, String path, String lower, ArchiveContents contents)
+      throws IOException {
+    var classified = classifyProviderDocument(path);
+    if (classified == null) {
+      return;
+    }
+    var content = readTextEntry(archive, path);
+    var document =
+        new ExtractedDocument(
+            classified.path(),
+            markdownTitle(content, classified.name()),
+            "text/markdown",
+            markdownDescription(content),
+            stripLeadingFrontmatter(content));
+    if (classified.path().equals("index.md")
+        && lower.endsWith("website/docs/index.html.markdown")) {
+      contents.documents.put("index.md", document);
+    } else {
+      contents.documents.putIfAbsent(classified.path(), document);
+    }
+  }
+
+  private static void finalizeRootDocuments(ArchiveContents contents, boolean provider) {
+    if (!contents.documents.containsKey("README.md") && contents.fallbackReadme != null) {
+      contents.documents.put("README.md", contents.fallbackReadme);
+    }
+    if (!contents.documents.containsKey("README.md")) {
       throw new IllegalStateException("Pinned upstream source archive does not contain a README");
     }
-    if (provider && !documents.containsKey("index.md")) {
-      var readme = documents.get("README.md");
-      documents.put(
+    if (provider && !contents.documents.containsKey("index.md")) {
+      var readme = contents.documents.get("README.md");
+      contents.documents.put(
           "index.md",
           new ExtractedDocument(
               "index.md",
@@ -127,13 +171,6 @@ final class TerraformMetadataExtractor {
               readme.description(),
               readme.content()));
     }
-
-    var symbols =
-        provider ? providerSymbols(documents.values()) : moduleSymbols(terraform, examples);
-    return new Extraction(
-        documents.values().stream().sorted(Comparator.comparing(ExtractedDocument::path)).toList(),
-        symbols,
-        archiveDigest(sourceArchive));
   }
 
   private static String archiveDigest(Path archive) {
@@ -178,7 +215,7 @@ final class TerraformMetadataExtractor {
   }
 
   private static List<ExtractedSymbol> moduleSymbols(
-      Map<String, String> terraform, Iterable<String> examples) {
+      Map<String, String> terraform, Iterable<String> examples, Iterable<String> submodules) {
     var symbols = new LinkedHashMap<String, ExtractedSymbol>();
     terraform.forEach(
         (path, content) -> {
@@ -194,11 +231,24 @@ final class TerraformMetadataExtractor {
             var secondLabel = matcher.group(3);
             var body = normalized.substring(matcher.end(), closing);
             var symbol = moduleSymbol(path, blockKind, firstLabel, secondLabel, body);
-            symbols.putIfAbsent(symbol.kind() + ":" + symbol.name(), symbol);
+            symbols.putIfAbsent(symbolIdentity(symbol), symbol);
           }
           requiredProviderSymbols(path, normalized)
-              .forEach(symbol -> symbols.putIfAbsent(symbol.kind() + ":" + symbol.name(), symbol));
+              .forEach(symbol -> symbols.putIfAbsent(symbolIdentity(symbol), symbol));
         });
+    submodules.forEach(
+        submodule ->
+            symbols.putIfAbsent(
+                "submodule:" + submodule,
+                new ExtractedSymbol(
+                    "submodule",
+                    submodule,
+                    null,
+                    "modules/" + submodule,
+                    "submodule",
+                    null,
+                    false,
+                    false)));
     examples.forEach(
         example ->
             symbols.putIfAbsent(
@@ -213,8 +263,23 @@ final class TerraformMetadataExtractor {
                     false,
                     false)));
     return symbols.values().stream()
-        .sorted(Comparator.comparing(ExtractedSymbol::kind).thenComparing(ExtractedSymbol::name))
+        .sorted(
+            Comparator.comparing(ExtractedSymbol::kind)
+                .thenComparing(ExtractedSymbol::name)
+                .thenComparing(ExtractedSymbol::path))
         .toList();
+  }
+
+  private static String symbolIdentity(ExtractedSymbol symbol) {
+    return symbol.kind() + ":" + symbol.name() + ":" + symbolScope(symbol.path());
+  }
+
+  private static String symbolScope(String path) {
+    var normalized = path.replace('\\', '/');
+    var parts = normalized.split("/", -1);
+    return parts.length >= 2 && (parts[0].equals("modules") || parts[0].equals("examples"))
+        ? parts[0] + "/" + parts[1]
+        : "";
   }
 
   private static ExtractedSymbol moduleSymbol(
@@ -533,16 +598,47 @@ final class TerraformMetadataExtractor {
   }
 
   private static @Nullable String moduleExample(String path) {
+    return moduleChild(path, "examples");
+  }
+
+  private static @Nullable String moduleChild(String path, String directory) {
     var normalized = path.replace('\\', '/');
-    if (!normalized.startsWith("examples/")) {
+    var prefix = directory + "/";
+    if (!normalized.startsWith(prefix)) {
       return null;
     }
-    var remainder = normalized.substring("examples/".length());
+    var remainder = normalized.substring(prefix.length());
     var separator = remainder.indexOf('/');
     if (separator <= 0) {
       return null;
     }
     return remainder.substring(0, separator);
+  }
+
+  private static boolean isModuleTerraformPath(String path) {
+    if (!path.contains("/")) {
+      return true;
+    }
+    var normalized = path.replace('\\', '/');
+    var parts = normalized.split("/", -1);
+    return parts.length == 3
+        && (parts[0].equals("modules") || parts[0].equals("examples"))
+        && !parts[1].isBlank();
+  }
+
+  private static @Nullable String moduleReadmePath(String path) {
+    var normalized = path.replace('\\', '/');
+    if (normalized.equalsIgnoreCase("README.md")) {
+      return "README.md";
+    }
+    var parts = normalized.split("/", -1);
+    if (parts.length == 3
+        && (parts[0].equals("modules") || parts[0].equals("examples"))
+        && !parts[1].isBlank()
+        && parts[2].equalsIgnoreCase("README.md")) {
+      return parts[0] + "/" + parts[1] + "/README.md";
+    }
+    return null;
   }
 
   private static @Nullable ClassifiedDocument classifyProviderDocument(String path) {
@@ -752,6 +848,15 @@ final class TerraformMetadataExtractor {
       @Nullable String defaultValue,
       boolean required,
       boolean sensitive) {}
+
+  private static final class ArchiveContents {
+
+    private final Map<String, String> terraform = new LinkedHashMap<>();
+    private final Map<String, ExtractedDocument> documents = new LinkedHashMap<>();
+    private final LinkedHashSet<String> examples = new LinkedHashSet<>();
+    private final LinkedHashSet<String> submodules = new LinkedHashSet<>();
+    private @Nullable ExtractedDocument fallbackReadme;
+  }
 
   private record ClassifiedDocument(String kind, String name, String path) {}
 }

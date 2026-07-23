@@ -7,7 +7,6 @@ import {
   ClockIcon,
   DownloadSimpleIcon,
   FileTextIcon,
-  HandshakeIcon,
   InfoIcon,
   LinkSimpleIcon,
   ListIcon,
@@ -44,13 +43,22 @@ import type {
   PackageDetail,
   PackageExample,
   PackageKind,
+  PackageModuleChild,
   PackageSummary,
   PackageSymbol,
 } from "../types";
 import { useRegistry } from "../use-registry";
 import { formatRelativeDate, hasText, packageHref } from "../utils";
 
-export function PackageDetailPage({ kind }: { kind: PackageKind }) {
+type ModuleChildKind = "submodule" | "example";
+
+export function PackageDetailPage({
+  kind,
+  moduleChildKind,
+}: {
+  kind: PackageKind;
+  moduleChildKind?: ModuleChildKind;
+}) {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,11 +77,20 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     kind === "provider" && tab === "documentation"
       ? (searchParams.get("doc") ?? undefined)
       : undefined;
+  const moduleChildName = params["moduleChild"];
+  const moduleChildDocumentPath =
+    kind === "module" &&
+    moduleChildKind !== undefined &&
+    hasText(moduleChildName)
+      ? `${moduleChildKind === "submodule" ? "modules" : "examples"}/${moduleChildName}/README.md`
+      : undefined;
   const detail = usePackage(identity);
   const documentation = usePackageDocumentation(
     identity,
-    detail.data?.documentation,
-    documentPath,
+    moduleChildDocumentPath === undefined
+      ? detail.data?.documentation
+      : undefined,
+    documentPath ?? moduleChildDocumentPath,
   );
   const governance = usePackageGovernance(identity, detail.data?.governance);
   const related = useCatalogPage({
@@ -106,15 +123,21 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
   }
 
   const item = detail.data;
+  const moduleViewSymbols =
+    kind === "module"
+      ? symbolsForModuleView(item.symbols, moduleChildKind, moduleChildName)
+      : item.symbols;
   const docs =
     documentation.data ??
-    (hasText(documentPath) ? undefined : item.documentation) ??
+    (hasText(documentPath) || hasText(moduleChildDocumentPath)
+      ? undefined
+      : item.documentation) ??
     `# ${item.name}\n\nDocumentation has not been published for this package version.`;
   const governanceData = governance.data ?? item.governance;
-  const installSnippet = buildInstallSnippet(
-    item,
-    runtimeConfig().jfrogHostname,
-  );
+  const installSnippet =
+    moduleChildKind === undefined || !hasText(moduleChildName)
+      ? buildInstallSnippet(item, runtimeConfig().jfrogHostname)
+      : buildModuleChildInstallSnippet(item, moduleChildKind, moduleChildName);
   const providerSnippet = buildProviderConfigurationSnippet(item);
   const sourceRepository = safeExternalUrl(
     item.sourceRepository ?? governanceData?.sourceRepository,
@@ -133,79 +156,116 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     setSearchParams(next);
   };
   const changeVersion = (version: string) => {
-    const destination = packageHref({ ...item, version });
+    const destination =
+      moduleChildKind === undefined || !hasText(moduleChildName)
+        ? packageHref({ ...item, version })
+        : moduleChildHref(
+            item,
+            version,
+            moduleChildKind === "submodule" ? "submodules" : "examples",
+            moduleChildName,
+          );
     const query = searchParams.toString();
     void navigate(query ? `${destination}?${query}` : destination);
   };
   const showDocumentation = kind === "provider" && tab === "documentation";
 
   return (
-    <div className={`detail-page ${kind}-detail-page`}>
-      <header className="package-source-header source-container">
-        <nav className="source-breadcrumbs" aria-label="Breadcrumb">
-          <Link to={kind === "provider" ? "/providers" : "/modules"}>
-            {kind === "provider" ? "Providers" : "Modules"}
-          </Link>
-          <CaretRightIcon size={12} />
-          <span>{item.namespace}</span>
-          <CaretRightIcon size={12} />
-          <span>{item.name}</span>
-          <CaretRightIcon size={12} />
-          <span>v{item.version}</span>
-        </nav>
-        <div className="package-title-row">
-          <PackageIcon
-            kind={kind}
-            name={kind === "module" ? item.provider : item.name}
-            size="large"
-          />
-          <div>
-            <div className="package-name-line">
-              <h1>{item.name}</h1>
-              {kind === "module" && item.verified ? (
-                <span className="registry-tier-badge">
-                  <HandshakeIcon size={14} weight="fill" /> Partner
+    <div
+      className={`detail-page ${kind}-detail-page${
+        moduleChildKind === undefined ? "" : " module-child-detail-page"
+      }`}
+    >
+      {kind === "module" &&
+      moduleChildKind !== undefined &&
+      hasText(moduleChildName) ? (
+        <ModuleChildHeader
+          item={item}
+          childKind={moduleChildKind}
+          childName={moduleChildName}
+          requestedVersion={params["version"] ?? item.version}
+          sourceRepository={sourceRepository}
+        />
+      ) : (
+        <header className="package-source-header source-container">
+          <nav className="source-breadcrumbs" aria-label="Breadcrumb">
+            <Link to={kind === "provider" ? "/providers" : "/modules"}>
+              {kind === "provider" ? "Providers" : "Modules"}
+            </Link>
+            <CaretRightIcon size={12} />
+            <span>{item.namespace}</span>
+            <CaretRightIcon size={12} />
+            <span>{item.name}</span>
+            <CaretRightIcon size={12} />
+            <span>v{item.version}</span>
+          </nav>
+          <div className="package-title-row">
+            <PackageIcon
+              kind={kind}
+              name={kind === "module" ? item.provider : item.name}
+              size="large"
+            />
+            <div>
+              <div className="package-name-line">
+                <h1>{item.name}</h1>
+                {kind === "provider" ? (
+                  <ApprovalBadge
+                    value={item.approval}
+                    verified={item.verified}
+                    {...(item.verified ? { label: "Official" } : {})}
+                  />
+                ) : null}
+              </div>
+              {kind === "provider" ? (
+                <span>
+                  {item.namespace}/{item.name}
                 </span>
-              ) : (
-                <ApprovalBadge
-                  value={item.approval}
-                  verified={item.verified}
-                  {...(kind === "provider" && item.verified
-                    ? { label: "Official" }
-                    : {})}
-                />
-              )}
+              ) : null}
             </div>
-            <span>
+          </div>
+          {kind === "module" ? (
+            <span className="module-package-address">
               {item.namespace}/{item.name}
               {hasText(item.target) ? `/${item.target}` : ""}
             </span>
-          </div>
-        </div>
-        {kind === "provider" ? (
+          ) : null}
           <p className="package-description">{item.description}</p>
-        ) : null}
-        {kind === "module" ? (
-          <ModuleFacts item={item} sourceRepository={sourceRepository} />
-        ) : (
-          <ProviderFacts item={item} sourceRepository={sourceRepository} />
-        )}
-        <PackageHeaderActions
-          kind={kind}
-          item={item}
-          sourceRepository={sourceRepository}
-          onVersionChange={changeVersion}
-        />
-        {kind === "module" && item.examples.length > 0 ? (
-          <div className="module-examples-row">
-            <ExamplesMenu
-              examples={item.examples}
-              sourceRepository={sourceRepository}
-              sourceTag={item.sourceTag}
-            />
-          </div>
-        ) : null}
-      </header>
+          {kind === "module" ? (
+            <ModuleFacts item={item} sourceRepository={sourceRepository} />
+          ) : (
+            <ProviderFacts item={item} sourceRepository={sourceRepository} />
+          )}
+          <PackageHeaderActions
+            kind={kind}
+            item={item}
+            sourceRepository={sourceRepository}
+            onVersionChange={changeVersion}
+          />
+          {kind === "module" &&
+          (item.submodules.length > 0 || item.examples.length > 0) ? (
+            <div className="module-child-menus">
+              {item.submodules.length > 0 ? (
+                <ModuleChildMenu
+                  label="Submodules"
+                  items={item.submodules}
+                  item={item}
+                  version={params["version"] ?? item.version}
+                  variant="submodules"
+                />
+              ) : null}
+              {item.examples.length > 0 ? (
+                <ModuleChildMenu
+                  label="Examples"
+                  items={item.examples}
+                  item={item}
+                  version={params["version"] ?? item.version}
+                  variant="examples"
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </header>
+      )}
 
       <nav
         className="package-tabs source-container"
@@ -233,30 +293,31 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             </button>
           </>
         ) : (
-          ["readme", "inputs", "outputs", "dependencies", "resources"].map(
-            (value) => (
-              <button
-                key={value}
-                className={tab === value ? "active" : ""}
-                type="button"
-                aria-label={
-                  value === "readme"
-                    ? "Readme"
-                    : `${capitalize(value)} (${String(moduleTabCount(item.symbols, value))})`
-                }
-                onClick={() => {
-                  setTab(value);
-                }}
-              >
-                {capitalize(value)}
-                {value !== "readme" ? (
-                  <span className="tab-count">
-                    {moduleTabCount(item.symbols, value)}
-                  </span>
-                ) : null}
-              </button>
-            ),
-          )
+          (moduleChildKind === "example"
+            ? ["readme", "inputs", "outputs"]
+            : ["readme", "inputs", "outputs", "dependencies", "resources"]
+          ).map((value) => (
+            <button
+              key={value}
+              className={tab === value ? "active" : ""}
+              type="button"
+              aria-label={
+                value === "readme"
+                  ? "Readme"
+                  : `${capitalize(value)} (${String(moduleTabCount(moduleViewSymbols, value))})`
+              }
+              onClick={() => {
+                setTab(value);
+              }}
+            >
+              {capitalize(value)}
+              {value !== "readme" ? (
+                <span className="tab-count">
+                  {moduleTabCount(moduleViewSymbols, value)}
+                </span>
+              ) : null}
+            </button>
+          ))
         )}
       </nav>
 
@@ -288,11 +349,22 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             <div className="source-container package-overview-grid module-overview-grid">
               <main>
                 {kind === "module" ? (
-                  <ModuleTabContent
-                    tab={tab}
-                    docs={docs}
-                    symbols={item.symbols}
-                  />
+                  <>
+                    {moduleChildKind === undefined &&
+                    tab === "readme" &&
+                    !hasRootModuleConfiguration(item.symbols) &&
+                    item.submodules.length > 0 ? (
+                      <ModuleRootConfigurationNotice
+                        version={item.version}
+                        submoduleCount={item.submodules.length}
+                      />
+                    ) : null}
+                    <ModuleTabContent
+                      tab={tab}
+                      docs={docs}
+                      symbols={moduleViewSymbols}
+                    />
+                  </>
                 ) : (
                   <MarkdownDocument docs={docs} className="source-readme" />
                 )}
@@ -301,18 +373,20 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                 className="source-install-sidebar"
                 aria-label="Installation and governance"
               >
-                {kind === "module" ? (
+                {kind === "module" && moduleChildKind === undefined ? (
                   <ModuleDownloadsCard
                     statistics={item.downloadStatistics}
                     statisticsByVersion={item.downloadStatisticsByVersion}
                   />
                 ) : null}
                 <InstallPanel snippet={installSnippet} kind={kind} />
-                <GovernanceCard
-                  item={item}
-                  governance={governanceData}
-                  selectedApmId={selectedApmId}
-                />
+                {moduleChildKind === undefined ? (
+                  <GovernanceCard
+                    item={item}
+                    governance={governanceData}
+                    selectedApmId={selectedApmId}
+                  />
+                ) : null}
               </aside>
             </div>
           )}
@@ -413,6 +487,10 @@ function ModuleFacts({
         <span>Published by:</span>
         <strong>{item.namespace}</strong>
       </div>
+      <div>
+        <span>Managed by:</span>
+        <strong>{item.namespace}</strong>
+      </div>
     </div>
   );
 }
@@ -464,18 +542,109 @@ function ProviderFacts({
   );
 }
 
-function ExamplesMenu({
-  examples,
+function ModuleChildHeader({
+  item,
+  childKind,
+  childName,
+  requestedVersion,
   sourceRepository,
-  sourceTag,
 }: {
-  examples: PackageExample[];
+  item: PackageDetail;
+  childKind: ModuleChildKind;
+  childName: string;
+  requestedVersion: string;
   sourceRepository: string | undefined;
-  sourceTag: string | undefined;
+}) {
+  const items = childKind === "submodule" ? item.submodules : item.examples;
+  const variant = childKind === "submodule" ? "submodules" : "examples";
+  const label = childKind === "submodule" ? "Submodule" : "Example";
+  const rootHref = moduleRootHref(item, requestedVersion);
+  const childSource = sourceChildUrl(
+    sourceRepository,
+    item.sourceTag,
+    `${childKind === "submodule" ? "modules" : "examples"}/${childName}`,
+  );
+  const issueUrl = hasText(sourceRepository)
+    ? `${sourceRepository.replace(/\/$/, "")}/issues`
+    : undefined;
+  return (
+    <header className="package-source-header module-child-header source-container">
+      <nav className="source-breadcrumbs" aria-label={`Module ${childKind}`}>
+        <Link to="/modules">Modules</Link>
+        <CaretRightIcon size={12} />
+        <span>{item.namespace}</span>
+        <CaretRightIcon size={12} />
+        <Link to={rootHref}>{item.name}</Link>
+        <CaretRightIcon size={12} />
+        <Link to={rootHref}>v{item.version}</Link>
+        <CaretRightIcon size={12} />
+        <span>{childName}</span>
+      </nav>
+      <h1>
+        {label}: {childName}
+      </h1>
+      <p className="module-child-source">
+        Source code:{" "}
+        {hasText(childSource) ? (
+          <a href={childSource} target="_blank" rel="noreferrer">
+            {shortExternalUrl(childSource)}
+          </a>
+        ) : (
+          <span>Unavailable</span>
+        )}{" "}
+        {hasText(issueUrl) ? (
+          <>
+            (
+            <a href={issueUrl} target="_blank" rel="noreferrer">
+              report an issue
+            </a>
+            )
+          </>
+        ) : null}
+      </p>
+      <div className="module-child-actions">
+        <Link className="return-to-module" to={rootHref}>
+          <CaretRightIcon aria-hidden="true" size={14} />
+          Return to module {item.name}
+        </Link>
+        <ModuleChildMenu
+          label={`Change ${childKind}`}
+          items={items}
+          item={item}
+          version={requestedVersion}
+          variant={variant}
+        />
+        {hasText(childSource) ? (
+          <a
+            className="view-source-button"
+            href={childSource}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ArrowSquareOutIcon size={16} /> View Source
+          </a>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+function ModuleChildMenu({
+  label,
+  items,
+  item,
+  version,
+  variant,
+}: {
+  label: string;
+  items: Array<PackageExample | PackageModuleChild>;
+  item: PackageDetail;
+  version: string;
+  variant: "submodules" | "examples";
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="examples-menu">
+    <div className="module-child-menu">
       <button
         type="button"
         aria-haspopup="menu"
@@ -484,35 +653,49 @@ function ExamplesMenu({
           setOpen((value) => !value);
         }}
       >
-        Examples <CaretRightIcon size={13} className={open ? "is-open" : ""} />
+        {label} <CaretRightIcon size={13} className={open ? "is-open" : ""} />
       </button>
       {open ? (
-        <div className="examples-menu-popover" role="menu">
-          {examples.map((example) => {
-            const url = sourceExampleUrl(
-              sourceRepository,
-              sourceTag,
-              example.path,
-            );
-            return url === undefined ? (
-              <span key={example.path} role="menuitem">
-                {example.name}
-              </span>
-            ) : (
-              <a
-                key={example.path}
-                role="menuitem"
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {example.name} <ArrowSquareOutIcon size={13} />
-              </a>
-            );
-          })}
+        <div className="module-child-menu-popover" role="menu">
+          {items.map((child) => (
+            <Link
+              key={child.path}
+              role="menuitem"
+              to={moduleChildHref(item, version, variant, child.name)}
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              {child.name}
+            </Link>
+          ))}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ModuleRootConfigurationNotice({
+  version,
+  submoduleCount,
+}: {
+  version: string;
+  submoduleCount: number;
+}) {
+  return (
+    <aside className="module-root-notice" role="alert">
+      <WarningIcon aria-hidden="true" size={18} />
+      <div>
+        <strong>
+          This module version ({version}) has no root configuration.
+        </strong>
+        <p>
+          A module with no root configuration cannot be used directly. Use the
+          submodules dropdown above to view the {submoduleCount} submodules
+          defined within this module.
+        </p>
+      </div>
+    </aside>
   );
 }
 
@@ -607,7 +790,7 @@ function shortExternalUrl(value: string): string {
   }
 }
 
-function sourceExampleUrl(
+function sourceChildUrl(
   sourceRepository: string | undefined,
   sourceTag: string | undefined,
   path: string,
@@ -624,6 +807,19 @@ function sourceExampleUrl(
   } catch {
     return undefined;
   }
+}
+
+function moduleRootHref(item: PackageDetail, version: string): string {
+  return `/modules/${encodeURIComponent(item.namespace)}/${encodeURIComponent(item.name)}/${encodeURIComponent(item.target ?? item.provider)}/${encodeURIComponent(version)}`;
+}
+
+function moduleChildHref(
+  item: PackageDetail,
+  version: string,
+  variant: "submodules" | "examples",
+  childName: string,
+): string {
+  return `${moduleRootHref(item, version)}/${variant}/${encodeURIComponent(childName)}`;
 }
 
 function ProviderOverview({
@@ -1429,6 +1625,55 @@ function moduleTabCount(symbols: PackageSymbol[], tab: string): number {
   return symbolsForModuleTab(symbols, tab).length;
 }
 
+function symbolsForModuleView(
+  symbols: PackageSymbol[],
+  childKind: ModuleChildKind | undefined,
+  childName: string | undefined,
+): PackageSymbol[] {
+  if (childKind !== undefined && hasText(childName)) {
+    const prefix = `${childKind === "submodule" ? "modules" : "examples"}/${childName}/`;
+    return symbols.filter((symbol) => symbol.path.startsWith(prefix));
+  }
+  const rootSymbols = symbols.filter(
+    (symbol) =>
+      !symbol.path.startsWith("modules/") &&
+      !symbol.path.startsWith("examples/") &&
+      !["submodule", "example"].includes(normalizeSymbolKind(symbol.kind)),
+  );
+  const moduleInventory = symbols.filter(
+    (symbol) =>
+      !symbol.path.startsWith("examples/") &&
+      ["dependency", "resource"].includes(normalizeSymbolKind(symbol.kind)),
+  );
+  return dedupeModuleSymbols([
+    ...rootSymbols,
+    ...moduleInventory.filter((symbol) =>
+      ["dependency", "resource"].includes(normalizeSymbolKind(symbol.kind)),
+    ),
+  ]);
+}
+
+function dedupeModuleSymbols(symbols: PackageSymbol[]): PackageSymbol[] {
+  const unique = new Map<string, PackageSymbol>();
+  for (const symbol of symbols) {
+    const kind = normalizeSymbolKind(symbol.kind);
+    const key =
+      kind === "dependency"
+        ? `${kind}:${symbol.name}`
+        : `${kind}:${symbol.name}:${symbol.path}`;
+    if (!unique.has(key)) unique.set(key, symbol);
+  }
+  return [...unique.values()];
+}
+
+function hasRootModuleConfiguration(symbols: PackageSymbol[]): boolean {
+  return symbols.some(
+    (symbol) =>
+      !symbol.path.includes("/") &&
+      !["submodule", "example"].includes(normalizeSymbolKind(symbol.kind)),
+  );
+}
+
 function symbolsForModuleTab(
   symbols: PackageSymbol[],
   tab: string,
@@ -1808,4 +2053,20 @@ function buildInstallSnippet(
   const source =
     artifactUrl ?? item.installSource ?? "ARTIFACTORY_URL_REQUIRED";
   return `module "${item.name.replaceAll("-", "_")}" {\n  # The immutable version is pinned in the Artifactory path.\n  source = "${source}"\n}`;
+}
+
+function buildModuleChildInstallSnippet(
+  item: PackageDetail,
+  childKind: ModuleChildKind,
+  childName: string,
+): string {
+  const directory = childKind === "submodule" ? "modules" : "examples";
+  const blockName = `${item.name}_${childKind}_${childName}`.replaceAll(
+    "-",
+    "_",
+  );
+  return `module "${blockName}" {
+  source  = "${item.namespace}/${item.name}/${item.target ?? item.provider}//${directory}/${childName}"
+  version = "${item.version}"
+}`;
 }

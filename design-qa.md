@@ -4,6 +4,10 @@
 - Local provider implementation: `http://localhost:3000/providers/hashicorp/azurerm/4.37.0`
 - Official module reference: `https://registry.terraform.io/modules/Azure/avm-res-web-site/azurerm/0.16.0`
 - Local module implementation: `http://localhost:3000/modules/Azure/avm-res-web-site/azurerm/0.16.0`
+- Official IAM module reference: `https://registry.terraform.io/modules/terraform-aws-modules/iam/aws/6.2.1`
+- Local IAM module implementation: `http://localhost:3000/modules/terraform-aws-modules/iam/aws/6.2.1`
+- Official IAM child reference: `https://registry.terraform.io/modules/terraform-aws-modules/iam/aws/6.2.1/submodules/iam-account`
+- Local IAM child implementation: `http://localhost:3000/modules/terraform-aws-modules/iam/aws/6.2.1/submodules/iam-account`
 - Primary viewport: 1440 x 1000 CSS pixels; both captures render at 1425 x 990 pixels after the browser scrollbar.
 - Responsive viewport: 390 x 844 CSS pixels.
 - State: authenticated Registry administrator with the approved private JFrog catalog.
@@ -20,6 +24,11 @@
 - Module mobile: `.codex-artifacts/perfection-audit-2026-07-23/30-module-mobile-side-by-side-final.jpg`
 - Provider dark mode: `.codex-artifacts/perfection-audit-2026-07-23/35-local-provider-dark-1440.jpg`
 - Module dark mode: `.codex-artifacts/perfection-audit-2026-07-23/36-local-module-dark-1440.jpg`
+- IAM root comparison: `.codex-artifacts/module-iam-audit-2026-07-23/20-side-by-side-iam-root.jpg`
+- IAM submodule comparison: `.codex-artifacts/module-iam-audit-2026-07-23/21-side-by-side-iam-account.jpg`
+- IAM root mobile: `.codex-artifacts/module-iam-audit-2026-07-23/19-local-iam-root-mobile-390.jpg`
+- IAM submodule mobile: `.codex-artifacts/module-iam-audit-2026-07-23/18-local-iam-account-mobile-390.jpg`
+- IAM submodule dark mode: `.codex-artifacts/module-iam-audit-2026-07-23/17-local-iam-account-dark-1440.jpg`
 
 The source and implementation captures were taken in the same browser run, at the same viewport and page state, then combined at 1:1 density. The final comparisons were checked for typography, position, dimensions, wrapping, borders, colors, controls, content density, and responsive overflow.
 
@@ -35,6 +44,9 @@ No actionable P0, P1, or P2 visual differences remain.
 - Provider documentation: left document navigation, content typography, active state, resource headings, and right installation rail match the official Registry flow.
 - Module identity: breadcrumb, Azure icon, title, Partner badge, source path, metadata, version and source actions, Examples control, and Readme/Inputs/Outputs/Dependencies/Resources tabs follow the official layout.
 - Module content: README typography and spacing, requirement lists, download statistics, All versions selection, and provision panel match the source structure while keeping the Artifactory-specific install source truthful.
+- IAM child navigation: the root Submodules and Examples controls occupy the official position and every entry targets a canonical internal Registry route. The `iam-account` submodule renders its Artifactory-backed README locally instead of navigating to GitHub.
+- IAM child metadata: the submodule exposes the official 12 Inputs, 1 Output, 1 Dependency, and 2 Resources. The example page exposes Readme, 0 Inputs, and 1 Output; the root exposes Readme, 0 Inputs, 0 Outputs, 2 Dependencies, and 26 Resources.
+- IAM root metadata: the public upstream description and August 26, 2025 publication date are present, with eight submodules and eight examples extracted from the pinned source archive.
 - Responsive behavior: provider and module pages collapse to the same source order without body-level horizontal overflow. At 390px, the provider grid resolves to one 327px column, the sidebar follows the modules and Helpful Links, and the long source link wraps within the mobile metadata rail.
 - Themes: light and dark modes preserve the same geometry and contrast. The theme control is present only inside the authenticated user menu and was exercised in both package types.
 - Loading behavior: provider module discovery now displays an in-place skeleton instead of briefly claiming there are no matching packages.
@@ -61,9 +73,11 @@ These are required product behavior, not visual drift:
 - User-menu light/dark switching: passed.
 - Desktop and mobile accessibility/browser flows: 5 Playwright scenarios passed, including axe checks.
 - Static quality gates: Biome, strict TypeScript, typed ESLint, Stylelint, dependency-cruiser, and Knip passed.
-- Unit/component tests: 42 passed.
-- Coverage: 83.89% statements, 71.51% branches, 84.97% functions, and 85.48% lines.
-- Production build and 250 kB compressed bundle budget: passed at 236.99 kB.
-- Java `qualityLocal`, catalog sorting tests, and Docker Compose API/UI health: passed.
+- Unit/component tests: 44 passed.
+- Coverage: 84.31% statements, 71.38% branches, 84.81% functions, and 85.85% lines.
+- Production build and 250 kB compressed bundle budget: passed at 237.88 kB.
+- Java `qualityPr` (Error Prone, NullAway, Checkstyle, PMD baseline, SpotBugs/FindSecBugs, tests, coverage, architecture, and SBOM): passed.
+- Docker Compose has exactly PostgreSQL, API, and UI services; all three are healthy.
+- PostgreSQL contains the real IAM 6.2.1 metadata extracted from the JFrog-seeded artifact: 8 submodules, 8 examples, 160 inputs, 150 outputs, 62 dependencies, 30 resources, and 34 data sources across the root and child scopes.
 
 final result: passed

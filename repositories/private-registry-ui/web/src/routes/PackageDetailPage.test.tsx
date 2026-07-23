@@ -28,6 +28,7 @@ const moduleDetail: PackageDetail = {
   version: "2.4.1",
   versions: ["2.4.1"],
   examples: [{ name: "complete", path: "examples/complete" }],
+  submodules: [{ name: "network", path: "modules/network" }],
   description: "Approved VPC module.",
   provider: "aws",
   owner: "Cloud Platform",
@@ -90,6 +91,26 @@ const moduleDetail: PackageDetail = {
       description: "Managed VPC.",
       path: "resources/aws_vpc.this",
       provider: "aws",
+    },
+    {
+      kind: "submodule",
+      name: "network",
+      path: "modules/network",
+    },
+    {
+      kind: "input",
+      name: "subnet_count",
+      description: "Number of subnets.",
+      path: "modules/network/variables.tf",
+      type: "number",
+      defaultValue: "3",
+      required: false,
+    },
+    {
+      kind: "output",
+      name: "subnet_ids",
+      description: "Created subnet IDs.",
+      path: "modules/network/outputs.tf",
     },
   ],
 };
@@ -163,6 +184,10 @@ vi.mock("../hooks", () => ({
       "data-sources/aws_vpc.md": "# aws_vpc Data Source\n\nReads a VPC.",
       "guides/authentication.md": "# Authentication\n\nConfigure credentials.",
       "functions/arn_parse.md": "# arn_parse Function\n\nParses an ARN.",
+      "modules/network/README.md":
+        "# Network submodule\n\nCreates the VPC network.",
+      "examples/complete/README.md":
+        "# Complete example\n\nRuns the complete configuration.",
     };
     return {
       data:
@@ -247,6 +272,26 @@ function renderDetail(kind: PackageKind, initialEntry: string) {
   );
 }
 
+function renderModuleChildDetail(
+  childKind: "submodule" | "example",
+  initialEntry: string,
+) {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <RegistryProvider session={session}>
+        <Routes>
+          <Route
+            path={`/modules/:namespace/:name/:target/:version/${childKind === "submodule" ? "submodules" : "examples"}/:moduleChild`}
+            element={
+              <PackageDetailPage kind="module" moduleChildKind={childKind} />
+            }
+          />
+        </Routes>
+      </RegistryProvider>
+    </MemoryRouter>,
+  );
+}
+
 describe("PackageDetailPage symbol-driven views", () => {
   it("matches the provider overview information architecture with truthful private metadata", () => {
     renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
@@ -316,7 +361,7 @@ describe("PackageDetailPage symbol-driven views", () => {
     await user.click(screen.getByRole("button", { name: /Examples/ }));
     expect(screen.getByRole("menuitem", { name: /complete/ })).toHaveAttribute(
       "href",
-      "https://github.com/platform/terraform-aws-vpc/tree/v2.4.1/examples/complete",
+      "/modules/platform/vpc/aws/2.4.1/examples/complete",
     );
     expect(within(inputs).getByText("cidr_block")).toBeInTheDocument();
     expect(within(inputs).getByText("10.0.0.0/16")).toBeInTheDocument();
@@ -350,6 +395,48 @@ describe("PackageDetailPage symbol-driven views", () => {
       rules: { "color-contrast": { enabled: false } },
     });
     expect(result.violations).toEqual([]);
+  });
+
+  it("routes module submodules and examples to Registry-rendered child pages", async () => {
+    const user = userEvent.setup();
+    renderDetail("module", "/modules/platform/vpc/aws/2.4.1");
+
+    await user.click(screen.getByRole("button", { name: "Submodules" }));
+    expect(screen.getByRole("menuitem", { name: "network" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1/submodules/network",
+    );
+    await user.click(screen.getByRole("button", { name: "Examples" }));
+    expect(screen.getByRole("menuitem", { name: "complete" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1/examples/complete",
+    );
+  });
+
+  it("renders submodule metadata and documentation without leaving Registry", () => {
+    renderModuleChildDetail(
+      "submodule",
+      "/modules/platform/vpc/aws/2.4.1/submodules/network",
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Submodule: network" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Return to module vpc" }),
+    ).toHaveAttribute("href", "/modules/platform/vpc/aws/2.4.1");
+    expect(
+      screen.getByRole("button", { name: "Change submodule" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Inputs (1)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Network submodule" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/platform\/vpc\/aws\/\/modules\/network/),
+    ).toBeInTheDocument();
   });
 
   it("filters and loads selected provider documents with history navigation", async () => {

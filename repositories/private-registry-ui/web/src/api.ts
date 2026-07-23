@@ -506,6 +506,9 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
     examples: symbols
       .filter((symbol) => symbol.kind === "example")
       .map((symbol) => ({ name: symbol.name, path: symbol.path })),
+    submodules: symbols
+      .filter((symbol) => symbol.kind === "submodule")
+      .map((symbol) => ({ name: symbol.name, path: symbol.path })),
     documentation: optionalString(
       envelope.documentation,
       envelope.markdown,

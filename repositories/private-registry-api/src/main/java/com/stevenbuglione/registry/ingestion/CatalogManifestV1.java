@@ -26,7 +26,8 @@ public final class CatalogManifestV1 {
           "function",
           "guide",
           "dependency",
-          "example");
+          "example",
+          "submodule");
   private static final Set<String> REGISTRY_TIERS =
       Set.of("official", "partner", "partner-premier", "community");
   private static final Set<String> REGISTRY_CATEGORIES =
@@ -308,9 +309,15 @@ public final class CatalogManifestV1 {
     }
     requireOptionalSafePath(symbol.path(), "symbols.path");
     requireOptionalText(symbol.type(), "symbols.type");
-    if (!identities.add(symbol.kind() + "\u0000" + symbol.name())) {
+    if (!identities.add(
+        symbol.kind()
+            + "\u0000"
+            + symbol.name()
+            + "\u0000"
+            + Objects.toString(symbol.path(), ""))) {
       throw new QuarantineException(
-          "duplicate_symbol", "Symbol kind and name must be unique within a package version");
+          "duplicate_symbol",
+          "Symbol kind, name, and path must be unique within a package version");
     }
   }
 
