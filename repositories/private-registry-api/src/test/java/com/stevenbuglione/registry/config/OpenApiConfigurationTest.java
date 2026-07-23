@@ -40,6 +40,8 @@ class OpenApiConfigurationTest {
             .addPathItem("/api/v1/registry/homepage", get())
             .addPathItem("/api/v1/admin/dashboard", get())
             .addPathItem("/api/v1/admin/sync-credentials", get())
+            .addPathItem("/api/v1/admin/traffic", get())
+            .addPathItem("/api/v1/analytics/page-views", post())
             .addPathItem("/api/v1/sync/artifacts", post())
             .addPathItem("/api/v1/artifactory/status", get())
             .addPathItem("/registry/docs/search", get())
@@ -58,6 +60,8 @@ class OpenApiConfigurationTest {
                 Map.entry("/api/v1/registry/homepage", "Homepage"),
                 Map.entry("/api/v1/admin/dashboard", "Administration"),
                 Map.entry("/api/v1/admin/sync-credentials", "Sync API keys"),
+                Map.entry("/api/v1/admin/traffic", "Traffic analytics"),
+                Map.entry("/api/v1/analytics/page-views", "Traffic analytics"),
                 Map.entry("/api/v1/sync/artifacts", "Artifact sync"),
                 Map.entry("/api/v1/artifactory/status", "Artifactory"),
                 Map.entry("/registry/docs/search", "Compatibility"),

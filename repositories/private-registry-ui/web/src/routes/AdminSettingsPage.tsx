@@ -3,6 +3,7 @@ import {
   ArrowClockwiseIcon,
   ArrowSquareOutIcon,
   ChartBarIcon,
+  ChartLineUpIcon,
   HouseLineIcon,
   KeyIcon,
   ListMagnifyingGlassIcon,
@@ -14,6 +15,7 @@ import { useSearchParams } from "react-router";
 import { HomepageSettingsPanel } from "../components/HomepageSettingsPanel";
 import { StatePanel } from "../components/StatePanel";
 import { SyncCredentialsPanel } from "../components/SyncCredentialsPanel";
+import { TrafficAnalyticsPanel } from "../components/TrafficAnalyticsPanel";
 import {
   useAdminDashboard,
   useAdminOperations,
@@ -31,6 +33,7 @@ import {
 
 type AdminSection =
   | "overview"
+  | "traffic"
   | "homepage"
   | "credentials"
   | "activity"
@@ -42,6 +45,7 @@ const sections: {
   icon: ReactNode;
 }[] = [
   { id: "overview", label: "Overview", icon: <ChartBarIcon size={18} /> },
+  { id: "traffic", label: "Traffic", icon: <ChartLineUpIcon size={18} /> },
   { id: "homepage", label: "Homepage", icon: <HouseLineIcon size={18} /> },
   { id: "credentials", label: "Sync credentials", icon: <KeyIcon size={18} /> },
   {
@@ -115,6 +119,7 @@ export function AdminSettingsPage() {
           aria-live="polite"
         >
           {selected === "overview" ? <OverviewPanel /> : null}
+          {selected === "traffic" ? <TrafficAnalyticsPanel /> : null}
           {selected === "homepage" ? <HomepageSettingsPanel /> : null}
           {selected === "credentials" ? <SyncCredentialsPanel /> : null}
           {selected === "activity" ? <OperationsPanel /> : null}
@@ -444,6 +449,7 @@ function Definition({ label, value }: { label: string; value: string }) {
 
 function sectionFrom(value: string | null): AdminSection {
   if (
+    value === "traffic" ||
     value === "homepage" ||
     value === "credentials" ||
     value === "activity" ||

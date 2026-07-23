@@ -13,6 +13,7 @@ import {
   getPackageDocumentation,
   getSession,
   getSyncCredentials,
+  getTrafficReport,
   revokeSyncCredential,
   updateHomepageSettings,
 } from "./api";
@@ -72,6 +73,15 @@ export function useAdminDashboard() {
     queryFn: getAdminDashboard,
     retry: queryRetry,
     refetchInterval: 15_000,
+  });
+}
+
+export function useTrafficReport(days: number) {
+  return useQuery({
+    queryKey: ["admin", "traffic", days],
+    queryFn: () => getTrafficReport(days),
+    retry: queryRetry,
+    refetchInterval: 30_000,
   });
 }
 

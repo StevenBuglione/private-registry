@@ -7,12 +7,18 @@ The Registry administration workspace is available at `/admin` to Microsoft Entr
 The workspace includes:
 
 - **Overview** — PostgreSQL and Artifactory dependency status, catalog totals, current queue depth, retry and dead-letter counts, 24-hour ingestion outcomes, P95 ingestion latency, database size, and the most recent reconciliation.
+- **Traffic** — page-view trends, unique authenticated visitors, popular Registry routes, recent access, and per-user first/last access summaries for the selected 7-, 30-, or 90-day period.
 - **Homepage** — the public notification and up to six featured providers and modules. Each save records complete before-and-after audit evidence.
 - **Sync credentials** — scoped, expiring credentials for trusted GitHub runners. A token is displayed once; only its SHA-256 digest is stored.
 - **Operational logs** — structured ingestion, retry, dead-letter, quarantine, and reconciliation events. Raw event payloads, process logs, access tokens, and secrets are intentionally excluded.
 - **Audit log** — immutable records for homepage updates, credential creation and revocation, and every runner-triggered sync.
 
 Entra remains the system of record for administrators and APM memberships. The Registry does not duplicate group or user administration.
+
+Traffic reporting is administrator-only and keeps a privacy-minimized 180-day history in PostgreSQL.
+It records the authenticated subject, display name, email, Registry-relative path, and timestamp. It
+does not record query strings, URL fragments, request bodies, access tokens, IP addresses, or browser
+fingerprints. Analytics failures never block normal Registry navigation.
 
 ## Create a GitHub runner credential
 

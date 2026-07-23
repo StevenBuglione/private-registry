@@ -15,6 +15,7 @@ import {
   usePackageDocumentation,
   useSession,
   useSyncCredentials,
+  useTrafficReport,
 } from "./hooks";
 
 const apiMocks = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ const apiMocks = vi.hoisted(() => ({
   getPackageDocumentation: vi.fn(),
   catalogEventsUrl: vi.fn(),
   getAdminDashboard: vi.fn(),
+  getTrafficReport: vi.fn(),
   getAdminOperations: vi.fn(),
   getAuditEvents: vi.fn(),
   getSyncCredentials: vi.fn(),
@@ -61,6 +63,7 @@ beforeEach(() => {
   apiMocks.getPackageDocumentation.mockResolvedValue("# AWS");
   apiMocks.catalogEventsUrl.mockReturnValue("/api/v1/catalog/events");
   apiMocks.getAdminDashboard.mockResolvedValue({ status: "healthy" });
+  apiMocks.getTrafficReport.mockResolvedValue({ days: 30 });
   apiMocks.getAdminOperations.mockResolvedValue([]);
   apiMocks.getAuditEvents.mockResolvedValue([]);
   apiMocks.getSyncCredentials.mockResolvedValue([]);
@@ -150,6 +153,9 @@ describe("query hooks", () => {
     const dashboard = renderHook(() => useAdminDashboard(), {
       wrapper: Wrapper,
     });
+    const traffic = renderHook(() => useTrafficReport(30), {
+      wrapper: Wrapper,
+    });
     const operations = renderHook(() => useAdminOperations(), {
       wrapper: Wrapper,
     });
@@ -163,6 +169,7 @@ describe("query hooks", () => {
 
     await waitFor(() => {
       expect(dashboard.result.current.isSuccess).toBe(true);
+      expect(traffic.result.current.isSuccess).toBe(true);
       expect(operations.result.current.isSuccess).toBe(true);
       expect(audit.result.current.isSuccess).toBe(true);
       expect(credentials.result.current.isSuccess).toBe(true);
@@ -174,6 +181,7 @@ describe("query hooks", () => {
     });
 
     expect(apiMocks.getAdminDashboard).toHaveBeenCalledOnce();
+    expect(apiMocks.getTrafficReport).toHaveBeenCalledWith(30);
     expect(apiMocks.getAdminOperations).toHaveBeenCalledOnce();
     expect(apiMocks.getAuditEvents).toHaveBeenCalled();
     expect(apiMocks.createSyncCredential).toHaveBeenCalledWith(

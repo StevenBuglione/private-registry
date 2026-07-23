@@ -32,6 +32,7 @@ const hookMocks = vi.hoisted(() => ({
   useHomepageSettings: vi.fn(),
   useUpdateHomepageSettings: vi.fn(),
   useAdminDashboard: vi.fn(),
+  useTrafficReport: vi.fn(),
   useAdminOperations: vi.fn(),
   useAuditEvents: vi.fn(),
   useSyncCredentials: vi.fn(),
@@ -39,7 +40,10 @@ const hookMocks = vi.hoisted(() => ({
   useRevokeSyncCredential: vi.fn(),
 }));
 
-const apiMocks = vi.hoisted(() => ({ logout: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({
+  logout: vi.fn(),
+  recordPageView: vi.fn(),
+}));
 
 vi.mock("./hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof HookExports>();
@@ -52,6 +56,7 @@ vi.mock("./hooks", async (importOriginal) => {
     useHomepageSettings: hookMocks.useHomepageSettings,
     useUpdateHomepageSettings: hookMocks.useUpdateHomepageSettings,
     useAdminDashboard: hookMocks.useAdminDashboard,
+    useTrafficReport: hookMocks.useTrafficReport,
     useAdminOperations: hookMocks.useAdminOperations,
     useAuditEvents: hookMocks.useAuditEvents,
     useSyncCredentials: hookMocks.useSyncCredentials,
@@ -62,7 +67,11 @@ vi.mock("./hooks", async (importOriginal) => {
 
 vi.mock("./api", async (importOriginal) => {
   const actual = await importOriginal<typeof ApiExports>();
-  return { ...actual, logout: apiMocks.logout };
+  return {
+    ...actual,
+    logout: apiMocks.logout,
+    recordPageView: apiMocks.recordPageView,
+  };
 });
 
 const session: RegistrySession = {
@@ -219,6 +228,53 @@ beforeEach(() => {
     isError: false,
     refetch: vi.fn(),
   });
+  hookMocks.useTrafficReport.mockReturnValue({
+    data: {
+      generatedAt: "2026-07-23T12:00:00Z",
+      days: 30,
+      summary: {
+        pageViews: 1284,
+        uniqueVisitors: 42,
+        pageViewsToday: 86,
+        visitorsToday: 18,
+      },
+      daily: [
+        { day: "2026-07-22", pageViews: 62, uniqueVisitors: 14 },
+        { day: "2026-07-23", pageViews: 86, uniqueVisitors: 18 },
+      ],
+      topRoutes: [
+        {
+          path: "/modules",
+          pageViews: 630,
+          uniqueVisitors: 37,
+          lastViewedAt: "2026-07-23T11:59:00Z",
+        },
+      ],
+      visitors: [
+        {
+          subject: "user-1",
+          displayName: "Ada Lovelace",
+          email: "ada@example.test",
+          pageViews: 28,
+          firstSeenAt: "2026-07-20T10:00:00Z",
+          lastSeenAt: "2026-07-23T11:59:00Z",
+          lastPath: "/modules",
+        },
+      ],
+      recentAccess: [
+        {
+          subject: "user-1",
+          displayName: "Ada Lovelace",
+          email: "ada@example.test",
+          path: "/modules",
+          occurredAt: "2026-07-23T11:59:00Z",
+        },
+      ],
+    },
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
   hookMocks.useAdminOperations.mockReturnValue({
     data: [],
     isPending: false,
@@ -247,6 +303,7 @@ beforeEach(() => {
     isPending: false,
   });
   apiMocks.logout.mockResolvedValue("/signed-out");
+  apiMocks.recordPageView.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -306,6 +363,7 @@ describe("application composition", () => {
     const { container } = renderShell();
 
     expect(screen.getByText("Authenticated outlet")).toBeVisible();
+    expect(apiMocks.recordPageView).toHaveBeenCalledWith("/", "csrf");
     expect(
       screen.queryByRole("combobox", { name: "Access context" }),
     ).toBeNull();
@@ -375,6 +433,14 @@ describe("application composition", () => {
     ).toBeVisible();
     expect(screen.getByText("Registry systems are healthy")).toBeVisible();
     expect(screen.getByText("12,400")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Traffic" }));
+    expect(
+      screen.getByRole("heading", { name: "Traffic analytics" }),
+    ).toBeVisible();
+    expect(screen.getByText("1,284")).toBeVisible();
+    expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("/modules").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Homepage" }));
     const title = screen.getByRole("textbox", { name: "Title" });

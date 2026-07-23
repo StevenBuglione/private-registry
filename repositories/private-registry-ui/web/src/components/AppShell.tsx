@@ -23,6 +23,7 @@ import { useCatalogEvents, useSession } from "../hooks";
 import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
+import { PageViewTracker } from "./PageViewTracker";
 import { RegistryBrand, RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
@@ -72,14 +73,18 @@ export function AppShell() {
 
   if (!session.data.admin && session.data.apms.length === 0) {
     return (
-      <PublicFrame sessionName={session.data.displayName}>
-        <StatePanel kind="no-access" />
-      </PublicFrame>
+      <RegistryProvider session={session.data}>
+        <PageViewTracker />
+        <PublicFrame sessionName={session.data.displayName}>
+          <StatePanel kind="no-access" />
+        </PublicFrame>
+      </RegistryProvider>
     );
   }
 
   return (
     <RegistryProvider session={session.data}>
+      <PageViewTracker />
       <AuthenticatedShell />
     </RegistryProvider>
   );

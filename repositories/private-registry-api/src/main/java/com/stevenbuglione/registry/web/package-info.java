@@ -3,6 +3,7 @@
     displayName = "Web API",
     allowedDependencies = {
       "administration",
+      "analytics",
       "artifactory",
       "audit",
       "catalog",

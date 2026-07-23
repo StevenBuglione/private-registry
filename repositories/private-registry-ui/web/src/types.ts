@@ -158,6 +158,52 @@ export interface AdminDashboard {
   databaseSizeBytes: number;
 }
 
+export interface TrafficReport {
+  generatedAt: string;
+  days: number;
+  summary: {
+    pageViews: number;
+    uniqueVisitors: number;
+    pageViewsToday: number;
+    visitorsToday: number;
+  };
+  daily: DailyTraffic[];
+  topRoutes: RouteTraffic[];
+  visitors: VisitorTraffic[];
+  recentAccess: RecentAccess[];
+}
+
+export interface DailyTraffic {
+  day: string;
+  pageViews: number;
+  uniqueVisitors: number;
+}
+
+interface RouteTraffic {
+  path: string;
+  pageViews: number;
+  uniqueVisitors: number;
+  lastViewedAt: string;
+}
+
+interface VisitorTraffic {
+  subject: string;
+  displayName: string;
+  email?: string | undefined;
+  pageViews: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastPath: string;
+}
+
+interface RecentAccess {
+  subject: string;
+  displayName: string;
+  email?: string | undefined;
+  path: string;
+  occurredAt: string;
+}
+
 export interface OperationalEvent {
   source: "ingestion" | "queue" | "reconciliation";
   eventId: string;

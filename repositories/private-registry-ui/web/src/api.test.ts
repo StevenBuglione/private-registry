@@ -10,8 +10,10 @@ import {
   getPackageDocumentation,
   getSession,
   getSyncCredentials,
+  getTrafficReport,
   logout,
   normalizeCatalogPage,
+  recordPageView,
   revokeSyncCredential,
   updateHomepageSettings,
 } from "./api";
@@ -279,6 +281,85 @@ describe("OpenAPI response normalization", () => {
     const revokeCall = fetchMock.mock.calls[5];
     if (revokeCall === undefined) throw new Error("Expected credential revoke");
     expect(revokeCall[1]?.method).toBe("DELETE");
+  });
+
+  it("records authenticated navigation and normalizes administrator traffic analytics", async () => {
+    document.cookie = "XSRF-TOKEN=csrf-cookie";
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          generated_at: "2026-07-23T12:00:00Z",
+          days: 30,
+          summary: {
+            page_views: 12,
+            unique_visitors: 3,
+            page_views_today: 5,
+            visitors_today: 2,
+          },
+          daily: [
+            {
+              day: "2026-07-23",
+              page_views: 5,
+              unique_visitors: 2,
+            },
+          ],
+          top_routes: [
+            {
+              path: "/modules",
+              page_views: 8,
+              unique_visitors: 3,
+              last_viewed_at: "2026-07-23T11:59:00Z",
+            },
+          ],
+          visitors: [
+            {
+              subject: "user-1",
+              display_name: "Ada Lovelace",
+              email: "ada@example.test",
+              page_views: 8,
+              first_seen_at: "2026-07-20T10:00:00Z",
+              last_seen_at: "2026-07-23T11:59:00Z",
+              last_path: "/modules",
+            },
+          ],
+          recent_access: [
+            {
+              subject: "user-1",
+              display_name: "Ada Lovelace",
+              path: "/modules",
+              occurred_at: "2026-07-23T11:59:00Z",
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      recordPageView("/modules", "csrf-value"),
+    ).resolves.toBeUndefined();
+    await expect(getTrafficReport(30)).resolves.toMatchObject({
+      days: 30,
+      summary: { pageViews: 12, uniqueVisitors: 3 },
+      topRoutes: [{ path: "/modules", pageViews: 8 }],
+      visitors: [{ displayName: "Ada Lovelace", lastPath: "/modules" }],
+      recentAccess: [{ path: "/modules" }],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/analytics/page-views"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ path: "/modules" }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/admin/traffic?days=30&visitorLimit=50"),
+      expect.any(Object),
+    );
   });
 
   it("surfaces the nested OpenAPI error code and message", async () => {

@@ -18,6 +18,7 @@ import type {
   PackageSymbol,
   RegistrySession,
   SyncCredential,
+  TrafficReport,
 } from "./types";
 
 const wireKeys = [
@@ -329,6 +330,32 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
   return normalizeAdminDashboard(raw);
 }
 
+export async function getTrafficReport(days: number): Promise<TrafficReport> {
+  const parameters = new URLSearchParams({
+    days: String(days),
+    visitorLimit: "50",
+  });
+  const raw = await request(
+    `/admin/traffic?${parameters.toString()}`,
+    jsonObjectSchema,
+  );
+  return normalizeTrafficReport(raw);
+}
+
+export async function recordPageView(
+  path: string,
+  csrfToken?: string,
+): Promise<void> {
+  await request("/analytics/page-views", z.undefined(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...csrfHeaders(csrfToken),
+    },
+    body: JSON.stringify({ path }),
+  });
+}
+
 export async function getAdminOperations(): Promise<OperationalEvent[]> {
   const raw = await request(
     "/admin/operations?limit=75",
@@ -457,6 +484,69 @@ function normalizeAdminDashboard(raw: JsonObject): AdminDashboard {
     databaseSizeBytes: firstNumber(
       raw["database_size_bytes"],
       raw["databaseSizeBytes"],
+    ),
+  };
+}
+
+function normalizeTrafficReport(raw: JsonObject): TrafficReport {
+  const summary = objectValue(raw["summary"]) ?? {};
+  return {
+    generatedAt: firstString(raw["generated_at"], raw["generatedAt"]),
+    days: firstNumber(raw["days"]),
+    summary: {
+      pageViews: firstNumber(summary["page_views"], summary["pageViews"]),
+      uniqueVisitors: firstNumber(
+        summary["unique_visitors"],
+        summary["uniqueVisitors"],
+      ),
+      pageViewsToday: firstNumber(
+        summary["page_views_today"],
+        summary["pageViewsToday"],
+      ),
+      visitorsToday: firstNumber(
+        summary["visitors_today"],
+        summary["visitorsToday"],
+      ),
+    },
+    daily: objectArray(raw["daily"]).map((value) => ({
+      day: firstString(value["day"]),
+      pageViews: firstNumber(value["page_views"], value["pageViews"]),
+      uniqueVisitors: firstNumber(
+        value["unique_visitors"],
+        value["uniqueVisitors"],
+      ),
+    })),
+    topRoutes: objectArray(raw["top_routes"] ?? raw["topRoutes"]).map(
+      (value) => ({
+        path: firstString(value["path"]),
+        pageViews: firstNumber(value["page_views"], value["pageViews"]),
+        uniqueVisitors: firstNumber(
+          value["unique_visitors"],
+          value["uniqueVisitors"],
+        ),
+        lastViewedAt: firstString(
+          value["last_viewed_at"],
+          value["lastViewedAt"],
+        ),
+      }),
+    ),
+    visitors: objectArray(raw["visitors"]).map((value) => ({
+      subject: firstString(value["subject"]),
+      displayName: firstString(value["display_name"], value["displayName"]),
+      email: optionalString(value["email"]),
+      pageViews: firstNumber(value["page_views"], value["pageViews"]),
+      firstSeenAt: firstString(value["first_seen_at"], value["firstSeenAt"]),
+      lastSeenAt: firstString(value["last_seen_at"], value["lastSeenAt"]),
+      lastPath: firstString(value["last_path"], value["lastPath"]),
+    })),
+    recentAccess: objectArray(raw["recent_access"] ?? raw["recentAccess"]).map(
+      (value) => ({
+        subject: firstString(value["subject"]),
+        displayName: firstString(value["display_name"], value["displayName"]),
+        email: optionalString(value["email"]),
+        path: firstString(value["path"]),
+        occurredAt: firstString(value["occurred_at"], value["occurredAt"]),
+      }),
     ),
   };
 }
@@ -908,6 +998,10 @@ function objectValue(value: unknown): JsonObject | undefined {
 
 function firstArray(...values: unknown[]): unknown[] {
   return values.find(Array.isArray) ?? [];
+}
+
+function objectArray(value: unknown): JsonObject[] {
+  return firstArray(value).filter(isObject);
 }
 
 function firstString(...values: unknown[]): string {

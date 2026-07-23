@@ -17,6 +17,8 @@ tags:
   - name: Catalog
   - name: Event stream
   - name: Administration
+  - name: Traffic analytics
+    description: Authenticated page-view collection and administrator-only reporting.
   - name: Sync API keys
     description: |
       Administrator-only lifecycle operations for scoped GitHub runner credentials. Creating a key
@@ -371,6 +373,32 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {description: Registry administrator access is required.}
+  /api/v1/analytics/page-views:
+    post:
+      tags: [Traffic analytics]
+      operationId: recordPageView
+      summary: Record an authenticated Registry page view
+      description: Stores identity and a path only. Query strings, fragments, tokens, and request bodies are not collected.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  maxLength: 512
+                  pattern: '^/[^?#\\]*$'
+              additionalProperties: false
+      responses:
+        '204': {description: Page view recorded.}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: CSRF token is missing or invalid.}
   /api/v1/admin/dashboard:
     get:
       tags: [Administration]
@@ -382,6 +410,27 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AdminDashboard'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/traffic:
+    get:
+      tags: [Traffic analytics]
+      operationId: getTrafficAnalytics
+      summary: Return authenticated Registry traffic and visitor activity
+      parameters:
+        - name: days
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 90, default: 30}
+        - name: visitorLimit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Page-view totals, daily traffic, top routes, visitors, and recent access.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TrafficReport'}
+        '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {description: Registry administrator access is required.}
   /api/v1/admin/operations:
@@ -841,6 +890,73 @@ components:
             started_at: {type: string, format: date-time}
             completed_at: {type: string, format: date-time}
         database_size_bytes: {type: integer, minimum: 0}
+      additionalProperties: false
+    TrafficReport:
+      type: object
+      required: [generated_at, days, summary, daily, top_routes, visitors, recent_access]
+      properties:
+        generated_at: {type: string, format: date-time}
+        days: {type: integer, minimum: 1, maximum: 90}
+        summary:
+          type: object
+          required: [page_views, unique_visitors, page_views_today, visitors_today]
+          properties:
+            page_views: {type: integer, minimum: 0}
+            unique_visitors: {type: integer, minimum: 0}
+            page_views_today: {type: integer, minimum: 0}
+            visitors_today: {type: integer, minimum: 0}
+          additionalProperties: false
+        daily:
+          type: array
+          items: {$ref: '#/components/schemas/DailyTraffic'}
+        top_routes:
+          type: array
+          items: {$ref: '#/components/schemas/RouteTraffic'}
+        visitors:
+          type: array
+          items: {$ref: '#/components/schemas/VisitorTraffic'}
+        recent_access:
+          type: array
+          items: {$ref: '#/components/schemas/RecentAccess'}
+      additionalProperties: false
+    DailyTraffic:
+      type: object
+      required: [day, page_views, unique_visitors]
+      properties:
+        day: {type: string, format: date}
+        page_views: {type: integer, minimum: 0}
+        unique_visitors: {type: integer, minimum: 0}
+      additionalProperties: false
+    RouteTraffic:
+      type: object
+      required: [path, page_views, unique_visitors, last_viewed_at]
+      properties:
+        path: {type: string}
+        page_views: {type: integer, minimum: 0}
+        unique_visitors: {type: integer, minimum: 0}
+        last_viewed_at: {type: string, format: date-time}
+      additionalProperties: false
+    VisitorTraffic:
+      type: object
+      required: [subject, display_name, page_views, first_seen_at, last_seen_at, last_path]
+      properties:
+        subject: {type: string}
+        display_name: {type: string}
+        email: {type: [string, 'null'], format: email}
+        page_views: {type: integer, minimum: 0}
+        first_seen_at: {type: string, format: date-time}
+        last_seen_at: {type: string, format: date-time}
+        last_path: {type: string}
+      additionalProperties: false
+    RecentAccess:
+      type: object
+      required: [subject, display_name, path, occurred_at]
+      properties:
+        subject: {type: string}
+        display_name: {type: string}
+        email: {type: [string, 'null'], format: email}
+        path: {type: string}
+        occurred_at: {type: string, format: date-time}
       additionalProperties: false
     OperationalEvent:
       type: object
