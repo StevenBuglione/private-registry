@@ -101,3 +101,7 @@ Administration and GitHub runner setup are documented in [docs/administration.md
 - `docs/` — target architecture, security, operations, and acceptance guidance.
 
 See the component READMEs for detailed configuration and operational commands.
+
+For a new JFrog tenant, local configuration, AWS handoff, job-by-job environment
+variables, and the audited list of production blockers, start with
+[DEPLOYMENT.md](DEPLOYMENT.md).

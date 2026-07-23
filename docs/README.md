@@ -35,3 +35,12 @@
 - [27 — Service contracts](27-service-contracts.md)
 - [28 — Operating model and ownership](28-operations-ownership.md)
 - [29 — Delivery effort and team plan](29-effort-and-delivery.md)
+
+## Authoritative deployment documents
+
+Use these for new deployments. They supersede retired OpenSearch/SQS/EventBridge/S3
+application-topology guidance in older planning documents.
+
+- [30 — Complete deployment and configuration handoff](30-deployment-configuration-handoff.md)
+- [31 — Environment-variable reference](31-environment-variable-reference.md)
+- [32 — Deployment-readiness audit and mandatory AWS corrections](32-deployment-readiness-audit.md)

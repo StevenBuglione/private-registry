@@ -10,7 +10,10 @@ docker compose --profile seed run --rm seeder
 docker compose restart api
 ```
 
-Verify `/health/ready`, `/health/worker`, PostgreSQL search/documents, queue and dead-letter counts, JFrog repository properties, authenticated UI behavior, and browser console/network state.
+Verify `/health/ready`, PostgreSQL search/documents, queue and dead-letter counts, JFrog
+repository properties, indexer process/log state, authenticated UI behavior, and browser
+console/network state. `/health/worker` is not present in the supported split-process
+topology; see the deployment-readiness audit for the required PostgreSQL heartbeat.
 
 ## Production rollout
 

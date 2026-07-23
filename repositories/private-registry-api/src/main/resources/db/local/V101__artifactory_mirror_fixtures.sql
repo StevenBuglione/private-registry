@@ -6,7 +6,7 @@ INSERT INTO packages (
         '33333333-3333-3333-3333-333333333333', 'module', 'cloudposse', 'label', 'null',
         'Cloud Posse Terraform Null Label',
         'Generates consistent names and tags from the module resolved through the private Artifactory cache.',
-        'trialwbgt07.jfrog.io/iac-modules-public-remote__cloudposse/label/null',
+        'artifacts.example.invalid/iac-modules-public-remote__cloudposse/label/null',
         'enterprise', 'low', 'security-reviewed', 'supported', 'approved',
         '2026-07-21T18:00:00Z', '2026-07-21T18:00:00Z'
     ),

@@ -16,6 +16,7 @@ if [[ -n "${FORBIDDEN_ORG_NAME:-}" ]] && grep -Rni --exclude-dir=.git --exclude=
 fi
 
 python3 "${ROOT}/scripts/validate_contracts.py"
+python3 "${ROOT}/scripts/validate_deployment_handoff.py"
 
 while IFS= read -r -d '' contract; do
   relative="${contract#${ROOT}/contracts/}"

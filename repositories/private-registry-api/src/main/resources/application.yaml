@@ -56,7 +56,7 @@ management:
 
 registry:
   artifactory:
-    url: ${REGISTRY_ARTIFACTORY_URL:https://${REGISTRY_JFROG_HOSTNAME:trialwbgt07.jfrog.io}/artifactory}
+    url: ${REGISTRY_ARTIFACTORY_URL:https://${REGISTRY_JFROG_HOSTNAME:artifacts.example.invalid}/artifactory}
     access-token: ${REGISTRY_ARTIFACTORY_ACCESS_TOKEN:${JFROG_ACCESS_TOKEN:}}
     connection-timeout: ${REGISTRY_ARTIFACTORY_CONNECTION_TIMEOUT:3s}
     socket-timeout: ${REGISTRY_ARTIFACTORY_SOCKET_TIMEOUT:5s}

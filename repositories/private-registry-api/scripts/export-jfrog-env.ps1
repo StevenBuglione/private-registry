@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ServerId = "trialwbgt07",
+    [string]$ServerId = "registry",
     [string]$OutputPath = (Join-Path $PSScriptRoot "..\.env.artifactory")
 )
 

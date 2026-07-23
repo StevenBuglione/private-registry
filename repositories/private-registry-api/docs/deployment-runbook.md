@@ -8,6 +8,10 @@
 - protected CI environment and immutable image registry;
 - approved PostgreSQL backup and restore policy.
 
+> **Production status:** this component runbook describes the target operating sequence.
+> The checked-in AWS application-service Terraform is not deployable unchanged. Review
+> the repository-level `docs/32-deployment-readiness-audit.md` first.
+
 ## Data initialization
 
 1. Build and publish the API image by digest.
@@ -18,7 +22,14 @@
 
 ## Service rollout
 
-Deploy the UI and API images. The API image contains request handling, database event workers, and reconciliation. Wait for `/health/ready`; use `/health/worker` to verify JFrog-dependent processing separately.
+Deploy the UI, public API, and private indexer as distinct processes. The API uses
+`registry_web` with webhook intake enabled and ingestion disabled. The indexer uses
+`registry_indexer`, has ingestion enabled, and is not attached to the public load
+balancer. Both Java processes may use the same immutable image digest with different
+environment and commands. Wait for `/health/ready`; use indexer process health,
+queue/reconciliation state, and logs to verify JFrog-dependent processing separately.
+The production readiness audit requires a PostgreSQL-backed worker heartbeat before
+production rollout.
 
 ## Verification
 

@@ -44,8 +44,9 @@ internet-facing process while making migrations, web writes, and worker
 processing exercise production-shaped grants.
 
 API readiness covers PostgreSQL only, so a JFrog outage does not remove catalog
-reads. The API exposes `/health/worker`, which checks PostgreSQL and Artifactory
-with bounded probes.
+reads. In the split-process topology, the non-web indexer is monitored through
+container health, queue/reconciliation state, and logs. A durable worker-heartbeat
+contract is identified as a production blocker in the deployment-readiness audit.
 
 Seed the governed repositories through the official JFrog Java client:
 
@@ -90,13 +91,15 @@ suppression policy, CI gates, SonarQube setup, and branch-protection checklist.
 
 ## Infrastructure deployment
 
-1. Configure and apply `infrastructure/terraform/bootstrap/`.
-2. Fill environment backend and variable files under `infrastructure/terraform/live/`.
-3. Apply the platform with `deploy_application_services = false`.
-4. Build/push UI and API images.
-5. Run database migrations.
-6. Apply with `deploy_application_services = true` and immutable image tags.
-7. Configure signed JFrog webhooks after promotion completes.
+The current AWS application-service Terraform is a scaffold and must not be deployed
+unchanged. Its environment names, database authentication/roles, secret injection,
+routing, process separation, and image workflow do not yet match the application.
+
+Start with the repository-level
+[`DEPLOYMENT.md`](../../DEPLOYMENT.md), process-specific
+[`deploy/environment`](deploy/environment/README.md) templates, and
+[`deployment-readiness audit`](../../docs/32-deployment-readiness-audit.md). Close every
+mandatory blocker before setting `deploy_application_services = true`.
 
 Read `CLAUDE.md`, `docs/project-structure.md`, `docs/database-design.md`,
 `docs/compatibility-contract.md`, and `docs/deployment-runbook.md` before

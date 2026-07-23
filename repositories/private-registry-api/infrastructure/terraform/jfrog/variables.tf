@@ -1,8 +1,6 @@
 variable "jfrog_hostname" {
   description = "JFrog platform hostname without a URL scheme."
   type        = string
-  default     = "trialwbgt07.jfrog.io"
-
   validation {
     condition     = can(regex("^[A-Za-z0-9.-]+$", var.jfrog_hostname))
     error_message = "jfrog_hostname must be a hostname without a scheme or path."

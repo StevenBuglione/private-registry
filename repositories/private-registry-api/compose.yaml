@@ -171,7 +171,7 @@ services:
         NGINX_CONFIG: deploy/nginx/local.conf
     environment:
       REGISTRY_API_BASE_URL: /api/v1
-      REGISTRY_JFROG_HOSTNAME: ${REGISTRY_JFROG_HOSTNAME:-trialwbgt07.jfrog.io}
+      REGISTRY_JFROG_HOSTNAME: ${REGISTRY_JFROG_HOSTNAME:-artifacts.example.invalid}
       REGISTRY_ENVIRONMENT: local
       REGISTRY_SUPPORT_URL: https://support.example.invalid/private-registry
     depends_on:
