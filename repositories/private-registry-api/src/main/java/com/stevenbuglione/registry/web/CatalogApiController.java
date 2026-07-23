@@ -40,6 +40,7 @@ public class CatalogApiController {
       Authentication authentication,
       @RequestParam(required = false) @Nullable String q,
       @RequestParam(required = false) @Nullable String kind,
+      @RequestParam(required = false) @Nullable String namespace,
       @RequestParam(required = false) @Nullable String provider,
       @RequestParam(required = false) @Nullable String tier,
       @RequestParam(required = false) @Nullable String category,
@@ -66,7 +67,8 @@ public class CatalogApiController {
                 risk,
                 sort,
                 cursor,
-                limit)));
+                limit,
+                namespace)));
   }
 
   @GetMapping("/counts")

@@ -29,6 +29,9 @@
 - IAM root mobile: `.codex-artifacts/module-iam-audit-2026-07-23/19-local-iam-root-mobile-390.jpg`
 - IAM submodule mobile: `.codex-artifacts/module-iam-audit-2026-07-23/18-local-iam-account-mobile-390.jpg`
 - IAM submodule dark mode: `.codex-artifacts/module-iam-audit-2026-07-23/17-local-iam-account-dark-1440.jpg`
+- Breadcrumb module comparison: `.codex-artifacts/breadcrumb-audit-2026-07-23/08-module-breadcrumb-comparison.jpg`
+- Breadcrumb provider comparison: `.codex-artifacts/breadcrumb-audit-2026-07-23/09-provider-breadcrumb-comparison.jpg`
+- Breadcrumb namespace destination: `.codex-artifacts/breadcrumb-audit-2026-07-23/06-local-namespace-after-click.jpg`
 
 The source and implementation captures were taken in the same browser run, at the same viewport and page state, then combined at 1:1 density. The final comparisons were checked for typography, position, dimensions, wrapping, borders, colors, controls, content density, and responsive overflow.
 
@@ -50,6 +53,7 @@ No actionable P0, P1, or P2 visual differences remain.
 - Responsive behavior: provider and module pages collapse to the same source order without body-level horizontal overflow. At 390px, the provider grid resolves to one 327px column, the sidebar follows the modules and Helpful Links, and the long source link wraps within the mobile metadata rail.
 - Themes: light and dark modes preserve the same geometry and contrast. The theme control is present only inside the authenticated user menu and was exercised in both package types.
 - Loading behavior: provider module discovery now displays an in-place skeleton instead of briefly claiming there are no matching packages.
+- Breadcrumb behavior: provider, module, and child-module breadcrumbs now use the same browse, publisher namespace, package, and terminal version semantics as the official Registry. Publisher links open an authorized, server-filtered namespace catalog.
 - Runtime: browser console warnings and errors were 0 on both final package pages.
 
 ## Intentional product differences
@@ -71,11 +75,11 @@ These are required product behavior, not visual drift:
 - Module Readme, Inputs, Outputs, Dependencies, and Resources navigation: passed.
 - Version selectors, Examples menu, View Source links, copy action, and download-statistics selector: passed.
 - User-menu light/dark switching: passed.
-- Desktop and mobile accessibility/browser flows: 5 Playwright scenarios passed, including axe checks.
+- Desktop and mobile accessibility/browser flows: 6 Playwright scenarios passed, including axe checks and exact breadcrumb navigation.
 - Static quality gates: Biome, strict TypeScript, typed ESLint, Stylelint, dependency-cruiser, and Knip passed.
-- Unit/component tests: 44 passed.
-- Coverage: 84.31% statements, 71.38% branches, 84.81% functions, and 85.85% lines.
-- Production build and 250 kB compressed bundle budget: passed at 237.88 kB.
+- Unit/component tests: 46 passed.
+- Coverage: 84.28% statements, 71.29% branches, 84.89% functions, and 86% lines.
+- Production build and 250 kB compressed bundle budget: passed at 237.97 kB.
 - Java `qualityPr` (Error Prone, NullAway, Checkstyle, PMD baseline, SpotBugs/FindSecBugs, tests, coverage, architecture, and SBOM): passed.
 - Docker Compose has exactly PostgreSQL, API, and UI services; all three are healthy.
 - PostgreSQL contains the real IAM 6.2.1 metadata extracted from the JFrog-seeded artifact: 8 submodules, 8 examples, 160 inputs, 150 outputs, 62 dependencies, 30 resources, and 34 data sources across the root and child scopes.

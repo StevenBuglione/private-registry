@@ -34,6 +34,7 @@ public final class CatalogQuery {
           "public-cloud");
   private final @Nullable String q;
   private final @Nullable PackageKind kind;
+  private final @Nullable String namespace;
   private final List<String> providers;
   private final List<String> tiers;
   private final List<String> categories;
@@ -48,6 +49,7 @@ public final class CatalogQuery {
   public CatalogQuery(Criteria criteria) {
     this.q = normalize(criteria.q());
     this.kind = criteria.kind();
+    this.namespace = normalizeNamespace(criteria.namespace());
     this.providers = csvValues(criteria.provider(), null, "provider");
     this.tiers = csvValues(criteria.tier(), TIERS, "tier");
     validateTierCombination(this.tiers);
@@ -67,6 +69,10 @@ public final class CatalogQuery {
 
   public @Nullable PackageKind kind() {
     return kind;
+  }
+
+  public @Nullable String namespace() {
+    return namespace;
   }
 
   public List<String> providers() {
@@ -111,6 +117,14 @@ public final class CatalogQuery {
 
   private static @Nullable String normalize(@Nullable String value) {
     return value == null || value.isBlank() ? null : value.trim();
+  }
+
+  private static @Nullable String normalizeNamespace(@Nullable String value) {
+    var normalized = normalize(value);
+    if (normalized != null && !normalized.matches("[A-Za-z0-9._-]{1,128}")) {
+      throw new IllegalArgumentException("namespace contains an unsupported filter value");
+    }
+    return normalized;
   }
 
   private static void validateTierCombination(List<String> values) {
@@ -167,5 +181,6 @@ public final class CatalogQuery {
       @Nullable String risk,
       String sort,
       @Nullable String cursor,
-      int limit) {}
+      int limit,
+      @Nullable String namespace) {}
 }

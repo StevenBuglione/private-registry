@@ -272,6 +272,7 @@ export async function getCatalogPage(
   const params = new URLSearchParams();
   addParam(params, "q", query.q);
   addParam(params, "kind", query.kind);
+  addParam(params, "namespace", query.namespace);
   addParam(params, "provider", query.provider);
   addParam(params, "tier", query.tier);
   addParam(params, "category", query.category);

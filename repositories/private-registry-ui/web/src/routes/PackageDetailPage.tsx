@@ -189,13 +189,23 @@ export function PackageDetailPage({
       ) : (
         <header className="package-source-header source-container">
           <nav className="source-breadcrumbs" aria-label="Breadcrumb">
-            <Link to={kind === "provider" ? "/providers" : "/modules"}>
+            <Link
+              to={kind === "provider" ? "/browse/providers" : "/browse/modules"}
+            >
               {kind === "provider" ? "Providers" : "Modules"}
             </Link>
             <CaretRightIcon size={12} />
-            <span>{item.namespace}</span>
+            <Link to={namespaceHref(item.namespace)}>{item.namespace}</Link>
             <CaretRightIcon size={12} />
-            <span>{item.name}</span>
+            <Link
+              to={
+                kind === "provider"
+                  ? providerLatestHref(item)
+                  : moduleRootHref(item, params["version"] ?? item.version)
+              }
+            >
+              {item.name}
+            </Link>
             <CaretRightIcon size={12} />
             <span>v{item.version}</span>
           </nav>
@@ -570,9 +580,9 @@ function ModuleChildHeader({
   return (
     <header className="package-source-header module-child-header source-container">
       <nav className="source-breadcrumbs" aria-label={`Module ${childKind}`}>
-        <Link to="/modules">Modules</Link>
+        <Link to="/browse/modules">Modules</Link>
         <CaretRightIcon size={12} />
-        <span>{item.namespace}</span>
+        <Link to={namespaceHref(item.namespace)}>{item.namespace}</Link>
         <CaretRightIcon size={12} />
         <Link to={rootHref}>{item.name}</Link>
         <CaretRightIcon size={12} />
@@ -811,6 +821,14 @@ function sourceChildUrl(
 
 function moduleRootHref(item: PackageDetail, version: string): string {
   return `/modules/${encodeURIComponent(item.namespace)}/${encodeURIComponent(item.name)}/${encodeURIComponent(item.target ?? item.provider)}/${encodeURIComponent(version)}`;
+}
+
+function providerLatestHref(item: PackageDetail): string {
+  return `/providers/${encodeURIComponent(item.namespace)}/${encodeURIComponent(item.name)}`;
+}
+
+function namespaceHref(namespace: string): string {
+  return `/namespaces/${encodeURIComponent(namespace)}`;
 }
 
 function moduleChildHref(

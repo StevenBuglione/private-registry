@@ -293,6 +293,50 @@ function renderModuleChildDetail(
 }
 
 describe("PackageDetailPage symbol-driven views", () => {
+  it("links module breadcrumbs to browse, namespace, and current module routes", () => {
+    renderDetail("module", "/modules/platform/vpc/aws/2.4.1");
+
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Breadcrumb" }),
+    );
+    expect(breadcrumbs.getByRole("link", { name: "Modules" })).toHaveAttribute(
+      "href",
+      "/browse/modules",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "platform" })).toHaveAttribute(
+      "href",
+      "/namespaces/platform",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "vpc" })).toHaveAttribute(
+      "href",
+      "/modules/platform/vpc/aws/2.4.1",
+    );
+    expect(
+      breadcrumbs.queryByRole("link", { name: "v2.4.1" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links provider breadcrumbs to browse, namespace, and latest provider routes", () => {
+    renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
+
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Breadcrumb" }),
+    );
+    expect(
+      breadcrumbs.getByRole("link", { name: "Providers" }),
+    ).toHaveAttribute("href", "/browse/providers");
+    expect(
+      breadcrumbs.getByRole("link", { name: "hashicorp" }),
+    ).toHaveAttribute("href", "/namespaces/hashicorp");
+    expect(breadcrumbs.getByRole("link", { name: "aws" })).toHaveAttribute(
+      "href",
+      "/providers/hashicorp/aws",
+    );
+    expect(
+      breadcrumbs.queryByRole("link", { name: "v6.8.0" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("matches the provider overview information architecture with truthful private metadata", () => {
     renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
 
@@ -425,6 +469,17 @@ describe("PackageDetailPage symbol-driven views", () => {
     expect(
       screen.getByRole("link", { name: "Return to module vpc" }),
     ).toHaveAttribute("href", "/modules/platform/vpc/aws/2.4.1");
+    const breadcrumbs = within(
+      screen.getByRole("navigation", { name: "Module submodule" }),
+    );
+    expect(breadcrumbs.getByRole("link", { name: "Modules" })).toHaveAttribute(
+      "href",
+      "/browse/modules",
+    );
+    expect(breadcrumbs.getByRole("link", { name: "platform" })).toHaveAttribute(
+      "href",
+      "/namespaces/platform",
+    );
     expect(
       screen.getByRole("button", { name: "Change submodule" }),
     ).toBeInTheDocument();

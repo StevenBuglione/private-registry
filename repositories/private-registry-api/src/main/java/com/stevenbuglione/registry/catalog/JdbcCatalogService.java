@@ -146,7 +146,7 @@ public class JdbcCatalogService implements CatalogService {
         accessContext,
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, kind, null, null, null, null, null, null, null, "updated", null, 1)));
+                null, kind, null, null, null, null, null, null, null, "updated", null, 1, null)));
   }
 
   @Override
@@ -162,7 +162,8 @@ public class JdbcCatalogService implements CatalogService {
             accessContext,
             new CatalogQuery(
                 new CatalogQuery.Criteria(
-                    null, null, null, null, null, null, null, null, null, "updated", null, 1)));
+                    null, null, null, null, null, null, null, null, null, "updated", null, 1,
+                    null)));
     var parameters = new HashMap<>(filters.parameters());
     parameters.put("publicId", id);
     try {
@@ -391,6 +392,7 @@ public class JdbcCatalogService implements CatalogService {
     appendAuthorizationFilter(sql, parameters, accessContext);
     appendSelectedApmFilter(sql, parameters, query);
     appendKindFilter(sql, parameters, query);
+    appendNamespaceFilter(sql, parameters, query);
     appendTextSearchFilter(sql, parameters, accessContext, query);
     appendTaxonomyFilters(sql, parameters, query);
     appendGovernanceFilters(sql, parameters, query);
@@ -442,6 +444,15 @@ public class JdbcCatalogService implements CatalogService {
     }
     sql.append(" AND p.kind = CAST(:kind AS package_kind)");
     parameters.put("kind", query.kind().jsonValue());
+  }
+
+  private static void appendNamespaceFilter(
+      StringBuilder sql, Map<String, Object> parameters, CatalogQuery query) {
+    if (query.namespace() == null) {
+      return;
+    }
+    sql.append(" AND lower(p.namespace) = lower(:namespace)");
+    parameters.put("namespace", query.namespace());
   }
 
   private void appendTextSearchFilter(
@@ -522,7 +533,7 @@ public class JdbcCatalogService implements CatalogService {
         accessContext,
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, null, null, "updated", null, 1)));
+                null, null, null, null, null, null, null, null, null, "updated", null, 1, null)));
   }
 
   private static String additionalPredicates(QueryFilters filters) {

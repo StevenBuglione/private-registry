@@ -99,6 +99,7 @@ class CatalogApiControllerTest {
             get("/api/v1/catalog/packages")
                 .queryParam("q", "vpc")
                 .queryParam("kind", "module")
+                .queryParam("namespace", "Azure")
                 .queryParam("provider", "aws,azurerm")
                 .queryParam("tier", "partner")
                 .queryParam("category", "public-cloud,networking")
@@ -117,6 +118,7 @@ class CatalogApiControllerTest {
     var query = ArgumentCaptor.forClass(CatalogQuery.class);
     verify(catalog).findPackages(eq(accessContext), query.capture());
     assertThat(query.getValue().q()).isEqualTo("vpc");
+    assertThat(query.getValue().namespace()).isEqualTo("Azure");
     assertThat(query.getValue().providers()).containsExactly("aws", "azurerm");
     assertThat(query.getValue().tiers()).containsExactly("partner");
     assertThat(query.getValue().categories()).containsExactly("public-cloud", "networking");

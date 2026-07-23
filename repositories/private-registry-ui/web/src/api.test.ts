@@ -29,6 +29,7 @@ describe("OpenAPI response normalization", () => {
 
     await getCatalogPage({
       kind: "provider",
+      namespace: "hashicorp",
       tier: "official,partner",
       category: "public-cloud,networking",
       provider: "aws,azure",
@@ -46,6 +47,7 @@ describe("OpenAPI response normalization", () => {
           : input.url;
     const url = new URL(requestUrl, "http://registry.test");
     expect(url.searchParams.get("tier")).toBe("official,partner");
+    expect(url.searchParams.get("namespace")).toBe("hashicorp");
     expect(url.searchParams.get("category")).toBe("public-cloud,networking");
     expect(url.searchParams.get("provider")).toBe("aws,azure");
     expect(url.searchParams.get("limit")).toBe("50");

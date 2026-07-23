@@ -6,7 +6,7 @@ import {
   SealCheckIcon,
 } from "@phosphor-icons/react";
 import { type ReactNode, useMemo, useState } from "react";
-import { NavLink, useSearchParams } from "react-router";
+import { NavLink, useParams, useSearchParams } from "react-router";
 import { type FilterState, Filters } from "../components/Filters";
 import {
   moduleProviderOptions,
@@ -25,6 +25,7 @@ const providerCategoryValues = providerCategoryOptions.map(([value]) => value);
 const moduleProviderValues = moduleProviderOptions.map(([value]) => value);
 
 export function CatalogPage({ kind }: { kind?: PackageKind }) {
+  const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { selectedApmId } = useRegistry();
   const [mobileFilters, setMobileFilters] = useState(false);
@@ -43,12 +44,15 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
     [kind, searchParams],
   );
   const effectiveKind = kind ?? filters.kind;
+  const namespace =
+    params["namespace"] ?? searchParams.get("namespace") ?? undefined;
   const q = searchParams.get("q") ?? "";
   const sort = q ? "relevance" : "updated";
   const pageSize = effectiveKind === "module" ? 9 : 50;
   const cursorScope = [
     q,
     effectiveKind,
+    namespace,
     filters.provider,
     filters.tier,
     filters.category,
@@ -68,6 +72,7 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
   const result = useCatalogPage({
     q,
     kind: effectiveKind,
+    namespace,
     provider: filters.provider,
     tier: filters.tier,
     category: filters.category,
@@ -101,19 +106,23 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
   };
 
   const title =
-    effectiveKind === "provider"
-      ? "Providers"
-      : effectiveKind === "module"
-        ? "Modules"
-        : q
-          ? `Results for “${q}”`
-          : "Browse";
+    hasText(namespace) && effectiveKind === undefined
+      ? namespace
+      : effectiveKind === "provider"
+        ? "Providers"
+        : effectiveKind === "module"
+          ? "Modules"
+          : q
+            ? `Results for “${q}”`
+            : "Browse";
   const description =
-    effectiveKind === "provider"
-      ? "Providers are a logical abstraction of an upstream API. They are responsible for understanding API interactions and exposing resources."
-      : effectiveKind === "module"
-        ? "Modules are self-contained packages of Terraform configurations that are managed as a group."
-        : "Browse every authorized provider and module available through your Registry access.";
+    hasText(namespace) && effectiveKind === undefined
+      ? `Providers and modules published by ${namespace}.`
+      : effectiveKind === "provider"
+        ? "Providers are a logical abstraction of an upstream API. They are responsible for understanding API interactions and exposing resources."
+        : effectiveKind === "module"
+          ? "Modules are self-contained packages of Terraform configurations that are managed as a group."
+          : "Browse every authorized provider and module available through your Registry access.";
 
   const providerItems =
     result.data?.items.filter((item) => item.kind === "provider") ?? [];
@@ -126,8 +135,10 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
         className="artifact-tabs source-container"
         aria-label="Artifact types"
       >
-        <NavLink to={browseTabHref("provider", q)}>Providers</NavLink>
-        <NavLink to={browseTabHref("module", q)}>Modules</NavLink>
+        <NavLink to={browseTabHref("provider", q, namespace)}>
+          Providers
+        </NavLink>
+        <NavLink to={browseTabHref("module", q, namespace)}>Modules</NavLink>
       </nav>
       <button
         className="mobile-filter-button"
@@ -168,7 +179,10 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
             <StatePanel kind="empty" />
           ) : null}
           {providerItems.length > 0 ? (
-            <ProviderResults items={providerItems} showFeatured={!q} />
+            <ProviderResults
+              items={providerItems}
+              showFeatured={!q && !hasText(namespace)}
+            />
           ) : null}
           {moduleItems.length > 0 ? (
             <ModuleResults items={moduleItems} />
@@ -339,9 +353,17 @@ function providerTier(
   return item.namespace.toLowerCase() === "hashicorp" ? "official" : "partner";
 }
 
-function browseTabHref(kind: PackageKind, q: string): string {
+function browseTabHref(
+  kind: PackageKind,
+  q: string,
+  namespace?: string,
+): string {
   const path = kind === "provider" ? "/providers" : "/modules";
-  return q ? `${path}?q=${encodeURIComponent(q)}` : path;
+  const query = new URLSearchParams();
+  if (q) query.set("q", q);
+  if (hasText(namespace)) query.set("namespace", namespace);
+  const serialized = query.toString();
+  return serialized ? `${path}?${serialized}` : path;
 }
 
 function filterNoun(kind?: PackageKind): string {

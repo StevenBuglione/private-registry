@@ -24,7 +24,8 @@ class CatalogQueryTest {
                 null,
                 "relevance",
                 null,
-                25));
+                25,
+                null));
 
     assertThat(query.sort()).isEqualTo("relevance");
     assertThat(query.providers()).containsExactly("aws", "azurerm");
@@ -37,7 +38,7 @@ class CatalogQueryTest {
     var query =
         new CatalogQuery(
             new CatalogQuery.Criteria(
-                null, null, null, null, null, null, null, null, null, "relevance", null, 25));
+                null, null, null, null, null, null, null, null, null, "relevance", null, 25, null));
 
     assertThat(query.sort()).isEqualTo("updated");
   }
@@ -58,9 +59,44 @@ class CatalogQueryTest {
                 null,
                 "downloads",
                 null,
-                4));
+                4,
+                null));
 
     assertThat(query.sort()).isEqualTo("downloads");
+  }
+
+  @Test
+  void normalizesAnExactNamespaceFilter() {
+    var query =
+        new CatalogQuery(
+            new CatalogQuery.Criteria(
+                null, null, null, null, null, null, null, null, null, "updated", null, 25,
+                " Azure "));
+
+    assertThat(query.namespace()).isEqualTo("Azure");
+  }
+
+  @Test
+  void rejectsUnsafeNamespaceFilters() {
+    var criteria =
+        new CatalogQuery.Criteria(
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "updated",
+            null,
+            25,
+            "Azure/../../secret");
+
+    assertThatThrownBy(() -> new CatalogQuery(criteria))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("namespace");
   }
 
   @Test
@@ -78,7 +114,8 @@ class CatalogQueryTest {
             null,
             "updated",
             null,
-            25);
+            25,
+            null);
 
     assertThatThrownBy(() -> new CatalogQuery(criteria))
         .isInstanceOf(IllegalArgumentException.class)

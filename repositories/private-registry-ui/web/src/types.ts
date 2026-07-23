@@ -128,6 +128,7 @@ export interface CatalogPage {
 export interface CatalogQuery {
   q?: string | undefined;
   kind?: PackageKind | undefined;
+  namespace?: string | undefined;
   provider?: string | undefined;
   tier?: string | undefined;
   category?: string | undefined;

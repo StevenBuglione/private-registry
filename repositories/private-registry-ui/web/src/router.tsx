@@ -19,6 +19,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "browse", element: <CatalogPage /> },
+      { path: "browse/providers", element: <CatalogPage kind="provider" /> },
+      { path: "browse/modules", element: <CatalogPage kind="module" /> },
+      { path: "namespaces/:namespace", element: <CatalogPage /> },
       { path: "providers", element: <CatalogPage kind="provider" /> },
       {
         path: "providers/:namespace/:name/:version?",

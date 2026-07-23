@@ -259,6 +259,66 @@ test("module inputs and outputs remain discoverable", async ({ page }) => {
   );
 });
 
+test("package breadcrumbs navigate through browse, publisher, and package routes", async ({
+  page,
+}) => {
+  await page.goto("/modules/platform/vnet/azurerm/1.0.0");
+  const moduleBreadcrumbs = page.getByRole("navigation", {
+    name: "Breadcrumb",
+  });
+  await expect(
+    moduleBreadcrumbs.getByRole("link", { name: "Modules" }),
+  ).toHaveAttribute("href", "/browse/modules");
+  await expect(
+    moduleBreadcrumbs.getByRole("link", { name: "platform" }),
+  ).toHaveAttribute("href", "/namespaces/platform");
+  await expect(
+    moduleBreadcrumbs.getByRole("link", { name: "vnet" }),
+  ).toHaveAttribute("href", "/modules/platform/vnet/azurerm/1.0.0");
+  await expect(
+    moduleBreadcrumbs.getByRole("link", { name: "v1.0.0" }),
+  ).toHaveCount(0);
+
+  await moduleBreadcrumbs.getByRole("link", { name: "platform" }).click();
+  await expect(page).toHaveURL(/\/namespaces\/platform$/);
+  await expect(
+    page.getByRole("heading", { name: "platform", exact: true }),
+  ).toBeVisible();
+
+  await page.goto("/providers/hashicorp/azurerm/4.40.0");
+  const providerBreadcrumbs = page.getByRole("navigation", {
+    name: "Breadcrumb",
+  });
+  await expect(
+    providerBreadcrumbs.getByRole("link", { name: "Providers" }),
+  ).toHaveAttribute("href", "/browse/providers");
+  await expect(
+    providerBreadcrumbs.getByRole("link", { name: "hashicorp" }),
+  ).toHaveAttribute("href", "/namespaces/hashicorp");
+  await expect(
+    providerBreadcrumbs.getByRole("link", { name: "azurerm" }),
+  ).toHaveAttribute("href", "/providers/hashicorp/azurerm");
+  await expect(
+    providerBreadcrumbs.getByRole("link", { name: "v4.40.0" }),
+  ).toHaveCount(0);
+
+  await providerBreadcrumbs.getByRole("link", { name: "azurerm" }).click();
+  await expect(page).toHaveURL(/\/providers\/hashicorp\/azurerm$/);
+  await expect(
+    page.getByRole("heading", { name: "azurerm", exact: true }),
+  ).toBeVisible();
+
+  await page.goto("/providers/hashicorp/azurerm/4.40.0");
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Providers" })
+    .click();
+  await expect(page).toHaveURL(/\/browse\/providers$/);
+  await expect(
+    page.getByRole("heading", { name: "Providers", exact: true }),
+  ).toBeVisible();
+});
+
 test("module logos remain separated from module content", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 1110 });
   await page.goto("/modules?provider=azurerm");

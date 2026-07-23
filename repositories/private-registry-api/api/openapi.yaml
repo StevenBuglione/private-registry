@@ -66,6 +66,12 @@ paths:
         - name: kind
           in: query
           schema: {type: string, enum: [module, provider]}
+        - name: namespace
+          in: query
+          description: Exact package namespace, matched case-insensitively.
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9._-]{1,128}$'
         - name: provider
           in: query
           description: Comma-separated module targets. Values are combined with OR semantics.
