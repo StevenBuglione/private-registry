@@ -79,6 +79,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.security:spring-security-oauth2-jose")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
@@ -133,6 +134,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+tasks.named<ProcessResources>("processResources") {
+    from("api/openapi.yaml") {
+        into("static")
+        rename { "openapi.yaml" }
+    }
 }
 
 tasks.named<Jar>("jar") {

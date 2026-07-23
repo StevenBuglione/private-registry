@@ -27,6 +27,18 @@ server:
   forward-headers-strategy: framework
   shutdown: graceful
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi.yaml
+    csrf:
+      enabled: true
+    disable-swagger-default-url: true
+    display-request-duration: true
+    doc-expansion: none
+    operations-sorter: method
+    tags-sorter: alpha
+
 management:
   endpoints:
     web:

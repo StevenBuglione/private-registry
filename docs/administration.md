@@ -7,7 +7,7 @@ The Registry administration workspace is available at `/admin` to Microsoft Entr
 The workspace includes:
 
 - **Overview** — PostgreSQL and Artifactory dependency status, catalog totals, current queue depth, retry and dead-letter counts, 24-hour ingestion outcomes, P95 ingestion latency, database size, and the most recent reconciliation.
-- **Homepage** — the public notification and up to six featured providers. Each save records complete before-and-after audit evidence.
+- **Homepage** — the public notification and up to six featured providers and modules. Each save records complete before-and-after audit evidence.
 - **Sync credentials** — scoped, expiring credentials for trusted GitHub runners. A token is displayed once; only its SHA-256 digest is stored.
 - **Operational logs** — structured ingestion, retry, dead-letter, quarantine, and reconciliation events. Raw event payloads, process logs, access tokens, and secrets are intentionally excluded.
 - **Audit log** — immutable records for homepage updates, credential creation and revocation, and every runner-triggered sync.
@@ -23,6 +23,20 @@ Entra remains the system of record for administrators and APM memberships. The R
 5. Revoke the credential from the same page when the workflow is retired or the token may have been exposed.
 
 Tokens use 256 bits of cryptographic randomness, are limited to 365 days, can be revoked immediately, and are never recoverable from the database.
+
+## Swagger API key workflow
+
+Open `/swagger-ui.html` from the **Sync credentials** administration page. The Swagger contract
+provides separate **Sync API keys** and **Artifact sync** sections:
+
+1. Create a scoped credential and copy the one-time `rgs.…` token.
+2. Select **Authorize** in Swagger.
+3. Paste only the token. Swagger adds the `Bearer` prefix.
+4. Open **Artifact sync**, select `POST /api/v1/sync/artifacts`, and provide a unique
+   `Idempotency-Key`.
+
+Swagger does not persist authorization across browser reloads. Do not paste production credentials
+into shared browsers, screenshots, logs, or issue reports.
 
 ## GitHub Actions request
 
