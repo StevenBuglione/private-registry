@@ -252,14 +252,16 @@ describe("PackageDetailPage symbol-driven views", () => {
     renderDetail("provider", "/providers/hashicorp/aws/6.8.0");
 
     expect(
-      screen.getByRole("heading", { name: "Approved aws modules" }),
+      screen.getByRole("heading", { name: "Top downloaded aws modules" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Showing 1 - 1 of 7 available modules"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Provider Versions" }),
+      screen.getByRole("heading", { name: "Provider Downloads" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("This week:")).toBeInTheDocument();
+    expect(screen.getAllByText("13,101")).toHaveLength(2);
     expect(screen.getByRole("link", { name: "View Source" })).toHaveAttribute(
       "href",
       "https://github.com/hashicorp/terraform-provider-aws",

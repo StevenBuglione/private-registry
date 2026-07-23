@@ -16,10 +16,10 @@
   text-rendering: optimizeLegibility;
   --black: #0d0d0f;
   --text: #3b3d45;
-  --strong: #191b22;
+  --strong: #0c0c0e;
   --muted: #686f7d;
-  --blue: #1563df;
-  --blue-hover: #0f52bd;
+  --blue: #1060ff;
+  --blue-hover: #0d54e5;
   --blue-soft: #eef5ff;
   --surface: #ffffff;
   --surface-subtle: #f7f8fa;
@@ -425,8 +425,8 @@ h2 {
 .global-search-row {
   position: relative;
   z-index: 40;
-  min-height: 63px;
-  padding: 10px 40px;
+  min-height: 59px;
+  padding: 8px 40px;
   border-bottom: 1px solid var(--line);
   background: white;
 }
@@ -1169,14 +1169,18 @@ h2 {
   width: min(1360px, calc(100% - 80px));
 }
 .package-source-header {
+  position: relative;
   padding-top: 22px;
   padding-bottom: 34px;
-  min-height: 324px;
+  min-height: 312px;
 }
 .module-detail-page .package-source-header {
-  min-height: 287px;
+  min-height: 289px;
   padding-inline: 16px;
   padding-bottom: 11px;
+}
+.provider-detail-page .package-source-header {
+  padding-inline: 16px;
 }
 .source-breadcrumbs {
   margin-bottom: 22px;
@@ -1226,9 +1230,12 @@ h2 {
   font-weight: 600;
 }
 .package-header-actions {
+  position: absolute;
+  top: 59px;
+  right: 19px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 15px;
 }
 .version-select {
   display: flex;
@@ -1245,7 +1252,8 @@ h2 {
   white-space: nowrap;
 }
 .version-select select {
-  min-width: 190px;
+  width: 192px;
+  min-width: 192px;
   min-height: 38px;
   padding: 7px 34px 7px 12px;
   border: 1px solid #9da2ab;
@@ -1255,6 +1263,7 @@ h2 {
   font-size: 12px;
 }
 .view-source-button {
+  min-width: 128px;
   min-height: 38px;
   padding: 7px 13px;
   display: inline-flex;
@@ -1273,6 +1282,13 @@ h2 {
   color: var(--text);
   font-size: 13px;
 }
+.provider-detail-page .package-description {
+  min-height: 40px;
+  max-width: 960px;
+  margin: 20px 0 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
 .package-facts {
   max-width: 850px;
   padding-top: 13px;
@@ -1289,6 +1305,38 @@ h2 {
 .package-facts a {
   color: #4d515b;
   font-weight: 600;
+}
+.provider-package-facts {
+  max-width: 960px;
+  padding: 16px 0 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-top: 1px solid #dce0e6;
+  color: #656a76;
+  font-size: 13px;
+  line-height: 18px;
+}
+.provider-facts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+}
+.provider-facts-row > div {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.provider-facts-row strong,
+.provider-facts-row a {
+  color: #404654;
+  font-weight: 600;
+}
+.provider-facts-row a {
+  color: var(--blue);
 }
 .package-provider-fact {
   display: inline-flex;
@@ -1411,6 +1459,17 @@ h2 {
   font-size: 11px;
   font-weight: 600;
 }
+.provider-package-facts .package-category {
+  min-height: 24px;
+  margin: 0;
+  padding: 3px 11px;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+}
 .package-tabs {
   height: 49px;
   display: flex;
@@ -1450,10 +1509,14 @@ h2 {
 .module-detail-page .package-tabs {
   height: 37px;
 }
-.module-detail-page .package-tabs button {
+.module-detail-page .package-tabs button,
+.provider-detail-page .package-tabs button {
   height: 37px;
   padding: 7px 11px 6px;
   font-weight: 500;
+}
+.provider-detail-page .package-tabs {
+  height: 37px;
 }
 .package-content-surface {
   min-height: 540px;
@@ -1464,6 +1527,7 @@ h2 {
   padding-top: 12px;
 }
 .provider-overview-grid {
+  width: min(1328px, calc(100% - 96px));
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 28px;
@@ -1519,21 +1583,23 @@ h2 {
   margin-bottom: 14px;
 }
 .provider-module-list {
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.provider-modules-loading {
+  min-height: 316px;
+  border-radius: 5px;
+}
+.provider-module-row {
+  min-height: 151px;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 16px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: white;
-}
-.provider-module-row {
-  min-height: 104px;
-  padding: 16px 18px;
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 14px;
-  border-bottom: 1px solid var(--line-light);
-}
-.provider-module-row:last-child {
-  border-bottom: 0;
 }
 .provider-module-row:hover {
   background: #fafbfc;
@@ -1543,7 +1609,7 @@ h2 {
   height: 48px;
 }
 .provider-module-row h3 {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 15px;
   line-height: 21px;
 }
@@ -1556,20 +1622,28 @@ h2 {
   font-weight: 400;
 }
 .provider-module-row p {
-  margin: 0 0 8px;
+  min-height: 36px;
+  margin: 0 0 13px;
   overflow: hidden;
   color: var(--muted);
   font-size: 12px;
+  line-height: 18px;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .provider-module-row small {
   display: flex;
-  gap: 18px;
+  align-items: center;
+  gap: 22px;
   color: #777c87;
-  font-size: 10px;
+  font-size: 11px;
 }
 .provider-module-row small span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #555a65;
 }
 .provider-overview-sidebar {
@@ -1578,15 +1652,20 @@ h2 {
   gap: 20px;
 }
 .provider-helpful-links {
-  padding: 3px 15px 8px;
+  margin-top: 27px;
+  padding: 3px 0 8px;
 }
 .provider-helpful-links h2 {
   margin-bottom: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
 }
 .provider-helpful-links nav {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
 }
 .provider-helpful-links a {
   min-height: 35px;
@@ -1677,9 +1756,10 @@ h2 {
   align-items: center;
   gap: 7px;
   font-size: 14px;
+  white-space: nowrap;
 }
 .module-downloads-card select {
-  width: auto;
+  width: 106px;
   min-width: 106px;
   min-height: 32px;
   padding: 7px 32px 7px 10px;
@@ -1817,6 +1897,10 @@ h2 {
 }
 .documentation.source-readme {
   padding: 5px 10px 30px 0;
+  color: #404654;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu,
+    Cantarell, "Helvetica Neue", sans-serif;
   font-size: 16px;
   line-height: 27.2px;
 }
@@ -1825,6 +1909,7 @@ h2 {
   padding-bottom: 8px;
   font-size: 26.08px;
   line-height: 48px;
+  font-weight: 600;
 }
 .documentation.source-readme h2 {
   margin: 24px 0 12px;
@@ -3143,9 +3228,15 @@ h2 {
   .package-title-row {
     grid-template-columns: 52px 1fr;
   }
+  .provider-detail-page .package-source-header,
+  .module-detail-page .package-source-header {
+    padding-inline: 0;
+  }
   .package-header-actions {
-    grid-column: 1 / -1;
-    margin-top: 8px;
+    position: static;
+    width: 100%;
+    margin-top: 20px;
+    display: flex;
     align-items: stretch;
   }
   .module-detail-page .package-header-actions {
@@ -3156,7 +3247,15 @@ h2 {
     gap: 20px 28px;
   }
   .module-package-facts .module-source-fact {
-    min-width: min(290px, 100%);
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+    white-space: normal;
+  }
+  .module-package-facts .module-source-fact a {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
   .version-select select {
     width: 100%;
@@ -3186,7 +3285,19 @@ h2 {
     grid-template-columns: 1fr;
   }
   .provider-overview-sidebar {
-    order: -1;
+    order: initial;
+  }
+  .provider-module-list,
+  .provider-helpful-links nav {
+    grid-template-columns: 1fr;
+  }
+  .provider-modules-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .provider-modules-heading > a {
+    margin-top: 11px;
+    justify-self: center;
   }
   .source-install-sidebar {
     order: initial;
@@ -3361,7 +3472,7 @@ h2 {
     width: calc(100% - 28px);
   }
   .provider-overview-grid {
-    width: calc(100% - 28px);
+    width: calc(100% - 48px);
   }
   .provider-module-row {
     grid-template-columns: 40px minmax(0, 1fr);
@@ -3411,6 +3522,7 @@ h2 {
 [data-theme="dark"] .catalog-content,
 [data-theme="dark"] .package-card,
 [data-theme="dark"] .provider-module-list,
+[data-theme="dark"] .provider-module-row,
 [data-theme="dark"] .provider-versions-card,
 [data-theme="dark"] .module-downloads-card,
 [data-theme="dark"] .source-install-card,

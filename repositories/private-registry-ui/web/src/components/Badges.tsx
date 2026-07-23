@@ -4,12 +4,17 @@ import type { Approval, Lifecycle } from "../types";
 export function ApprovalBadge({
   value,
   verified,
+  label,
 }: {
   value: Approval;
   verified?: boolean;
+  label?: string;
 }) {
-  const label =
-    verified === true && value === "approved" ? "Verified" : capitalize(value);
+  const displayLabel =
+    label ??
+    (verified === true && value === "approved"
+      ? "Verified"
+      : capitalize(value));
   return (
     <span className={`badge badge-${value}`}>
       {value === "approved" ? (
@@ -17,7 +22,7 @@ export function ApprovalBadge({
       ) : (
         <WarningCircleIcon size={14} weight="bold" />
       )}
-      {label}
+      {displayLabel}
     </span>
   );
 }

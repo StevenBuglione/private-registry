@@ -3,6 +3,7 @@ import {
   CaretRightIcon,
   CheckIcon,
   ClipboardIcon,
+  ClockIcon,
   CubeIcon,
   DownloadSimpleIcon,
   FileTextIcon,
@@ -164,7 +165,13 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                   <HandshakeIcon size={14} weight="fill" /> Partner
                 </span>
               ) : (
-                <ApprovalBadge value={item.approval} verified={item.verified} />
+                <ApprovalBadge
+                  value={item.approval}
+                  verified={item.verified}
+                  {...(kind === "provider" && item.verified
+                    ? { label: "Official" }
+                    : {})}
+                />
               )}
             </div>
             <span>
@@ -172,81 +179,29 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
               {hasText(item.target) ? `/${item.target}` : ""}
             </span>
           </div>
-          <div className="package-header-actions">
-            <label className="version-select">
-              <span>Version</span>
-              <select
-                aria-label={`${kind === "provider" ? "Provider" : "Module"} version`}
-                value={item.version}
-                onChange={(event) => {
-                  changeVersion(event.target.value);
-                }}
-              >
-                {item.versions.map((version) => (
-                  <option key={version} value={version}>
-                    Version {version}
-                    {version === item.versions[0] ? " (latest)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {hasText(sourceRepository) ? (
-              <a
-                className="view-source-button"
-                href={sourceRepository}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ArrowSquareOutIcon size={16} /> View Source
-              </a>
-            ) : null}
-          </div>
         </div>
         {kind === "provider" ? (
           <p className="package-description">{item.description}</p>
         ) : null}
         {kind === "module" ? (
-          <>
-            <ModuleFacts item={item} sourceRepository={sourceRepository} />
-            {item.examples.length > 0 ? (
-              <div className="module-examples-row">
-                <ExamplesMenu
-                  examples={item.examples}
-                  sourceRepository={sourceRepository}
-                  sourceTag={item.sourceTag}
-                />
-              </div>
-            ) : null}
-          </>
+          <ModuleFacts item={item} sourceRepository={sourceRepository} />
         ) : (
-          <div className="package-facts">
-            <span>
-              Versions: <strong>{item.versions.length}</strong>
-            </span>
-            <span>
-              Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
-            </span>
-            {hasText(sourceRepository) ? (
-              <span>
-                Source code:{" "}
-                <a href={sourceRepository} target="_blank" rel="noreferrer">
-                  {item.namespace}/{item.name}
-                </a>
-              </span>
-            ) : null}
-            <span>
-              Lifecycle: <strong>{item.lifecycle}</strong>
-            </span>
-            <span>
-              Published: <strong>{formatCalendarDate(item.updatedAt)}</strong>
-            </span>
-            <span>
-              Risk: <strong>{item.risk}</strong>
-            </span>
-          </div>
+          <ProviderFacts item={item} sourceRepository={sourceRepository} />
         )}
-        {kind === "provider" ? (
-          <span className="package-category">{capitalize(item.lifecycle)}</span>
+        <PackageHeaderActions
+          kind={kind}
+          item={item}
+          sourceRepository={sourceRepository}
+          onVersionChange={changeVersion}
+        />
+        {kind === "module" && item.examples.length > 0 ? (
+          <div className="module-examples-row">
+            <ExamplesMenu
+              examples={item.examples}
+              sourceRepository={sourceRepository}
+              sourceTag={item.sourceTag}
+            />
+          </div>
         ) : null}
       </header>
 
@@ -321,6 +276,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
               item={item}
               modules={related.data?.items ?? []}
               moduleTotal={related.data?.total ?? 0}
+              modulesPending={related.isPending}
               snippet={providerSnippet}
               governance={governanceData}
               selectedApmId={selectedApmId}
@@ -360,6 +316,50 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PackageHeaderActions({
+  kind,
+  item,
+  sourceRepository,
+  onVersionChange,
+}: {
+  kind: PackageKind;
+  item: PackageDetail;
+  sourceRepository: string | undefined;
+  onVersionChange: (version: string) => void;
+}) {
+  return (
+    <div className="package-header-actions">
+      <label className="version-select">
+        <span>Version</span>
+        <select
+          aria-label={`${kind === "provider" ? "Provider" : "Module"} version`}
+          value={item.version}
+          onChange={(event) => {
+            onVersionChange(event.target.value);
+          }}
+        >
+          {item.versions.map((version) => (
+            <option key={version} value={version}>
+              Version {version}
+              {version === item.versions[0] ? " (latest)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      {hasText(sourceRepository) ? (
+        <a
+          className="view-source-button"
+          href={sourceRepository}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <ArrowSquareOutIcon size={16} /> View Source
+        </a>
+      ) : null}
     </div>
   );
 }
@@ -411,6 +411,53 @@ function ModuleFacts({
         <span>Published by:</span>
         <strong>{item.namespace}</strong>
       </div>
+    </div>
+  );
+}
+
+function ProviderFacts({
+  item,
+  sourceRepository,
+}: {
+  item: PackageDetail;
+  sourceRepository: string | undefined;
+}) {
+  const statistics = item.downloadStatistics;
+  return (
+    <div className="provider-package-facts" aria-label="Provider metadata">
+      <div className="provider-facts-row">
+        <div title="Downloads served by this JFrog Artifactory mirror">
+          <span>Downloads:</span>
+          <strong>{formatDownloadCount(statistics?.allTime)}</strong>
+        </div>
+        <div title="Rolling history is available after a seven-day local baseline exists">
+          <span>This week:</span>
+          <strong>{formatDownloadCount(statistics?.week)}</strong>
+        </div>
+        <div>
+          <span>Versions:</span>
+          <strong>{item.versions.length}</strong>
+        </div>
+        {hasText(sourceRepository) ? (
+          <div>
+            <span>Source code:</span>
+            <a href={sourceRepository} target="_blank" rel="noreferrer">
+              {item.namespace}/{item.name}
+            </a>
+          </div>
+        ) : null}
+        <div>
+          <span>Published:</span>
+          <strong>
+            {formatCalendarDate(item.publishedAt ?? item.updatedAt)}
+          </strong>
+        </div>
+        <div>
+          <span>Published by:</span>
+          <strong>{item.namespace}</strong>
+        </div>
+      </div>
+      <span className="package-category">{capitalize(item.lifecycle)}</span>
     </div>
   );
 }
@@ -474,6 +521,24 @@ function ModuleDownloadsCard({
   statistics: DownloadStatistics | undefined;
   statisticsByVersion: Record<string, DownloadStatistics>;
 }) {
+  return (
+    <DownloadStatisticsCard
+      title="Module Downloads"
+      statistics={statistics}
+      statisticsByVersion={statisticsByVersion}
+    />
+  );
+}
+
+function DownloadStatisticsCard({
+  title,
+  statistics,
+  statisticsByVersion,
+}: {
+  title: string;
+  statistics: DownloadStatistics | undefined;
+  statisticsByVersion: Record<string, DownloadStatistics>;
+}) {
   const [statisticsVersion, setStatisticsVersion] = useState("all");
   const displayedStatistics =
     statisticsVersion === "all"
@@ -486,7 +551,7 @@ function ModuleDownloadsCard({
     >
       <div className="module-downloads-header">
         <h2>
-          <DownloadSimpleIcon size={15} /> Module Downloads
+          <DownloadSimpleIcon size={15} /> {title}
         </h2>
         <select
           aria-label="Download statistics version"
@@ -563,6 +628,7 @@ function ProviderOverview({
   item,
   modules,
   moduleTotal,
+  modulesPending,
   snippet,
   governance,
   selectedApmId,
@@ -571,6 +637,7 @@ function ProviderOverview({
   item: PackageDetail;
   modules: PackageSummary[];
   moduleTotal: number;
+  modulesPending: boolean;
   snippet: string;
   governance: GovernanceRecord | undefined;
   selectedApmId: string | undefined;
@@ -582,7 +649,7 @@ function ProviderOverview({
       <main>
         <div className="content-title-row provider-modules-heading">
           <h2>
-            <CubeIcon size={20} /> Approved {item.name} modules
+            <CubeIcon size={20} /> Top downloaded {item.name} modules
           </h2>
           <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
             View all modules <CaretRightIcon size={14} />
@@ -592,7 +659,12 @@ function ProviderOverview({
           Modules are self-contained packages of Terraform configurations that
           are managed as a group.
         </p>
-        {modules.length > 0 ? (
+        {modulesPending ? (
+          <div
+            aria-label="Loading provider modules"
+            className="detail-loading provider-modules-loading"
+          />
+        ) : modules.length > 0 ? (
           <>
             <p className="provider-module-count">
               Showing 1 - {modules.length} of{" "}
@@ -614,8 +686,13 @@ function ProviderOverview({
                     </h3>
                     <p>{module.description}</p>
                     <small>
-                      {formatRelativeDate(module.updatedAt)}
-                      <span>v{module.version}</span>
+                      <span>
+                        <ClockIcon size={14} />
+                        {formatRelativeDate(module.updatedAt)}
+                      </span>
+                      <span title="Latest approved mirrored version">
+                        <DownloadSimpleIcon size={14} />v{module.version}
+                      </span>
                     </small>
                   </div>
                 </Link>
@@ -625,24 +702,10 @@ function ProviderOverview({
         ) : (
           <StatePanel kind="empty" />
         )}
-        <InstallPanel
-          snippet={snippet}
-          kind="provider"
-          {...(hasText(item.artifactRepository)
-            ? {
-                artifactLabel: hasText(item.artifactPath)
-                  ? `${item.artifactRepository}/${item.artifactPath}`
-                  : item.artifactRepository,
-              }
-            : {})}
-        />
-      </main>
-      <aside
-        className="provider-overview-sidebar"
-        aria-label="Provider details"
-      >
         <section className="provider-helpful-links">
-          <h2>Helpful Links</h2>
+          <h2>
+            <LinkSimpleIcon size={18} /> Helpful Links
+          </h2>
           <nav aria-label="Provider links">
             {hasText(sourceRepository) ? (
               <a href={sourceRepository} target="_blank" rel="noreferrer">
@@ -662,20 +725,27 @@ function ProviderOverview({
             ) : null}
           </nav>
         </section>
-        <section className="provider-versions-card">
-          <header>
-            <h2>Provider Versions</h2>
-            <span>{item.versions.length}</span>
-          </header>
-          <ul>
-            {item.versions.map((version, index) => (
-              <li key={version}>
-                <span>Version {version}</span>
-                {index === 0 ? <strong>Latest</strong> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
+      </main>
+      <aside
+        className="provider-overview-sidebar"
+        aria-label="Provider details"
+      >
+        <DownloadStatisticsCard
+          title="Provider Downloads"
+          statistics={item.downloadStatistics}
+          statisticsByVersion={item.downloadStatisticsByVersion}
+        />
+        <InstallPanel
+          snippet={snippet}
+          kind="provider"
+          {...(hasText(item.artifactRepository)
+            ? {
+                artifactLabel: hasText(item.artifactPath)
+                  ? `${item.artifactRepository}/${item.artifactPath}`
+                  : item.artifactRepository,
+              }
+            : {})}
+        />
         <GovernanceCard
           item={item}
           governance={governance}

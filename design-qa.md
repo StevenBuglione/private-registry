@@ -1,69 +1,62 @@
-# Module detail design QA
+# Provider and module detail design QA
 
-- Source visual truth: `.codex-artifacts/module-detail-final/official-desktop-all-versions.png`
-- Implementation screenshot: `.codex-artifacts/module-detail-final/local-desktop-final.png`
-- Side-by-side evidence: `.codex-artifacts/module-detail-final/desktop-side-by-side-final.png`
-- Source URL: `https://registry.terraform.io/modules/Azure/avm-res-web-site/azurerm/0.16.0`
-- Implementation URL: `http://localhost:3000/modules/Azure/avm-res-web-site/azurerm/0.16.0`
-- Viewport: 1440 x 1000 CSS pixels
-- Captures: 1425 x 990 pixels at 96 DPI for both source and implementation; the browser scrollbar accounts for the 15-pixel width difference from the requested viewport. The images were compared at 1:1 density without resampling.
-- State: light theme, README tab, examples closed, download statistics set to All versions, authenticated local Registry administrator.
+- Official provider reference: `https://registry.terraform.io/providers/hashicorp/azurerm/4.37.0`
+- Local provider implementation: `http://localhost:3000/providers/hashicorp/azurerm/4.37.0`
+- Official module reference: `https://registry.terraform.io/modules/Azure/avm-res-web-site/azurerm/0.16.0`
+- Local module implementation: `http://localhost:3000/modules/Azure/avm-res-web-site/azurerm/0.16.0`
+- Primary viewport: 1440 x 1000 CSS pixels; both captures render at 1425 x 990 pixels after the browser scrollbar.
+- Responsive viewport: 390 x 844 CSS pixels.
+- State: authenticated Registry administrator with the approved private JFrog catalog.
+
+## Current-run side-by-side evidence
+
+- Provider overview: `.codex-artifacts/perfection-audit-2026-07-23/32-provider-side-by-side-verified.jpg`
+- Provider documentation: `.codex-artifacts/perfection-audit-2026-07-23/22-provider-docs-side-by-side-final.jpg`
+- Module detail: `.codex-artifacts/perfection-audit-2026-07-23/34-module-side-by-side-verified.jpg`
+- Provider mobile: `.codex-artifacts/perfection-audit-2026-07-23/25-provider-mobile-side-by-side.jpg`
+- Module mobile: `.codex-artifacts/perfection-audit-2026-07-23/30-module-mobile-side-by-side-final.jpg`
+- Provider dark mode: `.codex-artifacts/perfection-audit-2026-07-23/35-local-provider-dark-1440.jpg`
+- Module dark mode: `.codex-artifacts/perfection-audit-2026-07-23/36-local-module-dark-1440.jpg`
+
+The source and implementation captures were taken in the same browser run, at the same viewport and page state, then combined at 1:1 density. The final comparisons were checked for typography, position, dimensions, wrapping, borders, colors, controls, content density, and responsive overflow.
 
 ## Findings
 
-No actionable P0, P1, or P2 differences remain.
+No actionable P0, P1, or P2 visual differences remain.
 
-- Fonts and typography: the module title, metadata, tabs, README heading, body, list, and code typography follow the source hierarchy and wrapping. Measured README landmarks remain within one CSS pixel of the source.
-- Spacing and layout rhythm: breadcrumb, identity block, metadata rows, examples control, tabs, content column, and sidebar align to the same above-the-fold proportions. No horizontal overflow is present.
-- Colors and visual tokens: light surfaces, rules, blue actions, purple Partner badge, muted metadata, and README code treatment match the source. The first-party Registry header and identity are intentional product branding differences.
-- Image and icon fidelity: the Azure module and azurerm provider assets render at the source scale without bleeding into text. Standard Phosphor icons are used for interface controls.
-- Copy and content: source metadata, README, inputs, outputs, dependencies, resources, examples, version selector, and download labels are present. Private mirror counts intentionally differ from the public Terraform Registry.
+- Header and search stack: the 59px black navigation row, brand lockup, controls, search field, borders, and total 123px stack match the official page geometry.
+- Provider identity: breadcrumb, provider icon, title, Official badge, namespace, description, metadata, version selector, and View Source action align with the official desktop and mobile positions.
+- Provider overview: the two-column Top downloaded modules grid, count, Helpful Links, Provider Downloads card, All versions selector, installation panel, and governance extension follow the official content grid and visual hierarchy.
+- Provider documentation: left document navigation, content typography, active state, resource headings, and right installation rail match the official Registry flow.
+- Module identity: breadcrumb, Azure icon, title, Partner badge, source path, metadata, version and source actions, Examples control, and Readme/Inputs/Outputs/Dependencies/Resources tabs follow the official layout.
+- Module content: README typography and spacing, requirement lists, download statistics, All versions selection, and provision panel match the source structure while keeping the Artifactory-specific install source truthful.
+- Responsive behavior: provider and module pages collapse to the same source order without body-level horizontal overflow. The long source link wraps within the mobile metadata rail.
+- Themes: light and dark modes preserve the same geometry and contrast. The theme control is present only inside the authenticated user menu and was exercised in both package types.
+- Loading behavior: provider module discovery now displays an in-place skeleton instead of briefly claiming there are no matching packages.
+- Runtime: browser console warnings and errors were 0 on both final package pages.
 
-## Focused comparison
+## Intentional product differences
 
-A separate crop was not required because both 1425 x 990 captures are legible at 1:1 in the side-by-side image. Focused browser measurements and DOM checks covered the README typography, metadata row, module downloads card, tabs, and sidebar controls.
+These are required product behavior, not visual drift:
 
-## Comparison history
+- Oremus Labs replaces HashiCorp in the brand lockup.
+- The authenticated administrator menu replaces public Publish and Sign in actions.
+- JFrog mirror counts, approved versions, package descriptions, and publication data are shown instead of copying public Registry values.
+- Approved lifecycle and governance metadata remain visible for the private catalog.
+- Provision instructions point at the governed Artifactory artifact.
 
-1. Earlier P2: the module downloads card placed the version selector on a separate row, used `Downloads all time`, and exposed only the selected version.
-   - Fix: moved `All versions` into the card header, matched the source label `Downloads over all time`, aggregated all mirrored versions, and added functional per-version selection.
-   - Post-fix evidence: `.codex-artifacts/module-detail-final/desktop-side-by-side-final.png`; browser verification showed 19 for All versions and 10 for version 0.16.0.
-2. Earlier P2: module metadata and README typography did not match the source density, and example metadata was absent.
-   - Fix: aligned the header and README metrics, added published/source/provider/download metadata, and extracted 15 examples from the mirrored module.
-   - Post-fix evidence: the final side-by-side capture and the rendered README, Inputs (67), Outputs (20), Dependencies (3), and Resources (35) states.
+## Functional verification
 
-## Interaction and runtime checks
-
-- Real Microsoft Entra administrator session completed successfully.
-- Module version navigation, example menu, five content tabs, All versions/per-version download selection, and light/dark theme controls were exercised.
-- Browser console warnings and errors: 0.
-- Playwright/axe scenarios: 5 passed.
-
-## Follow-up polish
-
-- P3: no visual refinement is required for acceptance. Public Registry counts and the first-party Registry brand remain intentionally different from Terraform's public service.
-
-## Oremus Labs header follow-up
-
-- Source visual truth: `D:/Temp/codex-clipboard-0762c246-bb6c-4b3b-a9da-d5668547f37b.png`
-- Implementation screenshot: `.codex-artifacts/branding/oremus-labs-header-final.jpg`
-- Side-by-side evidence: `.codex-artifacts/branding/header-side-by-side-final.png`
-- Implementation URL: `http://localhost:3000/`
-- Reference and implementation crop: 286 x 73 pixels, compared at 1:1 density.
-- Desktop state: 1440 x 1000 CSS pixels, authenticated Registry administrator, light theme.
-- Responsive state: 390 x 844 CSS pixels.
-
-### Findings
-
-No actionable P0, P1, or P2 differences remain.
-
-- Fonts and typography: `Oremus Labs` occupies the small organization line, `Terraform` is the dominant 16px product word, and `Registry` uses the reference's bold compact treatment.
-- Spacing and layout rhythm: the brand divider and Registry label align with the source crop. The black header is 64px tall, and the lockup remains vertically centered.
-- Colors and visual tokens: white text, dark header, muted divider, and Terraform-inspired purple container mark match the reference balance.
-- Image and icon fidelity: the brand mark is the official Font Awesome free solid Box icon rendered through Font Awesome's React integration. It is intentionally a container glyph rather than a copied HashiCorp mark.
-- Copy and content: the lockup reads `Oremus Labs`, `Terraform`, and `Registry` in the requested hierarchy.
-- Responsive behavior: at 390px the complete lockup and mobile menu remain separated, with no clipping or horizontal overflow.
-- Interaction and accessibility: the lockup remains a single `Registry home` link; desktop and mobile navigation remain available.
-- Browser console warnings and errors: 0.
+- Provider Overview and Documentation navigation: passed.
+- Provider resource/document navigation: passed.
+- Module Readme, Inputs, Outputs, Dependencies, and Resources navigation: passed.
+- Version selectors, Examples menu, View Source links, copy action, and download-statistics selector: passed.
+- User-menu light/dark switching: passed.
+- Desktop and mobile accessibility/browser flows: 5 Playwright scenarios passed, including axe checks.
+- Static quality gates: Biome, strict TypeScript, typed ESLint, Stylelint, dependency-cruiser, and Knip passed.
+- Unit/component tests: 42 passed.
+- Coverage: 83.98% statements, 71.67% branches, 84.97% functions, and 85.46% lines.
+- Production build and 250 kB compressed bundle budget: passed at 236.57 kB.
+- Docker Compose UI health: healthy.
 
 final result: passed
