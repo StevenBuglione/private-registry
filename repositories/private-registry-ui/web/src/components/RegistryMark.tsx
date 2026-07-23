@@ -1,37 +1,27 @@
-import { StackIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { faBox } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 export function RegistryMark({ compact = false }: { compact?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return (
-      <span
-        className={
-          compact
-            ? "brand-mark-frame brand-mark-fallback compact"
-            : "brand-mark-frame brand-mark-fallback"
-        }
-        aria-hidden="true"
-      >
-        <StackIcon size={compact ? 24 : 28} weight="regular" />
-      </span>
-    );
-  }
   return (
     <span
       className={compact ? "brand-mark-frame compact" : "brand-mark-frame"}
       aria-hidden="true"
     >
-      <img
-        className={compact ? "brand-mark compact" : "brand-mark"}
-        src="/assets/registry-mark.png"
-        alt=""
-        width={compact ? 22 : 25}
-        height={compact ? 22 : 25}
-        onError={() => {
-          setFailed(true);
-        }}
-      />
+      <FontAwesomeIcon icon={faBox} />
     </span>
+  );
+}
+
+export function RegistryBrand() {
+  return (
+    <>
+      <RegistryMark />
+      <span className="brand-wordmark">
+        <small>Oremus Labs</small>
+        <strong>Terraform</strong>
+      </span>
+      <span className="brand-separator" aria-hidden="true" />
+      <span className="brand-product-name">Registry</span>
+    </>
   );
 }

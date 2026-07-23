@@ -1,7 +1,7 @@
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PackageIcon } from "./components/PackageIcon";
-import { RegistryMark } from "./components/RegistryMark";
+import { RegistryBrand, RegistryMark } from "./components/RegistryMark";
 import { useRegistry } from "./use-registry";
 import { formatRelativeDate, hasText, packageHref } from "./utils";
 
@@ -16,20 +16,19 @@ describe("shared UI contracts", () => {
     );
   });
 
-  it("renders compact marks and an accessible fallback when artwork fails", () => {
+  it("renders Font Awesome container marks and the Oremus Labs lockup", () => {
     const { container } = render(
       <>
         <RegistryMark />
         <RegistryMark compact />
+        <RegistryBrand />
       </>,
     );
-    const images = container.querySelectorAll("img");
-    expect(images).toHaveLength(2);
-    expect(images[1]).toHaveClass("compact");
-    const firstImage = images[0];
-    if (firstImage === undefined) throw new Error("Expected registry artwork");
-    fireEvent.error(firstImage);
-    expect(container.querySelector(".brand-mark-fallback")).not.toBeNull();
+    expect(container.querySelectorAll(".fa-box")).toHaveLength(3);
+    expect(container.querySelector(".brand-mark-frame.compact")).not.toBeNull();
+    expect(screen.getByText("Oremus Labs")).toBeInTheDocument();
+    expect(screen.getByText("Terraform")).toBeInTheDocument();
+    expect(screen.getByText("Registry")).toBeInTheDocument();
   });
 
   it("falls back to a neutral package glyph and formats fresh timestamps", () => {

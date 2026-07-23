@@ -43,4 +43,27 @@ A separate crop was not required because both 1425 x 990 captures are legible at
 
 - P3: no visual refinement is required for acceptance. Public Registry counts and the first-party Registry brand remain intentionally different from Terraform's public service.
 
+## Oremus Labs header follow-up
+
+- Source visual truth: `D:/Temp/codex-clipboard-0762c246-bb6c-4b3b-a9da-d5668547f37b.png`
+- Implementation screenshot: `.codex-artifacts/branding/oremus-labs-header-final.jpg`
+- Side-by-side evidence: `.codex-artifacts/branding/header-side-by-side-final.png`
+- Implementation URL: `http://localhost:3000/`
+- Reference and implementation crop: 286 x 73 pixels, compared at 1:1 density.
+- Desktop state: 1440 x 1000 CSS pixels, authenticated Registry administrator, light theme.
+- Responsive state: 390 x 844 CSS pixels.
+
+### Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Fonts and typography: `Oremus Labs` occupies the small organization line, `Terraform` is the dominant 16px product word, and `Registry` uses the reference's bold compact treatment.
+- Spacing and layout rhythm: the brand divider and Registry label align with the source crop. The black header is 64px tall, and the lockup remains vertically centered.
+- Colors and visual tokens: white text, dark header, muted divider, and Terraform-inspired purple container mark match the reference balance.
+- Image and icon fidelity: the brand mark is the official Font Awesome free solid Box icon rendered through Font Awesome's React integration. It is intentionally a container glyph rather than a copied HashiCorp mark.
+- Copy and content: the lockup reads `Oremus Labs`, `Terraform`, and `Registry` in the requested hierarchy.
+- Responsive behavior: at 390px the complete lockup and mobile menu remain separated, with no clipping or horizontal overflow.
+- Interaction and accessibility: the lockup remains a single `Registry home` link; desktop and mobile navigation remain available.
+- Browser console warnings and errors: 0.
+
 final result: passed

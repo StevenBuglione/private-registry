@@ -24,7 +24,7 @@ import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
 import { AdminHomepageDialog } from "./AdminHomepageDialog";
-import { RegistryMark } from "./RegistryMark";
+import { RegistryBrand, RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
 import { ThemeToggle } from "./ThemeToggle";
@@ -98,8 +98,7 @@ function AuthenticatedShell() {
       <header className="site-header">
         <div className="header-inner">
           <NavLink to="/" className="brand-link" aria-label="Registry home">
-            <RegistryMark />
-            <span>Registry</span>
+            <RegistryBrand />
           </NavLink>
           <HeaderActions />
           <button
@@ -337,8 +336,7 @@ function PublicFrame({
       <header className="site-header">
         <div className="header-inner">
           <a href="/" className="brand-link">
-            <RegistryMark />
-            <span>Registry</span>
+            <RegistryBrand />
           </a>
           {sessionName !== undefined && sessionName.length > 0 ? (
             <span className="public-user">{sessionName}</span>
