@@ -114,3 +114,97 @@ export interface RuntimeConfig {
   environment: string;
   supportUrl: string;
 }
+
+export interface AdminDashboard {
+  generatedAt: string;
+  status: "healthy" | "degraded";
+  workerEnabled: boolean;
+  dependencies: Record<string, string>;
+  catalog: {
+    providers: number;
+    modules: number;
+    activeVersions: number;
+    documents: number;
+    downloads: number;
+  };
+  queue: {
+    queued: number;
+    processing: number;
+    retry: number;
+    completed: number;
+    deadLetter: number;
+  };
+  ingestion: {
+    completed: number;
+    failed: number;
+    quarantined: number;
+    latencyP95Ms: number;
+    lastCompletedAt?: string | undefined;
+  };
+  reconciliation?:
+    | {
+        id: string;
+        mode: string;
+        scope: string;
+        status: string;
+        discrepancies: number;
+        repaired: number;
+        startedAt: string;
+        completedAt?: string | undefined;
+      }
+    | undefined;
+  databaseSizeBytes: number;
+}
+
+export interface OperationalEvent {
+  source: "ingestion" | "queue" | "reconciliation";
+  eventId: string;
+  status: string;
+  title: string;
+  detail: string;
+  repository?: string | undefined;
+  path?: string | undefined;
+  correlationId: string;
+  occurredAt: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  occurredAt: string;
+  actorType: string;
+  actorId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  correlationId: string;
+  detail: unknown;
+}
+
+export type SyncCredentialScope = "module" | "provider" | "all";
+type SyncCredentialStatus = "active" | "expired" | "revoked";
+
+export interface SyncCredential {
+  id: string;
+  name: string;
+  scope: SyncCredentialScope;
+  keyPrefix: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt?: string | undefined;
+  revokedBy?: string | undefined;
+  lastUsedAt?: string | undefined;
+  useCount: number;
+  status: SyncCredentialStatus;
+}
+
+export interface CreatedSyncCredential {
+  credential: SyncCredential;
+  token: string;
+}
+
+export interface CreateSyncCredential {
+  name: string;
+  scope: SyncCredentialScope;
+  expiresInDays: number;
+}

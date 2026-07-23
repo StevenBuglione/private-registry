@@ -8,11 +8,11 @@ import {
 import {
   CaretDownIcon,
   CubeIcon,
+  GearIcon,
   ListIcon,
   MagnifyingGlassIcon,
   PackageIcon,
   SignOutIcon,
-  SlidersHorizontalIcon,
   UserCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -23,7 +23,6 @@ import { useCatalogEvents, useSession } from "../hooks";
 import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
-import { AdminHomepageDialog } from "./AdminHomepageDialog";
 import { RegistryBrand, RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
 import { StatePanel } from "./StatePanel";
@@ -165,7 +164,6 @@ function AuthenticatedShell() {
 function HeaderActions() {
   const { session } = useRegistry();
   const [busy, setBusy] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
   const initials = session.displayName
     .split(/\s+/)
     .slice(0, 2)
@@ -184,71 +182,56 @@ function HeaderActions() {
   };
 
   return (
-    <>
-      <div className="header-actions">
-        <BrowseMenu />
-        <Menu as="div" className="user-menu">
-          {({ close }) => (
-            <>
-              <MenuButton className="user-menu-button">
-                <span className="avatar" aria-hidden="true">
-                  {initials || "U"}
-                </span>
-                <span className="user-name">{session.displayName}</span>
-                <CaretDownIcon size={14} aria-hidden="true" />
-              </MenuButton>
-              <Transition
-                as={Fragment}
-                enter="menu-enter"
-                enterFrom="menu-enter-from"
-                enterTo="menu-enter-to"
-                leave="menu-leave"
-                leaveFrom="menu-leave-from"
-                leaveTo="menu-leave-to"
-              >
-                <MenuItems anchor="bottom end" className="user-menu-items">
-                  <div className="user-menu-identity">
-                    <strong>{session.displayName}</strong>
-                    <span>{session.email}</span>
-                  </div>
-                  {session.admin ? (
-                    <MenuItem>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAdminOpen(true);
-                        }}
-                      >
-                        <SlidersHorizontalIcon size={17} /> Homepage settings
-                      </button>
-                    </MenuItem>
-                  ) : null}
-                  <ThemeToggle showLabel menuItem onToggle={close} />
+    <div className="header-actions">
+      <BrowseMenu />
+      <Menu as="div" className="user-menu">
+        {({ close }) => (
+          <>
+            <MenuButton className="user-menu-button">
+              <span className="avatar" aria-hidden="true">
+                {initials || "U"}
+              </span>
+              <span className="user-name">{session.displayName}</span>
+              <CaretDownIcon size={14} aria-hidden="true" />
+            </MenuButton>
+            <Transition
+              as={Fragment}
+              enter="menu-enter"
+              enterFrom="menu-enter-from"
+              enterTo="menu-enter-to"
+              leave="menu-leave"
+              leaveFrom="menu-leave-from"
+              leaveTo="menu-leave-to"
+            >
+              <MenuItems anchor="bottom end" className="user-menu-items">
+                <div className="user-menu-identity">
+                  <strong>{session.displayName}</strong>
+                  <span>{session.email}</span>
+                </div>
+                {session.admin ? (
                   <MenuItem>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void signOut()}
-                    >
-                      <SignOutIcon size={17} />{" "}
-                      {busy ? "Signing out…" : "Sign out"}
-                    </button>
+                    <Link to="/admin" onClick={close}>
+                      <GearIcon size={17} /> Admin settings
+                    </Link>
                   </MenuItem>
-                </MenuItems>
-              </Transition>
-            </>
-          )}
-        </Menu>
-      </div>
-      {session.admin ? (
-        <AdminHomepageDialog
-          open={adminOpen}
-          onClose={() => {
-            setAdminOpen(false);
-          }}
-        />
-      ) : null}
-    </>
+                ) : null}
+                <ThemeToggle showLabel menuItem onToggle={close} />
+                <MenuItem>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void signOut()}
+                  >
+                    <SignOutIcon size={17} />{" "}
+                    {busy ? "Signing out…" : "Sign out"}
+                  </button>
+                </MenuItem>
+              </MenuItems>
+            </Transition>
+          </>
+        )}
+      </Menu>
+    </div>
   );
 }
 
@@ -300,6 +283,11 @@ function MobileAccount() {
         <UserCircleIcon size={17} /> {session.displayName}
       </span>
       <small>{session.admin ? "Registry administrator" : session.email}</small>
+      {session.admin ? (
+        <Link className="admin-context" to="/admin">
+          <GearIcon size={17} /> Admin settings
+        </Link>
+      ) : null}
       <ThemeToggle showLabel />
     </div>
   );

@@ -88,6 +88,8 @@ corepack pnpm quality:full
 
 ## Repository layout
 
+Administration and GitHub runner setup are documented in [docs/administration.md](docs/administration.md).
+
 - `repositories/private-registry-ui/` — first-party UI, Nginx runtime, assets, and browser-facing configuration.
 - `repositories/private-registry-api/` — API, identity, JFrog client adapter, event worker, migrations, seed manifest, Compose, and deployment infrastructure.
 - `contracts/` — shared catalog and event contracts.

@@ -16,6 +16,8 @@ tags:
   - name: Authentication
   - name: Catalog
   - name: Event stream
+  - name: Administration
+  - name: Automation
   - name: Webhook
   - name: Health
 paths:
@@ -325,6 +327,194 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/IdentityUnavailable'
+  /api/v1/registry/homepage:
+    get:
+      tags: [Administration]
+      operationId: getHomepageSettings
+      summary: Return the administrator-managed homepage presentation
+      responses:
+        '200':
+          description: Current notification and featured-provider configuration.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HomepageSettings'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+    put:
+      tags: [Administration]
+      operationId: updateHomepageSettings
+      summary: Replace the homepage presentation configuration
+      description: Requires the registry-admin role and writes immutable before/after audit evidence.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/HomepageSettingsUpdate'}
+      responses:
+        '200':
+          description: Updated homepage configuration.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HomepageSettings'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/dashboard:
+    get:
+      tags: [Administration]
+      operationId: getAdminDashboard
+      summary: Return point-in-time catalog and ingestion telemetry
+      responses:
+        '200':
+          description: Registry health, dependency, catalog, queue, and ingestion metrics.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminDashboard'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/operations:
+    get:
+      tags: [Administration]
+      operationId: listAdminOperations
+      summary: List recent structured operational events
+      description: Raw process logs, event payloads, and secrets are never exposed.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Recent ingestion, retry, dead-letter, and reconciliation events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/OperationalEvent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/audit-events:
+    get:
+      tags: [Administration]
+      operationId: listAuditEvents
+      summary: List immutable administrator and automation audit history
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+        - name: before
+          in: query
+          description: Cursor timestamp; returns events strictly older than this instant.
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Newest-first audit history.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/AuditEvent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/sync-credentials:
+    get:
+      tags: [Administration]
+      operationId: listSyncCredentials
+      summary: List safe sync credential metadata
+      description: Secret values and hashes are never returned.
+      responses:
+        '200':
+          description: Sync credential metadata.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/SyncCredential'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+    post:
+      tags: [Administration]
+      operationId: createSyncCredential
+      summary: Create a scoped, expiring GitHub runner credential
+      description: The plaintext token is returned exactly once and only its SHA-256 digest is retained.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scope, expires_in_days]
+              properties:
+                name: {type: string, minLength: 3, maxLength: 80}
+                scope: {type: string, enum: [module, provider, all]}
+                expires_in_days: {type: integer, minimum: 1, maximum: 365}
+              additionalProperties: false
+      responses:
+        '200':
+          description: Credential metadata and one-time token.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CreatedSyncCredential'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+  /api/v1/admin/sync-credentials/{id}:
+    delete:
+      tags: [Administration]
+      operationId: revokeSyncCredential
+      summary: Irreversibly revoke a sync credential
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Revoked credential metadata.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SyncCredential'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Registry administrator access is required.}
+        '404': {description: Sync credential does not exist.}
+  /api/v1/sync/artifacts:
+    post:
+      tags: [Automation]
+      operationId: triggerArtifactSync
+      summary: Enqueue an Artifactory artifact change from a trusted runner
+      description: |
+        Authenticates a scoped, unexpired Registry sync credential and publishes the normalized
+        hint to the same durable PostgreSQL queue used by signed JFrog webhooks. The request is
+        idempotent for a credential and Idempotency-Key pair.
+      security:
+        - syncCredential: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+            pattern: '^[A-Za-z0-9._:-]+$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TriggerSyncRequest'}
+      responses:
+        '202':
+          description: Event durably accepted by the PostgreSQL queue.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TriggerSyncReceipt'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {description: Credential is invalid, expired, or revoked.}
+        '403': {description: Credential scope does not permit the package kind.}
+        '503': {description: Durable event ingestion is not enabled or available.}
   /api/v1/status:
     get:
       tags: [Health]
@@ -450,6 +640,11 @@ components:
       description: |
         Microsoft Entra OIDC is terminated by the production ALB or by the local Spring OAuth2 client.
         The browser holds only a secure server-side session cookie; ALB identity headers are verified by the API.
+    syncCredential:
+      type: http
+      scheme: bearer
+      bearerFormat: RegistrySyncCredential
+      description: Scoped, expiring token generated by a Registry administrator and returned once.
   parameters:
     Namespace:
       name: namespace
@@ -522,6 +717,197 @@ components:
         application/json:
           schema: {$ref: '#/components/schemas/ApiError'}
   schemas:
+    HomepageSettings:
+      allOf:
+        - $ref: '#/components/schemas/HomepageSettingsUpdate'
+        - type: object
+          required: [updated_at]
+          properties:
+            updated_at: {type: string, format: date-time}
+    HomepageSettingsUpdate:
+      type: object
+      required:
+        - notification_enabled
+        - notification_title
+        - notification_message
+        - featured_provider_ids
+      properties:
+        notification_enabled: {type: boolean}
+        notification_title: {type: string, minLength: 1, maxLength: 120}
+        notification_message: {type: string, minLength: 1, maxLength: 600}
+        notification_link_label: {type: string, maxLength: 80}
+        notification_link_url:
+          type: string
+          maxLength: 500
+          description: HTTPS or Registry-relative URL.
+        featured_provider_ids:
+          type: array
+          maxItems: 6
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^provider/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'
+      additionalProperties: false
+    AdminDashboard:
+      type: object
+      required:
+        - generated_at
+        - status
+        - worker_enabled
+        - dependencies
+        - catalog
+        - queue
+        - ingestion
+        - database_size_bytes
+      properties:
+        generated_at: {type: string, format: date-time}
+        status: {type: string, enum: [healthy, degraded]}
+        worker_enabled: {type: boolean}
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [up, down, not_configured]
+        catalog:
+          type: object
+          required: [providers, modules, active_versions, documents, downloads]
+          properties:
+            providers: {type: integer, minimum: 0}
+            modules: {type: integer, minimum: 0}
+            active_versions: {type: integer, minimum: 0}
+            documents: {type: integer, minimum: 0}
+            downloads: {type: integer, minimum: 0}
+        queue:
+          type: object
+          required: [queued, processing, retry, completed, dead_letter]
+          properties:
+            queued: {type: integer, minimum: 0}
+            processing: {type: integer, minimum: 0}
+            retry: {type: integer, minimum: 0}
+            completed: {type: integer, minimum: 0}
+            dead_letter: {type: integer, minimum: 0}
+        ingestion:
+          type: object
+          required: [completed, failed, quarantined, latency_p95_ms]
+          properties:
+            completed: {type: integer, minimum: 0}
+            failed: {type: integer, minimum: 0}
+            quarantined: {type: integer, minimum: 0}
+            latency_p95_ms: {type: integer, minimum: 0}
+            last_completed_at: {type: string, format: date-time}
+        reconciliation:
+          type: object
+          required: [id, mode, scope, status, discrepancies, repaired, started_at]
+          properties:
+            id: {type: string, format: uuid}
+            mode: {type: string}
+            scope: {type: string}
+            status: {type: string, enum: [running, completed, failed]}
+            discrepancies: {type: integer, minimum: 0}
+            repaired: {type: integer, minimum: 0}
+            started_at: {type: string, format: date-time}
+            completed_at: {type: string, format: date-time}
+        database_size_bytes: {type: integer, minimum: 0}
+      additionalProperties: false
+    OperationalEvent:
+      type: object
+      required: [source, event_id, status, title, detail, correlation_id, occurred_at]
+      properties:
+        source: {type: string, enum: [ingestion, queue, reconciliation]}
+        event_id: {type: string}
+        status: {type: string}
+        title: {type: string}
+        detail: {type: string}
+        repository: {type: string}
+        path: {type: string}
+        correlation_id: {type: string}
+        occurred_at: {type: string, format: date-time}
+      additionalProperties: false
+    AuditEvent:
+      type: object
+      required:
+        - id
+        - occurred_at
+        - actor_type
+        - actor_id
+        - action
+        - resource_type
+        - resource_id
+        - correlation_id
+        - detail
+      properties:
+        id: {type: string, format: uuid}
+        occurred_at: {type: string, format: date-time}
+        actor_type: {type: string, enum: [user, api_key, system]}
+        actor_id: {type: string}
+        action: {type: string}
+        resource_type: {type: string}
+        resource_id: {type: string}
+        correlation_id: {type: string}
+        detail: {type: object, additionalProperties: true}
+      additionalProperties: false
+    SyncCredential:
+      type: object
+      required:
+        - id
+        - name
+        - scope
+        - key_prefix
+        - created_by
+        - created_at
+        - expires_at
+        - use_count
+        - status
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        scope: {type: string, enum: [MODULE, PROVIDER, ALL]}
+        key_prefix: {type: string}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        revoked_at: {type: string, format: date-time}
+        revoked_by: {type: string}
+        last_used_at: {type: string, format: date-time}
+        use_count: {type: integer, minimum: 0}
+        status: {type: string, enum: [ACTIVE, EXPIRED, REVOKED]}
+      additionalProperties: false
+    CreatedSyncCredential:
+      type: object
+      required: [credential, token]
+      properties:
+        credential: {$ref: '#/components/schemas/SyncCredential'}
+        token:
+          type: string
+          writeOnly: true
+          description: Returned once. Store as a masked GitHub Actions secret.
+      additionalProperties: false
+    TriggerSyncRequest:
+      type: object
+      required: [kind, repository, path]
+      properties:
+        kind: {type: string, enum: [module, provider]}
+        repository:
+          type: string
+          enum: [iac-module-release-local, iac-provider-release-local]
+        path:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: '^(?!/)(?!.*(?:^|/)\.\.?(?:/|$))(?!.*\\).+$'
+        action:
+          type: string
+          enum: [DEPLOYED, PROPERTIES_CHANGED, DELETED, MOVED, COPIED]
+          default: DEPLOYED
+      additionalProperties: false
+    TriggerSyncReceipt:
+      type: object
+      required: [event_id, publication_id, status]
+      properties:
+        event_id: {type: string}
+        publication_id: {type: string}
+        status: {type: string, const: accepted}
+      additionalProperties: false
     ApiError:
       type: object
       required: [error]

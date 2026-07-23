@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createSyncCredential,
+  getAdminDashboard,
+  getAdminOperations,
+  getAuditEvents,
   getCatalogPage,
   getHomepageSettings,
   getPackage,
   getPackageDocumentation,
   getSession,
+  getSyncCredentials,
   logout,
   normalizeCatalogPage,
+  revokeSyncCredential,
   updateHomepageSettings,
 } from "./api";
 
@@ -146,6 +152,127 @@ describe("OpenAPI response normalization", () => {
       notification_message: "The catalog is read-only.",
       featured_provider_ids: [],
     });
+  });
+
+  it("normalizes administrator telemetry, audit history, and credential lifecycle requests", async () => {
+    const credential = {
+      id: "credential-1",
+      name: "GitHub modules",
+      scope: "MODULE",
+      key_prefix: "rgs.credenti",
+      created_by: "admin-1",
+      created_at: "2026-07-23T12:00:00Z",
+      expires_at: "2026-10-21T12:00:00Z",
+      use_count: 3,
+      status: "ACTIVE",
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          generated_at: "2026-07-23T12:00:00Z",
+          status: "degraded",
+          worker_enabled: true,
+          dependencies: { postgresql: "up", artifactory: "down" },
+          catalog: {
+            providers: 12,
+            modules: 30,
+            active_versions: 84,
+            documents: 240,
+            downloads: 5000,
+          },
+          queue: {
+            queued: 2,
+            processing: 1,
+            retry: 1,
+            completed: 80,
+            dead_letter: 1,
+          },
+          ingestion: {
+            completed: 40,
+            failed: 1,
+            quarantined: 2,
+            latency_p95_ms: 900,
+          },
+          database_size_bytes: 1048576,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            source: "queue",
+            event_id: "event-1",
+            status: "dead_letter",
+            title: "Queue delivery",
+            detail: "Attempts exhausted",
+            correlation_id: "correlation-1",
+            occurred_at: "2026-07-23T12:00:00Z",
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: "audit-1",
+            occurred_at: "2026-07-23T12:00:00Z",
+            actor_type: "user",
+            actor_id: "admin-1",
+            action: "registry.homepage.updated",
+            resource_type: "registry_homepage",
+            resource_id: "home",
+            correlation_id: "correlation-1",
+            detail: { after: { notification_enabled: true } },
+          },
+        ]),
+      )
+      .mockResolvedValueOnce(jsonResponse([credential]))
+      .mockResolvedValueOnce(
+        jsonResponse({ credential, token: "rgs.credential-1.secret" }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ ...credential, status: "REVOKED" }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getAdminDashboard()).resolves.toMatchObject({
+      status: "degraded",
+      dependencies: { artifactory: "down" },
+      catalog: { providers: 12, activeVersions: 84 },
+      queue: { deadLetter: 1 },
+      ingestion: { latencyP95Ms: 900 },
+    });
+    await expect(getAdminOperations()).resolves.toMatchObject([
+      { source: "queue", eventId: "event-1", status: "dead_letter" },
+    ]);
+    await expect(getAuditEvents()).resolves.toMatchObject([
+      { actorId: "admin-1", resourceType: "registry_homepage" },
+    ]);
+    await expect(getSyncCredentials()).resolves.toMatchObject([
+      { scope: "module", status: "active", useCount: 3 },
+    ]);
+    await expect(
+      createSyncCredential(
+        { name: "GitHub modules", scope: "module", expiresInDays: 90 },
+        "csrf-value",
+      ),
+    ).resolves.toMatchObject({ token: "rgs.credential-1.secret" });
+    await expect(
+      revokeSyncCredential("credential-1", "csrf-value"),
+    ).resolves.toMatchObject({ status: "revoked" });
+
+    const createCall = fetchMock.mock.calls[4];
+    if (createCall === undefined) throw new Error("Expected credential create");
+    expect(createCall[1]?.method).toBe("POST");
+    expect(createCall[1]?.body).toBe(
+      JSON.stringify({
+        name: "GitHub modules",
+        scope: "module",
+        expires_in_days: 90,
+      }),
+    );
+    const revokeCall = fetchMock.mock.calls[5];
+    if (revokeCall === undefined) throw new Error("Expected credential revoke");
+    expect(revokeCall[1]?.method).toBe("DELETE");
   });
 
   it("surfaces the nested OpenAPI error code and message", async () => {

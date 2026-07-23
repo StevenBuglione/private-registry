@@ -6,6 +6,7 @@ import {
 } from "react-router";
 import { AppShell } from "./components/AppShell";
 import { StatePanel } from "./components/StatePanel";
+import { AdminSettingsPage } from "./routes/AdminSettingsPage";
 import { CatalogPage } from "./routes/CatalogPage";
 import { HomePage } from "./routes/HomePage";
 import { PackageDetailPage } from "./routes/PackageDetailPage";
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "admin", element: <AdminSettingsPage /> },
       { path: "browse", element: <CatalogPage /> },
       { path: "browse/providers", element: <CatalogPage kind="provider" /> },
       { path: "browse/modules", element: <CatalogPage kind="module" /> },

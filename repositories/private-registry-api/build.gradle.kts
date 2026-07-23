@@ -393,7 +393,9 @@ pitest {
 
 val nullMarkedProductionPackages =
     listOf(
+        "administration",
         "artifactory",
+        "audit",
         "catalog",
         "config",
         "eventing",

@@ -60,7 +60,12 @@ class CleanArchitectureTest {
           .that()
           .haveSimpleNameEndingWith("Repository")
           .should()
-          .resideInAnyPackage("..catalog..", "..ingestion..", "..security.identity..");
+          .resideInAnyPackage(
+              "..administration..",
+              "..audit..",
+              "..catalog..",
+              "..ingestion..",
+              "..security.identity..");
 
   @ArchTest
   static final ArchRule webAdaptersMustNotReachBackgroundProcessing =

@@ -4,12 +4,17 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as ApiExports from "./api";
 import {
+  useAdminDashboard,
+  useAdminOperations,
+  useAuditEvents,
   useCatalogEvents,
   useCatalogPage,
   useCatalogSuggestions,
+  useCreateSyncCredential,
   usePackage,
   usePackageDocumentation,
   useSession,
+  useSyncCredentials,
 } from "./hooks";
 
 const apiMocks = vi.hoisted(() => ({
@@ -18,6 +23,11 @@ const apiMocks = vi.hoisted(() => ({
   getPackage: vi.fn(),
   getPackageDocumentation: vi.fn(),
   catalogEventsUrl: vi.fn(),
+  getAdminDashboard: vi.fn(),
+  getAdminOperations: vi.fn(),
+  getAuditEvents: vi.fn(),
+  getSyncCredentials: vi.fn(),
+  createSyncCredential: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => {
@@ -50,6 +60,14 @@ beforeEach(() => {
   apiMocks.getPackage.mockResolvedValue({ name: "aws" });
   apiMocks.getPackageDocumentation.mockResolvedValue("# AWS");
   apiMocks.catalogEventsUrl.mockReturnValue("/api/v1/catalog/events");
+  apiMocks.getAdminDashboard.mockResolvedValue({ status: "healthy" });
+  apiMocks.getAdminOperations.mockResolvedValue([]);
+  apiMocks.getAuditEvents.mockResolvedValue([]);
+  apiMocks.getSyncCredentials.mockResolvedValue([]);
+  apiMocks.createSyncCredential.mockResolvedValue({
+    credential: { id: "credential-1" },
+    token: "one-time-secret",
+  });
 });
 
 afterEach(() => {
@@ -125,6 +143,46 @@ describe("query hooks", () => {
       undefined,
       "6.8.0",
       "resources/aws.md",
+    );
+  });
+
+  it("loads administrator telemetry and invalidates credential queries after creation", async () => {
+    const dashboard = renderHook(() => useAdminDashboard(), {
+      wrapper: Wrapper,
+    });
+    const operations = renderHook(() => useAdminOperations(), {
+      wrapper: Wrapper,
+    });
+    const audit = renderHook(() => useAuditEvents(), { wrapper: Wrapper });
+    const credentials = renderHook(() => useSyncCredentials(), {
+      wrapper: Wrapper,
+    });
+    const create = renderHook(() => useCreateSyncCredential("csrf"), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(dashboard.result.current.isSuccess).toBe(true);
+      expect(operations.result.current.isSuccess).toBe(true);
+      expect(audit.result.current.isSuccess).toBe(true);
+      expect(credentials.result.current.isSuccess).toBe(true);
+    });
+    await create.result.current.mutateAsync({
+      name: "GitHub modules",
+      scope: "module",
+      expiresInDays: 90,
+    });
+
+    expect(apiMocks.getAdminDashboard).toHaveBeenCalledOnce();
+    expect(apiMocks.getAdminOperations).toHaveBeenCalledOnce();
+    expect(apiMocks.getAuditEvents).toHaveBeenCalled();
+    expect(apiMocks.createSyncCredential).toHaveBeenCalledWith(
+      {
+        name: "GitHub modules",
+        scope: "module",
+        expiresInDays: 90,
+      },
+      "csrf",
     );
   });
 });

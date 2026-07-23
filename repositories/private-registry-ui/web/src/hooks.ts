@@ -3,15 +3,22 @@ import { useEffect } from "react";
 import {
   ApiError,
   catalogEventsUrl,
+  createSyncCredential,
+  getAdminDashboard,
+  getAdminOperations,
+  getAuditEvents,
   getCatalogPage,
   getHomepageSettings,
   getPackage,
   getPackageDocumentation,
   getSession,
+  getSyncCredentials,
+  revokeSyncCredential,
   updateHomepageSettings,
 } from "./api";
 import type {
   CatalogQuery,
+  CreateSyncCredential,
   HomepageSettingsUpdate,
   PackageKind,
 } from "./types";
@@ -55,6 +62,72 @@ export function useUpdateHomepageSettings(csrfToken?: string) {
     onSuccess: async (settings) => {
       queryClient.setQueryData(["homepage-settings"], settings);
       await queryClient.invalidateQueries({ queryKey: ["homepage-settings"] });
+    },
+  });
+}
+
+export function useAdminDashboard() {
+  return useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: getAdminDashboard,
+    retry: queryRetry,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAdminOperations() {
+  return useQuery({
+    queryKey: ["admin", "operations"],
+    queryFn: getAdminOperations,
+    retry: queryRetry,
+    refetchInterval: 15_000,
+  });
+}
+
+export function useAuditEvents() {
+  return useQuery({
+    queryKey: ["admin", "audit-events"],
+    queryFn: getAuditEvents,
+    retry: queryRetry,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useSyncCredentials() {
+  return useQuery({
+    queryKey: ["admin", "sync-credentials"],
+    queryFn: getSyncCredentials,
+    retry: queryRetry,
+  });
+}
+
+export function useCreateSyncCredential(csrfToken?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (value: CreateSyncCredential) =>
+      createSyncCredential(value, csrfToken),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "sync-credentials"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "audit-events"],
+      });
+    },
+  });
+}
+
+export function useRevokeSyncCredential(csrfToken?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => revokeSyncCredential(id, csrfToken),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "sync-credentials"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "audit-events"],
+      });
     },
   });
 }

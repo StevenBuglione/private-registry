@@ -15,6 +15,7 @@ import { AppShell } from "./components/AppShell";
 import type * as HookExports from "./hooks";
 import { RegistryProvider } from "./registry-provider";
 import { LegacyPackageRedirect } from "./router";
+import { AdminSettingsPage } from "./routes/AdminSettingsPage";
 import { CatalogPage } from "./routes/CatalogPage";
 import { HomePage } from "./routes/HomePage";
 import type {
@@ -30,6 +31,12 @@ const hookMocks = vi.hoisted(() => ({
   useCatalogEvents: vi.fn(),
   useHomepageSettings: vi.fn(),
   useUpdateHomepageSettings: vi.fn(),
+  useAdminDashboard: vi.fn(),
+  useAdminOperations: vi.fn(),
+  useAuditEvents: vi.fn(),
+  useSyncCredentials: vi.fn(),
+  useCreateSyncCredential: vi.fn(),
+  useRevokeSyncCredential: vi.fn(),
 }));
 
 const apiMocks = vi.hoisted(() => ({ logout: vi.fn() }));
@@ -44,6 +51,12 @@ vi.mock("./hooks", async (importOriginal) => {
     useCatalogEvents: hookMocks.useCatalogEvents,
     useHomepageSettings: hookMocks.useHomepageSettings,
     useUpdateHomepageSettings: hookMocks.useUpdateHomepageSettings,
+    useAdminDashboard: hookMocks.useAdminDashboard,
+    useAdminOperations: hookMocks.useAdminOperations,
+    useAuditEvents: hookMocks.useAuditEvents,
+    useSyncCredentials: hookMocks.useSyncCredentials,
+    useCreateSyncCredential: hookMocks.useCreateSyncCredential,
+    useRevokeSyncCredential: hookMocks.useRevokeSyncCredential,
   };
 });
 
@@ -113,6 +126,7 @@ function renderShell(initialEntry = "/") {
         <Route element={<AppShell />}>
           <Route index element={<div>Authenticated outlet</div>} />
           <Route path="docs" element={<Navigate replace to="/" />} />
+          <Route path="admin" element={<AdminSettingsPage />} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -158,7 +172,78 @@ beforeEach(() => {
   hookMocks.useUpdateHomepageSettings.mockReturnValue({
     mutateAsync: vi.fn(),
     isPending: false,
+    isSuccess: false,
     error: null,
+  });
+  hookMocks.useAdminDashboard.mockReturnValue({
+    data: {
+      generatedAt: "2026-07-23T12:00:00Z",
+      status: "healthy",
+      workerEnabled: true,
+      dependencies: { postgresql: "up", artifactory: "up" },
+      catalog: {
+        providers: 12,
+        modules: 30,
+        activeVersions: 84,
+        documents: 240,
+        downloads: 12400,
+      },
+      queue: {
+        queued: 0,
+        processing: 1,
+        retry: 0,
+        completed: 86,
+        deadLetter: 0,
+      },
+      ingestion: {
+        completed: 42,
+        failed: 0,
+        quarantined: 0,
+        latencyP95Ms: 840,
+        lastCompletedAt: "2026-07-23T11:58:00Z",
+      },
+      reconciliation: {
+        id: "run-1",
+        mode: "repair",
+        scope: "all-ready-manifests",
+        status: "completed",
+        discrepancies: 2,
+        repaired: 2,
+        startedAt: "2026-07-23T11:00:00Z",
+        completedAt: "2026-07-23T11:01:00Z",
+      },
+      databaseSizeBytes: 1048576,
+    },
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  hookMocks.useAdminOperations.mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  hookMocks.useAuditEvents.mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  hookMocks.useSyncCredentials.mockReturnValue({
+    data: [],
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  hookMocks.useCreateSyncCredential.mockReturnValue({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    error: null,
+  });
+  hookMocks.useRevokeSyncCredential.mockReturnValue({
+    mutateAsync: vi.fn(),
+    isPending: false,
   });
   apiMocks.logout.mockResolvedValue("/signed-out");
 });
@@ -247,7 +332,7 @@ describe("application composition", () => {
     expect(result.violations).toEqual([]);
   });
 
-  it("lets registry administrators edit homepage content and featured providers", async () => {
+  it("provides administrators a complete settings and operations workspace", async () => {
     const user = userEvent.setup();
     const mutateAsync = vi.fn().mockResolvedValue(undefined);
     hookMocks.useSession.mockReturnValueOnce(
@@ -256,17 +341,39 @@ describe("application composition", () => {
     hookMocks.useUpdateHomepageSettings.mockReturnValue({
       mutateAsync,
       isPending: false,
+      isSuccess: false,
       error: null,
     });
-    renderShell();
+    const createCredential = vi.fn().mockResolvedValue({
+      credential: {
+        id: "credential-1",
+        name: "GitHub modules",
+        scope: "module",
+        keyPrefix: "rgs.credenti",
+        createdBy: "user-1",
+        createdAt: "2026-07-23T12:00:00Z",
+        expiresAt: "2026-10-21T12:00:00Z",
+        useCount: 0,
+        status: "active",
+      },
+      token: "rgs.credential-1.one-time-secret",
+    });
+    hookMocks.useCreateSyncCredential.mockReturnValue({
+      mutateAsync: createCredential,
+      isPending: false,
+      error: null,
+    });
+    const { container } = renderShell();
 
     await user.click(screen.getByRole("button", { name: /Ada Lovelace/i }));
-    await user.click(
-      screen.getByRole("menuitem", { name: "Homepage settings" }),
-    );
+    await user.click(screen.getByRole("menuitem", { name: "Admin settings" }));
     expect(
-      screen.getByRole("dialog", { name: "Homepage settings" }),
+      screen.getByRole("heading", { name: "Settings and operations" }),
     ).toBeVisible();
+    expect(screen.getByText("Registry systems are healthy")).toBeVisible();
+    expect(screen.getByText("12,400")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Homepage" }));
     const title = screen.getByRole("textbox", { name: "Title" });
     await user.clear(title);
     await user.type(title, "Planned maintenance");
@@ -295,6 +402,181 @@ describe("application composition", () => {
         featuredProviderIds: [],
       }),
     );
+
+    await user.click(screen.getByRole("button", { name: "Sync credentials" }));
+    const createButtons = screen.getAllByRole("button", {
+      name: "Create credential",
+    });
+    const createSubmit = createButtons.at(-1);
+    if (createSubmit === undefined) throw new Error("Expected create submit");
+    await user.click(createSubmit);
+    await user.type(
+      screen.getByRole("textbox", { name: "Name" }),
+      "GitHub modules",
+    );
+    const submitButtons = screen.getAllByRole("button", {
+      name: "Create credential",
+    });
+    const credentialSubmit = submitButtons.at(-1);
+    if (credentialSubmit === undefined)
+      throw new Error("Expected credential submit");
+    await user.click(credentialSubmit);
+    expect(createCredential).toHaveBeenCalledWith({
+      name: "GitHub modules",
+      scope: "module",
+      expiresInDays: 90,
+    });
+    expect(screen.getByText("Credential created")).toBeVisible();
+    expect(screen.getByText("rgs.credential-1.one-time-secret")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Operational logs" }));
+    expect(screen.getByText("No activity recorded")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Audit log" }));
+    expect(screen.getByText("Administrator audit log")).toBeVisible();
+
+    const result = await axe.run(container, {
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(result.violations).toEqual([]);
+  });
+
+  it("surfaces degraded operations, immutable audit activity, and credential revocation", async () => {
+    const user = userEvent.setup();
+    const revokeCredential = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    hookMocks.useSession.mockReturnValue(
+      sessionResult({ data: { ...session, admin: true } }),
+    );
+    hookMocks.useAdminDashboard.mockReturnValue({
+      data: {
+        generatedAt: "2026-07-23T12:00:00Z",
+        status: "degraded",
+        workerEnabled: false,
+        dependencies: {
+          postgresql: "up",
+          artifactory: "not_configured",
+        },
+        catalog: {
+          providers: 0,
+          modules: 0,
+          activeVersions: 0,
+          documents: 0,
+          downloads: 0,
+        },
+        queue: {
+          queued: 2,
+          processing: 1,
+          retry: 1,
+          completed: 0,
+          deadLetter: 1,
+        },
+        ingestion: {
+          completed: 0,
+          failed: 1,
+          quarantined: 1,
+          latencyP95Ms: 1400,
+        },
+        databaseSizeBytes: 512,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    hookMocks.useAdminOperations.mockReturnValue({
+      data: [
+        {
+          source: "queue",
+          eventId: "event-1",
+          status: "dead_letter",
+          title: "Queue delivery",
+          detail: "Attempts exhausted",
+          repository: "iac-provider-release-local",
+          path: "hashicorp/aws/1.0.0/linux_amd64.zip",
+          correlationId: "correlation-1",
+          occurredAt: "2026-07-23T12:00:00Z",
+        },
+      ],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    hookMocks.useAuditEvents.mockReturnValue({
+      data: [
+        {
+          id: "audit-1",
+          occurredAt: "2026-07-23T12:00:00Z",
+          actorType: "user",
+          actorId: "admin-1",
+          action: "registry.homepage.updated",
+          resourceType: "registry_homepage",
+          resourceId: "home",
+          correlationId: "correlation-1",
+          detail: {},
+        },
+      ],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    hookMocks.useSyncCredentials.mockReturnValue({
+      data: [
+        {
+          id: "credential-1",
+          name: "Provider release",
+          scope: "provider",
+          keyPrefix: "rgs.credenti",
+          createdBy: "admin-1",
+          createdAt: "2026-07-23T12:00:00Z",
+          expiresAt: "2026-10-21T12:00:00Z",
+          lastUsedAt: "2026-07-23T12:30:00Z",
+          useCount: 8,
+          status: "active",
+        },
+        {
+          id: "credential-2",
+          name: "Old runner",
+          scope: "all",
+          keyPrefix: "rgs.oldrunne",
+          createdBy: "admin-1",
+          createdAt: "2026-01-01T12:00:00Z",
+          expiresAt: "2026-02-01T12:00:00Z",
+          useCount: 0,
+          status: "expired",
+        },
+      ],
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    hookMocks.useRevokeSyncCredential.mockReturnValue({
+      mutateAsync: revokeCredential,
+      isPending: false,
+    });
+
+    renderShell("/admin");
+    expect(screen.getByText("Registry requires attention")).toBeVisible();
+    expect(
+      screen.getByText("No reconciliation run has been recorded."),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Operational logs" }));
+    expect(screen.getByText("Attempts exhausted")).toBeVisible();
+    expect(
+      screen.getByText(
+        "iac-provider-release-local/hashicorp/aws/1.0.0/linux_amd64.zip",
+      ),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Audit log" }));
+    expect(screen.getByText(/registry · homepage · updated/i)).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Sync credentials" }));
+    expect(screen.getByText("Provider release")).toBeVisible();
+    expect(screen.getByText("Never")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Revoke Provider release" }),
+    );
+    expect(revokeCredential).toHaveBeenCalledWith("credential-1");
   });
 
   it("renders truthful home counts and catalog content", () => {

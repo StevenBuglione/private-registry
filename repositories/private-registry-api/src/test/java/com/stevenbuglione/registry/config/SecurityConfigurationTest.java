@@ -4,11 +4,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.stevenbuglione.registry.administration.SyncTriggerService;
 import com.stevenbuglione.registry.eventing.CatalogEventPublisher;
 import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookController;
 import com.stevenbuglione.registry.eventing.webhook.JfrogWebhookParser;
@@ -18,6 +20,7 @@ import com.stevenbuglione.registry.security.identity.AlbAuthenticationFilter;
 import com.stevenbuglione.registry.security.identity.AlbTokenVerifier;
 import com.stevenbuglione.registry.security.identity.IdentityProperties;
 import com.stevenbuglione.registry.security.identity.RegistryIdentityService;
+import com.stevenbuglione.registry.web.SyncTriggerController;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
@@ -78,6 +81,38 @@ class SecurityConfigurationTest {
     mvc.perform(get("/internal/webhooks/jfrog")).andExpect(status().isUnauthorized());
   }
 
+  @Test
+  void allowsApiKeyAuthenticationBoundaryToReachSyncCredentialValidation() throws Exception {
+    var sync = context.getBean(SyncTriggerService.class);
+    var command =
+        new SyncTriggerService.TriggerCommand(
+            "github-12345678",
+            "module",
+            "iac-module-release-local",
+            "Azure/vnet/azurerm/1.0.0.zip",
+            SyncTriggerService.Action.DEPLOYED);
+    when(sync.trigger("Bearer test-token", command))
+        .thenReturn(
+            new SyncTriggerService.TriggerReceipt("runner-event", "publication-1", "accepted"));
+
+    mvc.perform(
+            post("/api/v1/sync/artifacts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer test-token")
+                .header("Idempotency-Key", "github-12345678")
+                .content(
+                    """
+                    {
+                      "kind": "module",
+                      "repository": "iac-module-release-local",
+                      "path": "Azure/vnet/azurerm/1.0.0.zip"
+                    }
+                    """))
+        .andExpect(status().isAccepted());
+
+    verify(sync).trigger("Bearer test-token", command);
+  }
+
   @Configuration(proxyBeanMethods = false)
   @EnableWebMvc
   @EnableWebSecurity
@@ -131,6 +166,16 @@ class SecurityConfigurationTest {
     @Bean
     CatalogEventPublisher catalogEventPublisher() {
       return mock(CatalogEventPublisher.class);
+    }
+
+    @Bean
+    SyncTriggerService syncTriggerService() {
+      return mock(SyncTriggerService.class);
+    }
+
+    @Bean
+    SyncTriggerController syncTriggerController(SyncTriggerService sync) {
+      return new SyncTriggerController(sync);
     }
 
     @Bean

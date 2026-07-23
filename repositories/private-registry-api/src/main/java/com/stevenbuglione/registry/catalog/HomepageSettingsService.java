@@ -1,5 +1,7 @@
 package com.stevenbuglione.registry.catalog;
 
+import com.stevenbuglione.registry.audit.AuditLogService;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -17,9 +19,11 @@ public class HomepageSettingsService {
       Pattern.compile("provider/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+");
 
   private final JdbcClient jdbc;
+  private final AuditLogService audit;
 
-  public HomepageSettingsService(JdbcClient jdbc) {
+  public HomepageSettingsService(JdbcClient jdbc, AuditLogService audit) {
     this.jdbc = jdbc;
+    this.audit = audit;
   }
 
   public HomepageSettings get() {
@@ -51,6 +55,7 @@ public class HomepageSettingsService {
   @Transactional
   public HomepageSettings update(Update update, String actorSubject) {
     var normalized = validate(update);
+    var before = get();
     jdbc.sql(
             """
             UPDATE registry_homepage_settings
@@ -72,35 +77,19 @@ public class HomepageSettingsService {
         .param("featuredProviderIds", String.join(",", normalized.featuredProviderIds()))
         .param("updatedBy", actorSubject)
         .update();
-    jdbc.sql(
-            """
-            INSERT INTO audit_events (
-                occurred_at,
-                actor_type,
-                actor_id,
-                action,
-                resource_type,
-                resource_id,
-                correlation_id,
-                detail)
-            VALUES (
-                now(),
-                'user',
-                :actorId,
-                'registry.homepage.updated',
-                'registry_homepage',
-                'home',
-                gen_random_uuid()::text,
-                jsonb_build_object(
-                    'notification_enabled', :notificationEnabled,
-                    'featured_provider_ids',
-                    to_jsonb(string_to_array(:featuredProviderIds, ','))))
-            """)
-        .param("actorId", actorSubject)
-        .param("notificationEnabled", normalized.notificationEnabled())
-        .param("featuredProviderIds", String.join(",", normalized.featuredProviderIds()))
-        .update();
-    return get();
+    var after = get();
+    var detail = new LinkedHashMap<String, Object>();
+    detail.put("before", before);
+    detail.put("after", after);
+    audit.record(
+        new AuditLogService.AuditEntry(
+            "user",
+            actorSubject,
+            "registry.homepage.updated",
+            "registry_homepage",
+            "home",
+            detail));
+    return after;
   }
 
   private static Update validate(Update update) {

@@ -33,7 +33,7 @@ public class SecurityConfiguration {
     http.csrf(
             csrf ->
                 csrf.csrfTokenRepository(csrfRepository)
-                    .ignoringRequestMatchers("/internal/webhooks/**"))
+                    .ignoringRequestMatchers("/internal/webhooks/**", "/api/v1/sync/artifacts"))
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .logout(AbstractHttpConfigurer::disable)
@@ -50,6 +50,7 @@ public class SecurityConfiguration {
                   .permitAll();
               authorize.requestMatchers("/oauth2/**", "/login/**").permitAll();
               authorize.requestMatchers(HttpMethod.POST, "/internal/webhooks/jfrog").permitAll();
+              authorize.requestMatchers(HttpMethod.POST, "/api/v1/sync/artifacts").permitAll();
               if (properties.permitAll()) {
                 authorize.anyRequest().permitAll();
               } else {

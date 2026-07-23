@@ -1,17 +1,23 @@
 import { type ZodType, z } from "zod";
 import { runtimeConfig } from "./runtime-config";
 import type {
+  AdminDashboard,
   ApmAccess,
+  AuditEvent,
   CatalogPage,
   CatalogQuery,
+  CreatedSyncCredential,
+  CreateSyncCredential,
   DownloadStatistics,
   HomepageSettings,
   HomepageSettingsUpdate,
+  OperationalEvent,
   PackageDetail,
   PackageKind,
   PackageSummary,
   PackageSymbol,
   RegistrySession,
+  SyncCredential,
 } from "./types";
 
 const wireKeys = [
@@ -314,6 +320,192 @@ export async function getPackageDocumentation(
 
 export function catalogEventsUrl(): string {
   return `${runtimeConfig().apiBaseUrl}/catalog/events`;
+}
+
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  const raw = await request("/admin/dashboard", jsonObjectSchema);
+  return normalizeAdminDashboard(raw);
+}
+
+export async function getAdminOperations(): Promise<OperationalEvent[]> {
+  const raw = await request(
+    "/admin/operations?limit=75",
+    z.array(jsonObjectSchema),
+  );
+  return raw.map(normalizeOperationalEvent);
+}
+
+export async function getAuditEvents(): Promise<AuditEvent[]> {
+  const raw = await request(
+    "/admin/audit-events?limit=75",
+    z.array(jsonObjectSchema),
+  );
+  return raw.map(normalizeAuditEvent);
+}
+
+export async function getSyncCredentials(): Promise<SyncCredential[]> {
+  const raw = await request(
+    "/admin/sync-credentials",
+    z.array(jsonObjectSchema),
+  );
+  return raw.map(normalizeSyncCredential);
+}
+
+export async function createSyncCredential(
+  value: CreateSyncCredential,
+  csrfToken?: string,
+): Promise<CreatedSyncCredential> {
+  const raw = await request("/admin/sync-credentials", jsonObjectSchema, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...csrfHeaders(csrfToken),
+    },
+    body: JSON.stringify({
+      name: value.name,
+      scope: value.scope,
+      expires_in_days: value.expiresInDays,
+    }),
+  });
+  const credential = objectValue(raw["credential"]);
+  if (credential === undefined) {
+    throw new Error("Registry returned an invalid sync credential");
+  }
+  return {
+    credential: normalizeSyncCredential(credential),
+    token: firstString(raw["token"]),
+  };
+}
+
+export async function revokeSyncCredential(
+  id: string,
+  csrfToken?: string,
+): Promise<SyncCredential> {
+  const raw = await request(
+    `/admin/sync-credentials/${encodeURIComponent(id)}`,
+    jsonObjectSchema,
+    {
+      method: "DELETE",
+      headers: csrfHeaders(csrfToken),
+    },
+  );
+  return normalizeSyncCredential(raw);
+}
+
+function normalizeAdminDashboard(raw: JsonObject): AdminDashboard {
+  const catalog = objectValue(raw["catalog"]) ?? {};
+  const queue = objectValue(raw["queue"]) ?? {};
+  const ingestion = objectValue(raw["ingestion"]) ?? {};
+  const reconciliation = objectValue(raw["reconciliation"]);
+  const status = firstString(raw["status"]);
+  return {
+    generatedAt: firstString(raw["generated_at"], raw["generatedAt"]),
+    status: status === "degraded" ? "degraded" : "healthy",
+    workerEnabled: Boolean(raw["worker_enabled"] ?? raw["workerEnabled"]),
+    dependencies: stringRecord(raw["dependencies"]),
+    catalog: {
+      providers: firstNumber(catalog["providers"]),
+      modules: firstNumber(catalog["modules"]),
+      activeVersions: firstNumber(
+        catalog["active_versions"],
+        catalog["activeVersions"],
+      ),
+      documents: firstNumber(catalog["documents"]),
+      downloads: firstNumber(catalog["downloads"]),
+    },
+    queue: {
+      queued: firstNumber(queue["queued"]),
+      processing: firstNumber(queue["processing"]),
+      retry: firstNumber(queue["retry"]),
+      completed: firstNumber(queue["completed"]),
+      deadLetter: firstNumber(queue["dead_letter"], queue["deadLetter"]),
+    },
+    ingestion: {
+      completed: firstNumber(ingestion["completed"]),
+      failed: firstNumber(ingestion["failed"]),
+      quarantined: firstNumber(ingestion["quarantined"]),
+      latencyP95Ms: firstNumber(
+        ingestion["latency_p95_ms"],
+        ingestion["latencyP95Ms"],
+      ),
+      lastCompletedAt: optionalString(
+        ingestion["last_completed_at"],
+        ingestion["lastCompletedAt"],
+      ),
+    },
+    reconciliation:
+      reconciliation === undefined
+        ? undefined
+        : {
+            id: firstString(reconciliation["id"]),
+            mode: firstString(reconciliation["mode"]),
+            scope: firstString(reconciliation["scope"]),
+            status: firstString(reconciliation["status"]),
+            discrepancies: firstNumber(reconciliation["discrepancies"]),
+            repaired: firstNumber(reconciliation["repaired"]),
+            startedAt: firstString(
+              reconciliation["started_at"],
+              reconciliation["startedAt"],
+            ),
+            completedAt: optionalString(
+              reconciliation["completed_at"],
+              reconciliation["completedAt"],
+            ),
+          },
+    databaseSizeBytes: firstNumber(
+      raw["database_size_bytes"],
+      raw["databaseSizeBytes"],
+    ),
+  };
+}
+
+function normalizeOperationalEvent(raw: JsonObject): OperationalEvent {
+  const source = firstString(raw["source"]);
+  return {
+    source:
+      source === "queue" || source === "reconciliation" ? source : "ingestion",
+    eventId: firstString(raw["event_id"], raw["eventId"]),
+    status: firstString(raw["status"]),
+    title: firstString(raw["title"]),
+    detail: firstString(raw["detail"]),
+    repository: optionalString(raw["repository"]),
+    path: optionalString(raw["path"]),
+    correlationId: firstString(raw["correlation_id"], raw["correlationId"]),
+    occurredAt: firstString(raw["occurred_at"], raw["occurredAt"]),
+  };
+}
+
+function normalizeAuditEvent(raw: JsonObject): AuditEvent {
+  return {
+    id: firstString(raw["id"]),
+    occurredAt: firstString(raw["occurred_at"], raw["occurredAt"]),
+    actorType: firstString(raw["actor_type"], raw["actorType"]),
+    actorId: firstString(raw["actor_id"], raw["actorId"]),
+    action: firstString(raw["action"]),
+    resourceType: firstString(raw["resource_type"], raw["resourceType"]),
+    resourceId: firstString(raw["resource_id"], raw["resourceId"]),
+    correlationId: firstString(raw["correlation_id"], raw["correlationId"]),
+    detail: raw["detail"],
+  };
+}
+
+function normalizeSyncCredential(raw: JsonObject): SyncCredential {
+  const scope = firstString(raw["scope"]).toLowerCase();
+  const status = firstString(raw["status"]).toLowerCase();
+  return {
+    id: firstString(raw["id"]),
+    name: firstString(raw["name"]),
+    scope: scope === "provider" || scope === "all" ? scope : "module",
+    keyPrefix: firstString(raw["key_prefix"], raw["keyPrefix"]),
+    createdBy: firstString(raw["created_by"], raw["createdBy"]),
+    createdAt: firstString(raw["created_at"], raw["createdAt"]),
+    expiresAt: firstString(raw["expires_at"], raw["expiresAt"]),
+    revokedAt: optionalString(raw["revoked_at"], raw["revokedAt"]),
+    revokedBy: optionalString(raw["revoked_by"], raw["revokedBy"]),
+    lastUsedAt: optionalString(raw["last_used_at"], raw["lastUsedAt"]),
+    useCount: firstNumber(raw["use_count"], raw["useCount"]),
+    status: status === "revoked" || status === "expired" ? status : "active",
+  };
 }
 
 export function normalizeCatalogPage(raw: JsonObject): CatalogPage {
@@ -770,4 +962,13 @@ function stringList(value: unknown): string[] {
           : "",
     )
     .filter(Boolean);
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }

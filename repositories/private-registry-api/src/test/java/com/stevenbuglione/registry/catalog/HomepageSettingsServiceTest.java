@@ -3,6 +3,7 @@ package com.stevenbuglione.registry.catalog;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
+import com.stevenbuglione.registry.audit.AuditLogService;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class HomepageSettingsServiceTest {
 
   private final HomepageSettingsService service =
-      new HomepageSettingsService(mock(JdbcClient.class));
+      new HomepageSettingsService(mock(JdbcClient.class), mock(AuditLogService.class));
 
   @Test
   void rejectsIncompleteOrUnsafeNotificationLinks() {

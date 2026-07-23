@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-} from "@headlessui/react";
-import { CheckIcon, XIcon } from "@phosphor-icons/react";
+import { CheckIcon, FloppyDiskIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import {
   useCatalogPage,
@@ -20,13 +14,7 @@ import { useRegistry } from "../use-registry";
 import { PackageIcon } from "./PackageIcon";
 import { StatePanel } from "./StatePanel";
 
-export function AdminHomepageDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function HomepageSettingsPanel() {
   const { session } = useRegistry();
   const settings = useHomepageSettings();
   const providers = useCatalogPage({
@@ -36,67 +24,49 @@ export function AdminHomepageDialog({
   });
   const update = useUpdateHomepageSettings(session.csrfToken);
 
+  if (settings.isPending || providers.isPending) {
+    return <StatePanel kind="loading" />;
+  }
+  if (settings.isError || providers.isError) {
+    return (
+      <StatePanel
+        kind="api-error"
+        action={() => {
+          void settings.refetch();
+          void providers.refetch();
+        }}
+      />
+    );
+  }
+
   return (
-    <Dialog open={open} onClose={onClose} className="admin-dialog">
-      <DialogBackdrop className="admin-dialog-backdrop" />
-      <div className="admin-dialog-positioner">
-        <DialogPanel className="admin-dialog-panel">
-          <div className="admin-dialog-heading">
-            <div>
-              <DialogTitle>Homepage settings</DialogTitle>
-              <p>Manage the homepage notification and featured providers.</p>
-            </div>
-            <button type="button" aria-label="Close" onClick={onClose}>
-              <XIcon size={18} />
-            </button>
-          </div>
-          {settings.isPending || providers.isPending ? (
-            <div className="admin-dialog-state">
-              <StatePanel kind="loading" />
-            </div>
-          ) : settings.isError || providers.isError ? (
-            <div className="admin-dialog-state">
-              <StatePanel
-                kind="api-error"
-                action={() => {
-                  void settings.refetch();
-                  void providers.refetch();
-                }}
-              />
-            </div>
-          ) : (
-            <AdminHomepageForm
-              key={settings.data.updatedAt}
-              initialSettings={settings.data}
-              providers={providers.data.items}
-              error={update.error?.message}
-              saving={update.isPending}
-              onCancel={onClose}
-              onSave={async (value) => {
-                await update.mutateAsync(value);
-                onClose();
-              }}
-            />
-          )}
-        </DialogPanel>
-      </div>
-    </Dialog>
+    <HomepageSettingsForm
+      key={settings.data.updatedAt}
+      initialSettings={settings.data}
+      providers={providers.data.items}
+      error={update.error?.message}
+      saving={update.isPending}
+      saved={update.isSuccess}
+      onSave={async (value) => {
+        await update.mutateAsync(value);
+      }}
+    />
   );
 }
 
-function AdminHomepageForm({
+function HomepageSettingsForm({
   initialSettings,
   providers,
   error,
   saving,
-  onCancel,
+  saved,
   onSave,
 }: {
   initialSettings: HomepageSettings;
   providers: PackageSummary[];
   error: string | undefined;
   saving: boolean;
-  onCancel: () => void;
+  saved: boolean;
   onSave: (value: HomepageSettingsUpdate) => Promise<void>;
 }) {
   const [form, setForm] = useState<HomepageSettingsUpdate>(() => ({
@@ -119,7 +89,7 @@ function AdminHomepageForm({
 
   return (
     <form
-      className="admin-homepage-form"
+      className="admin-homepage-form admin-panel-form"
       onSubmit={(event) => {
         event.preventDefault();
         void onSave(form);
@@ -129,7 +99,7 @@ function AdminHomepageForm({
         <div className="admin-form-section-heading">
           <div>
             <h2>Homepage notification</h2>
-            <p>Shown below global search when enabled.</p>
+            <p>Publish an operational notice below the global search bar.</p>
           </div>
           <label className="admin-switch">
             <input
@@ -247,16 +217,20 @@ function AdminHomepageForm({
         </div>
       </section>
 
-      {error !== undefined ? (
-        <p className="admin-form-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <div className="admin-dialog-actions">
-        <button type="button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="primary" type="submit" disabled={saving}>
+      <div className="admin-panel-actions">
+        <span
+          className={
+            error === undefined ? "save-confirmation" : "admin-form-error"
+          }
+        >
+          {error ?? (saved ? "Homepage configuration saved." : "")}
+        </span>
+        <button
+          className="admin-primary-button"
+          type="submit"
+          disabled={saving}
+        >
+          <FloppyDiskIcon size={17} />
           {saving ? "Saving…" : "Save homepage"}
         </button>
       </div>
