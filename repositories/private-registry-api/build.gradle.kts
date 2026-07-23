@@ -81,7 +81,7 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("org.postgresql:postgresql:42.7.12")
+    implementation("org.postgresql:postgresql:42.7.13")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
     implementation("org.apache.groovy:groovy")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
