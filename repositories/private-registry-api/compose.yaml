@@ -117,7 +117,11 @@ services:
       REGISTRY_DOWNLOAD_STATISTICS_INITIAL_DELAY: 2s
     command: ["--spring.main.web-application-type=none"]
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
     depends_on:
       role-bootstrap:
         condition: service_completed_successfully
