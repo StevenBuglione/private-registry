@@ -23,6 +23,7 @@ import { useCatalogEvents, useSession } from "../hooks";
 import { RegistryProvider } from "../registry-provider";
 import { runtimeConfig } from "../runtime-config";
 import { useRegistry } from "../use-registry";
+import { LoginPage } from "./LoginPage";
 import { PageViewTracker } from "./PageViewTracker";
 import { RegistryBrand, RegistryMark } from "./RegistryMark";
 import { SearchBox } from "./SearchBox";
@@ -40,32 +41,32 @@ export function AppShell() {
 
   if (session.isError) {
     const error = session.error;
+    if (error instanceof ApiError && error.status === 401) {
+      return (
+        <LoginPage
+          onSignIn={() => {
+            window.location.assign("/oauth2/authorization/entra");
+          }}
+        />
+      );
+    }
     const kind =
-      error instanceof ApiError && error.status === 401
-        ? "expired"
-        : error instanceof ApiError && error.status === 403
-          ? "revoked"
-          : error instanceof ApiError &&
-              ([
-                "IDENTITY_PROVIDER_UNAVAILABLE",
-                "identity_unavailable",
-              ].includes(error.code ?? "") ||
-                error.status === 502 ||
-                error.status === 503)
-            ? "identity-error"
-            : "api-error";
+      error instanceof ApiError && error.status === 403
+        ? "revoked"
+        : error instanceof ApiError &&
+            (["IDENTITY_PROVIDER_UNAVAILABLE", "identity_unavailable"].includes(
+              error.code ?? "",
+            ) ||
+              error.status === 502 ||
+              error.status === 503)
+          ? "identity-error"
+          : "api-error";
     return (
       <PublicFrame>
         <StatePanel
           kind={kind}
-          action={
-            kind === "expired"
-              ? () => {
-                  window.location.assign("/oauth2/authorization/entra");
-                }
-              : () => void session.refetch()
-          }
-          actionLabel={kind === "expired" ? "Sign in" : "Try again"}
+          action={() => void session.refetch()}
+          actionLabel="Try again"
         />
       </PublicFrame>
     );

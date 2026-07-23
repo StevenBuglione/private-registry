@@ -3,7 +3,6 @@ import {
   LockKeyIcon,
   MagnifyingGlassIcon,
   ShieldWarningIcon,
-  SignInIcon,
   WifiSlashIcon,
 } from "@phosphor-icons/react";
 
@@ -11,7 +10,6 @@ type StateKind =
   | "loading"
   | "empty"
   | "no-access"
-  | "expired"
   | "revoked"
   | "identity-error"
   | "api-error"
@@ -30,11 +28,6 @@ const copy: Record<StateKind, { title: string; description: string }> = {
     title: "No registry access yet",
     description:
       "You’re signed in, but none of your Entra groups currently grant access to a registry APM.",
-  },
-  expired: {
-    title: "Your session has expired",
-    description:
-      "Sign in again to refresh your Entra group memberships and registry access.",
   },
   revoked: {
     title: "Registry access was revoked",
@@ -71,7 +64,6 @@ export function StatePanel({
     loading: ArrowClockwiseIcon,
     empty: MagnifyingGlassIcon,
     "no-access": LockKeyIcon,
-    expired: SignInIcon,
     revoked: ShieldWarningIcon,
     "identity-error": WifiSlashIcon,
     "api-error": WifiSlashIcon,

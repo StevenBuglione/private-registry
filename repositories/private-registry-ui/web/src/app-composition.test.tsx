@@ -312,7 +312,10 @@ afterEach(() => {
 });
 
 describe("application composition", () => {
-  it("renders loading, session-expired, identity-error, and no-access states", () => {
+  it("renders loading, full-screen sign-in, identity-error, and no-access states", async () => {
+    const user = userEvent.setup();
+    const assign = vi.fn();
+    vi.stubGlobal("location", { assign });
     hookMocks.useSession.mockReturnValueOnce(
       sessionResult({ data: undefined, isPending: true }),
     );
@@ -331,8 +334,17 @@ describe("application composition", () => {
     );
     const expired = renderShell();
     expect(
-      screen.getByRole("heading", { name: "Your session has expired" }),
+      screen.getByRole("heading", { name: "Sign in to Registry" }),
     ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Use your organization’s Microsoft account to continue.",
+      ),
+    ).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Continue with Microsoft" }),
+    );
+    expect(assign).toHaveBeenCalledWith("/oauth2/authorization/entra");
     expired.unmount();
 
     hookMocks.useSession.mockReturnValueOnce(

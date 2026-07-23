@@ -160,6 +160,59 @@ test.beforeEach(async ({ page }) => {
   await mockRegistry(page);
 });
 
+test("signed-out users receive the full-screen Microsoft login experience", async ({
+  page,
+}) => {
+  await page.unroute("**/api/v1/**");
+  await page.route("**/api/v1/auth/session", async (route) => {
+    await route.fulfill({
+      status: 401,
+      json: { message: "Authentication is required" },
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("heading", { name: "Sign in to Registry" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Continue with Microsoft" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Use your organization’s Microsoft account to continue."),
+  ).toBeVisible();
+
+  const desktop = await page.evaluate(() => {
+    const login = document.querySelector<HTMLElement>(".login-page");
+    if (login === null) throw new Error("Expected the Registry login page");
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      columns: getComputedStyle(login).gridTemplateColumns,
+      height: login.offsetHeight,
+    };
+  });
+  expect(desktop.scrollWidth).toBeLessThanOrEqual(desktop.clientWidth);
+  expect(desktop.columns.split(" ")).toHaveLength(2);
+  expect(desktop.height).toBeGreaterThanOrEqual(900);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobile = await page.evaluate(() => {
+    const login = document.querySelector<HTMLElement>(".login-page");
+    if (login === null) throw new Error("Expected the Registry login page");
+    return {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+      columns: getComputedStyle(login).gridTemplateColumns,
+    };
+  });
+  expect(mobile.scrollWidth).toBeLessThanOrEqual(mobile.clientWidth);
+  expect(mobile.columns.split(" ")).toHaveLength(1);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("authorized home and theme are accessible at desktop and mobile sizes", async ({
   page,
 }) => {
