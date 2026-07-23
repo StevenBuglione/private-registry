@@ -8,7 +8,8 @@ import org.jspecify.annotations.Nullable;
 
 public final class CatalogQuery {
 
-  private static final Set<String> SORTS = Set.of("updated", "name", "risk", "relevance");
+  private static final Set<String> SORTS =
+      Set.of("updated", "name", "risk", "relevance", "downloads");
   private static final Set<String> TIERS =
       Set.of("official", "partner", "partner-premier", "community", "none");
   private static final Set<String> CATEGORIES =
@@ -125,7 +126,8 @@ public final class CatalogQuery {
       selected = "updated";
     }
     if (!SORTS.contains(selected)) {
-      throw new IllegalArgumentException("sort must be one of relevance, updated, name, or risk");
+      throw new IllegalArgumentException(
+          "sort must be one of relevance, updated, name, risk, or downloads");
     }
     return selected;
   }

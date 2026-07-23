@@ -59,6 +59,8 @@ public class JdbcCatalogService implements CatalogService {
             END
             """;
 
+  private static final String DOWNLOAD_COUNT = "COALESCE(downloads.download_count, 0)";
+
   private static final String PACKAGE_SELECT =
       """
             SELECT p.id AS database_id,
@@ -76,7 +78,8 @@ public class JdbcCatalogService implements CatalogService {
                    p.verification,
                    p.risk_tier,
                    p.source_address,
-                   p.updated_at
+                   p.updated_at,
+                   %s AS download_count
               FROM packages p
               LEFT JOIN LATERAL (
                     SELECT pv.version
@@ -90,8 +93,23 @@ public class JdbcCatalogService implements CatalogService {
                       FROM package_owners po
                      WHERE po.package_id = p.id
               ) owners ON true
+              LEFT JOIN LATERAL (
+                    SELECT COALESCE(sum(version_downloads.download_count), 0)::bigint
+                               AS download_count
+                      FROM package_versions counted_version
+                      LEFT JOIN LATERAL (
+                            SELECT statistics.download_count
+                              FROM artifact_download_statistics statistics
+                             WHERE statistics.package_version_id = counted_version.id
+                             ORDER BY statistics.observed_on DESC
+                             LIMIT 1
+                      ) version_downloads ON true
+                     WHERE counted_version.package_id = p.id
+                       AND counted_version.active
+                       AND NOT counted_version.revoked
+              ) downloads ON true
             """
-          .formatted(PUBLIC_ID);
+          .formatted(PUBLIC_ID, DOWNLOAD_COUNT);
 
   private final JdbcClient jdbc;
   private final CatalogTextSearch catalogTextSearch;
@@ -569,6 +587,20 @@ public class JdbcCatalogService implements CatalogService {
             .append(PUBLIC_ID)
             .append(" > :cursorId))");
       }
+      case "downloads" -> {
+        try {
+          parameters.put("cursorDownloads", Long.parseLong(cursor.value()));
+        } catch (NumberFormatException exception) {
+          throw new IllegalArgumentException("Invalid catalog cursor", exception);
+        }
+        sql.append(" AND (")
+            .append(DOWNLOAD_COUNT)
+            .append(" < :cursorDownloads OR (")
+            .append(DOWNLOAD_COUNT)
+            .append(" = :cursorDownloads AND ")
+            .append(PUBLIC_ID)
+            .append(" > :cursorId))");
+      }
       default -> throw new IllegalArgumentException("Unsupported catalog sort");
     }
   }
@@ -578,6 +610,7 @@ public class JdbcCatalogService implements CatalogService {
       case "name" -> " ORDER BY public_id ASC";
       case "risk" -> " ORDER BY " + RISK_RANK + " DESC, public_id ASC";
       case "relevance" -> " ORDER BY " + RELEVANCE_RANK + " DESC, public_id ASC";
+      case "downloads" -> " ORDER BY " + DOWNLOAD_COUNT + " DESC, public_id ASC";
       case "updated" -> " ORDER BY p.updated_at DESC, public_id ASC";
       default -> throw new IllegalArgumentException("Unsupported catalog sort");
     };
@@ -590,6 +623,7 @@ public class JdbcCatalogService implements CatalogService {
           case "updated" -> row.item().updatedAt().toString();
           case "risk" -> Integer.toString(riskRank(row.item().riskTier()));
           case "relevance" -> Integer.toString(relevanceRank(row.item(), query.q()));
+          case "downloads" -> Long.toString(row.downloadCount());
           default -> throw new IllegalArgumentException("Unsupported catalog sort");
         };
     var plain = String.join("\u001f", query.sort(), value, row.item().id());
@@ -760,7 +794,8 @@ public class JdbcCatalogService implements CatalogService {
             resultSet.getTimestamp("updated_at").toInstant(),
             List.of(),
             List.of());
-    return new PackageRow(resultSet.getObject("database_id", UUID.class), item);
+    return new PackageRow(
+        resultSet.getObject("database_id", UUID.class), item, resultSet.getLong("download_count"));
   }
 
   private static int riskRank(String riskTier) {
@@ -797,7 +832,7 @@ public class JdbcCatalogService implements CatalogService {
 
   private record DecodedCursor(String sort, String value, String publicId) {}
 
-  private record PackageRow(UUID databaseId, CatalogPackage item) {}
+  private record PackageRow(UUID databaseId, CatalogPackage item, long downloadCount) {}
 
   private record VersionRow(UUID packageId, PackageVersion version) {}
 }

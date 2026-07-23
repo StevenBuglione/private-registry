@@ -54,6 +54,7 @@ export interface PackageSummary {
   verified: boolean;
   updatedAt: string;
   apmIds: string[];
+  downloadStatistics?: DownloadStatistics | undefined;
 }
 
 export interface GovernanceRecord {
@@ -83,7 +84,6 @@ export interface PackageDetail extends PackageSummary {
   sourceRepository?: string | undefined;
   sourceTag?: string | undefined;
   downloadStatisticsByVersion: Record<string, DownloadStatistics>;
-  downloadStatistics?: DownloadStatistics | undefined;
 }
 
 export interface PackageExample {
@@ -129,7 +129,7 @@ export interface CatalogQuery {
   lifecycle?: Lifecycle | undefined;
   approval?: Approval | undefined;
   risk?: Risk | undefined;
-  sort?: "relevance" | "updated" | "name" | "risk" | undefined;
+  sort?: "relevance" | "updated" | "name" | "risk" | "downloads" | undefined;
   cursor?: string | undefined;
   limit?: number | undefined;
 }

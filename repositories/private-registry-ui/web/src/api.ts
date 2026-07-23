@@ -395,6 +395,9 @@ export function normalizeCatalogPage(raw: JsonObject): CatalogPage {
 
 function normalizePackage(raw: JsonObject): PackageSummary {
   const kindValue = firstString(raw.kind, raw.type).toLowerCase();
+  const downloadStatistics = aggregateVersionDownloadStatistics(
+    firstArray(raw.versions),
+  );
   return {
     kind: kindValue.startsWith("module") ? "module" : "provider",
     namespace: firstString(
@@ -468,6 +471,7 @@ function normalizePackage(raw: JsonObject): PackageSummary {
       raw.published_at,
     ),
     apmIds: stringList(raw.apmIds ?? raw.apm_ids ?? raw.apms),
+    downloadStatistics,
   };
 }
 

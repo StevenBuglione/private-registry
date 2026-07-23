@@ -1,10 +1,10 @@
 import {
   ArrowSquareOutIcon,
+  CardsIcon,
   CaretRightIcon,
   CheckIcon,
   ClipboardIcon,
   ClockIcon,
-  CubeIcon,
   DownloadSimpleIcon,
   FileTextIcon,
   HandshakeIcon,
@@ -13,6 +13,7 @@ import {
   ListIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
+  WarningCircleIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
 import {
@@ -80,6 +81,7 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     provider: detail.data?.provider,
     apmId: selectedApmId,
     approval: "approved",
+    sort: "downloads",
     limit: 4,
   });
 
@@ -643,13 +645,15 @@ function ProviderOverview({
   selectedApmId: string | undefined;
   sourceRepository: string | undefined;
 }) {
-  const supportUrl = safeExternalUrl(runtimeConfig().supportUrl);
+  const sourceIssuesUrl = hasText(sourceRepository)
+    ? `${sourceRepository.replace(/\/$/, "")}/issues`
+    : undefined;
   return (
     <div className="source-container provider-overview-grid">
       <main>
         <div className="content-title-row provider-modules-heading">
           <h2>
-            <CubeIcon size={20} /> Top downloaded {item.name} modules
+            <CardsIcon size={18} /> Top downloaded {item.name} modules
           </h2>
           <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
             View all modules <CaretRightIcon size={14} />
@@ -690,8 +694,11 @@ function ProviderOverview({
                         <ClockIcon size={14} />
                         {formatRelativeDate(module.updatedAt)}
                       </span>
-                      <span title="Latest approved mirrored version">
-                        <DownloadSimpleIcon size={14} />v{module.version}
+                      <span title="Downloads served by this JFrog Artifactory mirror">
+                        <DownloadSimpleIcon size={14} />
+                        {formatDownloadCount(
+                          module.downloadStatistics?.allTime,
+                        )}
                       </span>
                     </small>
                   </div>
@@ -709,18 +716,47 @@ function ProviderOverview({
           <nav aria-label="Provider links">
             {hasText(sourceRepository) ? (
               <a href={sourceRepository} target="_blank" rel="noreferrer">
-                Source Code <ArrowSquareOutIcon size={14} />
+                <ArrowSquareOutIcon size={16} /> Source Code
               </a>
             ) : null}
-            <Link to="?tab=documentation">
-              Provider Documentation <CaretRightIcon size={14} />
-            </Link>
-            <Link to={`/modules?provider=${encodeURIComponent(item.provider)}`}>
-              Approved Modules <CaretRightIcon size={14} />
-            </Link>
-            {hasText(supportUrl) ? (
-              <a href={supportUrl} target="_blank" rel="noreferrer">
-                Registry Support <ArrowSquareOutIcon size={14} />
+            <a
+              href="https://www.terraform.io/docs/configuration/providers.html?utm_source=tf_registry&utm_content=sidebar"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowSquareOutIcon size={16} /> Using providers
+            </a>
+            <a
+              href="https://app.terraform.io/signup/account?utm_source=tf_registry&utm_content=sidebar"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowSquareOutIcon size={16} /> Try HCP Terraform
+            </a>
+            <a
+              href="https://learn.hashicorp.com/terraform?utm_source=tf_registry&utm_content=sidebar"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowSquareOutIcon size={16} /> View tutorials
+            </a>
+            <a
+              href="https://www.hashicorp.com/events?product=terraform&type=all&utm_source=tf_registry&utm_content=sidebar"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowSquareOutIcon size={16} /> Register for a workshop
+            </a>
+            <a
+              href="https://discuss.hashicorp.com/c/terraform-providers/31"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ArrowSquareOutIcon size={16} /> Post a forum question
+            </a>
+            {hasText(sourceIssuesUrl) ? (
+              <a href={sourceIssuesUrl} target="_blank" rel="noreferrer">
+                <WarningCircleIcon size={16} /> Report Issue
               </a>
             ) : null}
           </nav>

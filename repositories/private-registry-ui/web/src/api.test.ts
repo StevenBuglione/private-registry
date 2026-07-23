@@ -189,7 +189,22 @@ describe("OpenAPI response normalization", () => {
           risk_tier: "medium",
           source_address: "registry.example/hashicorp/aws",
           updated_at: "2026-07-22T12:00:00Z",
-          versions: [{ version: "6.8.0" }, { version: "6.7.0" }],
+          versions: [
+            {
+              version: "6.8.0",
+              download_statistics: {
+                download_count: 11,
+                observed_at: "2026-07-22T12:00:00Z",
+              },
+            },
+            {
+              version: "6.7.0",
+              download_statistics: {
+                download_count: 7,
+                observed_at: "2026-07-22T11:00:00Z",
+              },
+            },
+          ],
           symbols: [
             {
               kind: "input",
@@ -217,6 +232,10 @@ describe("OpenAPI response normalization", () => {
       lifecycle: "approved",
       risk: "medium",
       verified: true,
+      downloadStatistics: {
+        allTime: 18,
+        observedAt: "2026-07-22T12:00:00Z",
+      },
     });
   });
 

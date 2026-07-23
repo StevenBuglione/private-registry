@@ -43,6 +43,27 @@ class CatalogQueryTest {
   }
 
   @Test
+  void supportsDownloadSortingWithoutAQuery() {
+    var query =
+        new CatalogQuery(
+            new CatalogQuery.Criteria(
+                null,
+                PackageKind.MODULE,
+                "azurerm",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "downloads",
+                null,
+                4));
+
+    assertThat(query.sort()).isEqualTo("downloads");
+  }
+
+  @Test
   void rejectsNoneCombinedWithAProviderTier() {
     var criteria =
         new CatalogQuery.Criteria(

@@ -266,6 +266,27 @@ describe("PackageDetailPage symbol-driven views", () => {
       "href",
       "https://github.com/hashicorp/terraform-provider-aws",
     );
+    const providerLinks = within(
+      screen.getByRole("navigation", { name: "Provider links" }),
+    );
+    expect(providerLinks.getAllByRole("link")).toHaveLength(7);
+    for (const name of [
+      "Source Code",
+      "Using providers",
+      "Try HCP Terraform",
+      "View tutorials",
+      "Register for a workshop",
+      "Post a forum question",
+      "Report Issue",
+    ]) {
+      expect(providerLinks.getByRole("link", { name })).toBeInTheDocument();
+    }
+    expect(
+      providerLinks.getByRole("link", { name: "Report Issue" }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/hashicorp/terraform-provider-aws/issues",
+    );
     expect(
       screen.getByText(/source\s*=\s*"hashicorp\/aws"/),
     ).toBeInTheDocument();
