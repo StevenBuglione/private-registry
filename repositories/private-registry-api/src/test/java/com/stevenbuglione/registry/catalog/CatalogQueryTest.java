@@ -91,4 +91,25 @@ class CatalogQueryTest {
     assertThat(paged.page()).isEqualTo(4);
     assertThat(paged.offset()).isEqualTo(27);
   }
+
+  @Test
+  void clampsPageValuesThatCouldUnderflowOrOverflowOffsetArithmetic() {
+    var criteria =
+        new CatalogQuery.Criteria(
+            null, PackageKind.MODULE, null, null, null, "updated", null, 100, null);
+
+    assertThat(new CatalogQuery(criteria, -1).page()).isZero();
+    assertThat(new CatalogQuery(criteria, Integer.MAX_VALUE).page()).isEqualTo(10_000);
+  }
+
+  @Test
+  void calculatesTheLargestSupportedOffsetWithoutOverflow() {
+    var query =
+        new CatalogQuery(
+            new CatalogQuery.Criteria(
+                null, PackageKind.MODULE, null, null, null, "updated", null, 100, null),
+            10_000);
+
+    assertThat(query.offset()).isEqualTo(999_900);
+  }
 }

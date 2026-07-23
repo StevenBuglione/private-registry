@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class CatalogQuery {
 
+  private static final int MAX_PAGE = 10_000;
   private static final Set<String> SORTS = Set.of("updated", "name", "relevance", "downloads");
   private static final Set<String> TIERS =
       Set.of("official", "partner", "partner-premier", "community", "none");
@@ -58,7 +59,7 @@ public final class CatalogQuery {
     this.sort = normalizeSort(criteria.sort(), this.q);
     this.cursor = normalize(criteria.cursor());
     this.limit = criteria.limit() <= 0 ? 25 : Math.min(criteria.limit(), 100);
-    this.page = Objects.requireNonNullElse(page, 0);
+    this.page = normalizePage(page);
   }
 
   public @Nullable String q() {
@@ -102,7 +103,7 @@ public final class CatalogQuery {
   }
 
   public int offset() {
-    return page == 0 ? 0 : Math.multiplyExact(page - 1, limit);
+    return page <= 1 ? 0 : Math.multiplyExact(page - 1, limit);
   }
 
   private static @Nullable String normalize(@Nullable String value) {
@@ -115,6 +116,10 @@ public final class CatalogQuery {
       throw new IllegalArgumentException("namespace contains an unsupported filter value");
     }
     return normalized;
+  }
+
+  private static int normalizePage(@Nullable Integer page) {
+    return Math.clamp(Objects.requireNonNullElse(page, 0).longValue(), 0, MAX_PAGE);
   }
 
   private static void validateTierCombination(List<String> values) {
