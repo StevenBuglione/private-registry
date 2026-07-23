@@ -44,3 +44,4 @@ application-topology guidance in older planning documents.
 - [30 — Complete deployment and configuration handoff](30-deployment-configuration-handoff.md)
 - [31 — Environment-variable reference](31-environment-variable-reference.md)
 - [32 — Deployment-readiness audit and mandatory AWS corrections](32-deployment-readiness-audit.md)
+- [33 — Enterprise architecture diagrams](33-enterprise-architecture-diagrams.md)

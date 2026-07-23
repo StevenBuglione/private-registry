@@ -1,0 +1,56 @@
+sequenceDiagram
+  autonumber
+  actor user as Registry user
+  participant browser as Browser
+  participant alb as Internal ALB
+  participant entra as Microsoft Entra ID
+  participant api as Registry API
+  participant keyService as Regional ALB public-key endpoint
+  participant graphApi as Microsoft Graph
+  participant cache as Membership cache
+  participant postgres as PostgreSQL
+
+  user->>browser: Open Registry route
+  browser->>alb: HTTPS request without ALB session
+  alb->>entra: Redirect to tenant authorization endpoint
+  entra->>user: Enforce tenant policy, MFA, and consent
+  user->>entra: Complete authentication
+  entra-->>alb: Authorization response
+  alb->>entra: Exchange code and request user information
+  entra-->>alb: ID, access, and user-info claims
+  alb-->>browser: Set encrypted ALB session cookie and redirect
+  browser->>alb: Retry Registry request
+  alb->>api: Forward identity, signed OIDC data, and delegated access token
+
+  api->>keyService: Resolve key identifier with bounded timeout and rotation cache
+  keyService-->>api: ES256 public key
+  api->>api: Verify algorithm, signature, exact signer ARN, issuer, client ID, expiry, and subject match
+
+  alt assertion is invalid
+    api-->>browser: Reject request without creating a principal
+  else assertion is valid
+    api->>cache: Look up subject and configured-group-set membership
+    alt current membership result exists
+      cache-->>api: Return cached memberships within 60 seconds
+    else membership is absent or expired
+      loop groups are batched at no more than 20 IDs
+        api->>graphApi: POST /me/checkMemberGroups with delegated User.Read token
+        graphApi-->>api: Matching configured group IDs
+      end
+      api->>cache: Coalesce concurrent lookups and cache successful result only
+    end
+    api->>api: Derive RegistryPrincipal, admin role, and entitled APM IDs
+    api->>postgres: Execute query with mandatory AccessContext predicate
+    alt requested package is visible
+      postgres-->>api: Authorized catalog rows only
+      api-->>browser: Session-safe identity and authorized response
+    else package is missing or not entitled
+      postgres-->>api: No row
+      api-->>browser: Return indistinguishable 404 or an authenticated empty catalog
+    end
+  end
+
+  opt Graph, identity provider, or token validation fails
+    api->>api: Fail closed, do not cache the failure, and emit safe telemetry
+    api-->>browser: Identity-provider unavailable or unauthorized state
+  end

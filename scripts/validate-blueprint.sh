@@ -17,6 +17,7 @@ fi
 
 python3 "${ROOT}/scripts/validate_contracts.py"
 python3 "${ROOT}/scripts/validate_deployment_handoff.py"
+python3 "${ROOT}/scripts/validate_diagram_artifacts.py"
 
 while IFS= read -r -d '' contract; do
   relative="${contract#${ROOT}/contracts/}"

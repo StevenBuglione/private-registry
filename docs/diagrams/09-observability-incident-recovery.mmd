@@ -1,0 +1,75 @@
+flowchart TB
+  subgraph signals["Required service signals"]
+    edgeSignals["ALB requests, OIDC failures, target health, WAF blocks"]
+    apiSignals["API rate, latency, errors, sessions, Graph failures"]
+    workerSignals["Worker heartbeat, queue lag, retries, stale claims, dead letters"]
+    dbSignals["Connections, CPU, storage, locks, replication, backup age"]
+    jfrogSignals["JFrog latency, authorization, checksum, and reconciliation failures"]
+    auditSignals["Admin audit continuity, traffic analytics, sync-key use"]
+  end
+
+  subgraph operations["Operational control plane"]
+    logs["Structured CloudWatch logs with correlation IDs and redaction"]
+    metrics["Metrics, dashboards, and SLO windows"]
+    alarms["Actionable alarms with runbook links"]
+    onCall["Named on-call and escalation path"]
+    incident["Incident record and severity decision"]
+  end
+
+  subgraph diagnosis["Diagnosis and containment"]
+    identify["Identify affected boundary and last known good deployment"]
+    contain["Revoke credentials, block route, or stop unsafe ingestion"]
+    preserve["Preserve audit, queue, logs, digests, and deployment evidence"]
+  end
+
+  subgraph recovery["Recovery paths"]
+    jfrogOutage["JFrog outage: keep PostgreSQL catalog reads available"]
+    graphOutage["Graph outage: fail new membership resolution closed"]
+    queueIssue["Queue issue: reclaim lease, retry, dead-letter, reconcile"]
+    dbFailure["Database failure: fail over or restore to a clean point"]
+    badRelease["Bad release: route back only when schema-compatible"]
+    credentialEvent["Credential event: rotate secret and force new tasks"]
+  end
+
+  subgraph closure["Return-to-service evidence"]
+    reconcile["Run incremental then full JFrog and PostgreSQL reconciliation"]
+    validate["Run identity, authorization, ingestion, browser, and health acceptance"]
+    monitor["Observe SLOs through a defined stabilization window"]
+    review["Complete post-incident review and corrective actions"]
+  end
+
+  edgeSignals --> logs
+  apiSignals --> logs
+  workerSignals --> metrics
+  dbSignals --> metrics
+  jfrogSignals --> metrics
+  auditSignals --> logs
+  logs --> alarms
+  metrics --> alarms --> onCall --> incident --> identify
+  identify --> contain --> preserve
+
+  identify --> jfrogOutage
+  identify --> graphOutage
+  identify --> queueIssue
+  identify --> dbFailure
+  identify --> badRelease
+  identify --> credentialEvent
+
+  jfrogOutage --> reconcile
+  graphOutage --> validate
+  queueIssue --> reconcile
+  dbFailure --> reconcile
+  badRelease --> validate
+  credentialEvent --> validate
+  reconcile --> validate --> monitor --> review
+
+  classDef signal fill:#e8f3ff,stroke:#2878bd,color:#111827
+  classDef control fill:#f4edfb,stroke:#844fba,color:#111827
+  classDef danger fill:#fdecec,stroke:#b42318,color:#111827
+  classDef recovery fill:#fff7d6,stroke:#a16207,color:#111827
+  classDef success fill:#e9f7ef,stroke:#18864b,color:#111827
+  class edgeSignals,apiSignals,workerSignals,dbSignals,jfrogSignals,auditSignals signal
+  class logs,metrics,alarms,onCall,incident control
+  class identify,contain,preserve danger
+  class jfrogOutage,graphOutage,queueIssue,dbFailure,badRelease,credentialEvent recovery
+  class reconcile,validate,monitor,review success

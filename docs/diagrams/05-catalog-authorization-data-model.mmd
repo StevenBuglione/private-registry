@@ -1,0 +1,109 @@
+erDiagram
+  PACKAGES {
+    uuid id PK
+    package_kind kind
+    text namespace
+    text name
+    text target
+    tsvector search_document
+    lifecycle_state lifecycle
+  }
+  PACKAGE_VERSIONS {
+    uuid id PK
+    uuid package_id FK
+    text version
+    text package_digest
+    text artifact_repository
+    text artifact_path
+    boolean active
+    boolean revoked
+  }
+  DOCUMENTATION_PAGES {
+    uuid id PK
+    uuid package_version_id FK
+    text path
+    text content_type
+    text digest
+    text content
+  }
+  SYMBOLS {
+    uuid id PK
+    uuid package_version_id FK
+    text kind
+    text name
+    text document_path
+    boolean is_required
+  }
+  APPROVALS {
+    uuid id PK
+    uuid package_version_id FK
+    text approval_type
+    text decision
+    text policy_version
+  }
+  ARTIFACT_DOWNLOAD_STATISTICS {
+    uuid package_version_id PK,FK
+    date observed_on PK
+    bigint download_count
+    timestamptz collected_at
+  }
+  TEAMS {
+    text id PK
+    text display_name
+    text support_url
+  }
+  PACKAGE_OWNERS {
+    uuid package_id PK,FK
+    text team_id PK,FK
+    int owner_order
+  }
+  APM_CONTEXTS {
+    varchar apm_id PK
+    varchar display_name
+  }
+  IDENTITY_GROUP_ENTITLEMENTS {
+    text group_object_id PK
+    varchar apm_id FK
+    boolean enabled
+  }
+  PACKAGE_APM_ACCESS {
+    uuid package_id PK,FK
+    varchar apm_id PK,FK
+  }
+  REGISTRY_CATEGORIES {
+    varchar slug PK
+    varchar display_name
+    varchar description
+  }
+  PACKAGE_CATEGORIES {
+    uuid package_id PK,FK
+    varchar category_slug PK,FK
+  }
+  REGISTRY_HOMEPAGE_FEATURES {
+    package_kind feature_kind PK
+    uuid package_id PK,FK
+    smallint display_order
+  }
+  LIFECYCLE_EVENTS {
+    uuid id PK
+    uuid package_id FK
+    uuid package_version_id FK
+    text event_type
+    timestamptz effective_at
+  }
+
+  PACKAGES ||--o{ PACKAGE_VERSIONS : publishes
+  PACKAGE_VERSIONS ||--o{ DOCUMENTATION_PAGES : contains
+  PACKAGE_VERSIONS ||--o{ SYMBOLS : exposes
+  PACKAGE_VERSIONS ||--o{ APPROVALS : has
+  PACKAGE_VERSIONS ||--o{ ARTIFACT_DOWNLOAD_STATISTICS : snapshots
+  PACKAGES ||--o{ PACKAGE_OWNERS : assigns
+  TEAMS ||--o{ PACKAGE_OWNERS : owns
+  PACKAGES ||--|{ PACKAGE_APM_ACCESS : gated_by
+  APM_CONTEXTS ||--o{ PACKAGE_APM_ACCESS : authorizes
+  APM_CONTEXTS ||--o{ IDENTITY_GROUP_ENTITLEMENTS : maps
+  PACKAGES ||--o{ PACKAGE_CATEGORIES : classified_as
+  REGISTRY_CATEGORIES ||--o{ PACKAGE_CATEGORIES : contains
+  PACKAGES ||--o{ REGISTRY_HOMEPAGE_FEATURES : featured_as
+  PACKAGES ||--o{ LIFECYCLE_EVENTS : records
+  PACKAGE_VERSIONS |o--o{ LIFECYCLE_EVENTS : scopes

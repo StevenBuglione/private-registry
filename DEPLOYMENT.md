@@ -5,6 +5,7 @@ The authoritative deployment handoff is:
 1. [Complete configuration and deployment guide](docs/30-deployment-configuration-handoff.md)
 2. [Environment-variable reference](docs/31-environment-variable-reference.md)
 3. [Deployment-readiness audit and AWS blockers](docs/32-deployment-readiness-audit.md)
+4. [Enterprise architecture diagrams](docs/33-enterprise-architecture-diagrams.md)
 
 ## Supported now
 
