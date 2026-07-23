@@ -98,6 +98,59 @@ describe("SearchBox", () => {
     expect(result.violations).toEqual([]);
   });
 
+  it("clears the query and closes suggestions from the clear control", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox compact />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    const input = screen.getByRole("textbox", {
+      name: "Search approved providers and modules",
+    });
+    await user.type(input, "aws");
+
+    expect(
+      screen.getByRole("region", { name: "Search suggestions" }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
+    expect(
+      screen.queryByRole("region", { name: "Search suggestions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear search" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes suggestions after a package result is selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <RegistryProvider session={session}>
+          <SearchBox compact />
+        </RegistryProvider>
+      </MemoryRouter>,
+    );
+
+    await user.type(
+      screen.getByRole("textbox", {
+        name: "Search approved providers and modules",
+      }),
+      "aws",
+    );
+    await user.click(screen.getByRole("link", { name: /platform \/ aws/i }));
+
+    expect(
+      screen.queryByRole("region", { name: "Search suggestions" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("submits a normalized query through the explicit search contract", async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();

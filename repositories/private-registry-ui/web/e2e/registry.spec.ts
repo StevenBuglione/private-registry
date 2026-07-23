@@ -224,6 +224,35 @@ test("authorized home and theme are accessible at desktop and mobile sizes", asy
   expect(mobileScan.violations).toEqual([]);
 });
 
+test("global search clears its query and closes results after navigation", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const search = page.getByRole("textbox", {
+    name: "Search approved providers and modules",
+  });
+
+  await search.fill("azure");
+  await expect(
+    page.getByRole("region", { name: "Search suggestions" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(search).toHaveValue("");
+  await expect(
+    page.getByRole("region", { name: "Search suggestions" }),
+  ).toHaveCount(0);
+
+  await search.fill("azure");
+  await page.getByRole("link", { name: /hashicorp \/ azurerm/i }).click();
+  await expect(page).toHaveURL(/\/providers\/hashicorp\/azurerm\/4\.40\.0$/);
+  await expect(
+    page.getByRole("heading", { name: "azurerm", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Search suggestions" }),
+  ).toHaveCount(0);
+});
+
 test("provider resources match the canonical detail and documentation flow", async ({
   page,
 }) => {

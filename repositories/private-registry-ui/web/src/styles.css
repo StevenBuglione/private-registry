@@ -460,6 +460,28 @@ h2 {
   font-size: 14px;
   line-height: 21px;
 }
+.search-clear-button {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #777d87;
+  cursor: pointer;
+}
+.search-clear-button:hover {
+  background: var(--surface-subtle);
+  color: var(--strong);
+}
+.search-clear-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
 .search-box kbd {
   padding: 2px 7px;
   border: 1px solid var(--line-light);
