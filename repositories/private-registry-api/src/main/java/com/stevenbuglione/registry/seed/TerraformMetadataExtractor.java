@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,6 +44,7 @@ final class TerraformMetadataExtractor {
   static Extraction extract(Path sourceArchive, boolean provider) {
     var terraform = new LinkedHashMap<String, String>();
     var documents = new LinkedHashMap<String, ExtractedDocument>();
+    var examples = new LinkedHashSet<String>();
     @Nullable ExtractedDocument fallbackReadme = null;
     var entries = 0;
     try (var input = Files.newInputStream(sourceArchive);
@@ -60,6 +62,10 @@ final class TerraformMetadataExtractor {
           continue;
         }
         var lower = path.toLowerCase(Locale.ROOT);
+        var example = provider ? null : moduleExample(path);
+        if (example != null) {
+          examples.add(example);
+        }
         if (lower.endsWith(".tf") && !provider && !path.contains("/")) {
           terraform.put(path, decode(readTextEntry(archive, path)));
           continue;
@@ -122,7 +128,8 @@ final class TerraformMetadataExtractor {
               readme.content()));
     }
 
-    var symbols = provider ? providerSymbols(documents.values()) : moduleSymbols(terraform);
+    var symbols =
+        provider ? providerSymbols(documents.values()) : moduleSymbols(terraform, examples);
     return new Extraction(
         documents.values().stream().sorted(Comparator.comparing(ExtractedDocument::path)).toList(),
         symbols,
@@ -170,7 +177,8 @@ final class TerraformMetadataExtractor {
         .toList();
   }
 
-  private static List<ExtractedSymbol> moduleSymbols(Map<String, String> terraform) {
+  private static List<ExtractedSymbol> moduleSymbols(
+      Map<String, String> terraform, Iterable<String> examples) {
     var symbols = new LinkedHashMap<String, ExtractedSymbol>();
     terraform.forEach(
         (path, content) -> {
@@ -191,6 +199,19 @@ final class TerraformMetadataExtractor {
           requiredProviderSymbols(path, normalized)
               .forEach(symbol -> symbols.putIfAbsent(symbol.kind() + ":" + symbol.name(), symbol));
         });
+    examples.forEach(
+        example ->
+            symbols.putIfAbsent(
+                "example:" + example,
+                new ExtractedSymbol(
+                    "example",
+                    example,
+                    null,
+                    "examples/" + example,
+                    "example",
+                    null,
+                    false,
+                    false)));
     return symbols.values().stream()
         .sorted(Comparator.comparing(ExtractedSymbol::kind).thenComparing(ExtractedSymbol::name))
         .toList();
@@ -509,6 +530,19 @@ final class TerraformMetadataExtractor {
 
   private static boolean isReadme(String path) {
     return path.equals("readme.md") || path.endsWith("/readme.md");
+  }
+
+  private static @Nullable String moduleExample(String path) {
+    var normalized = path.replace('\\', '/');
+    if (!normalized.startsWith("examples/")) {
+      return null;
+    }
+    var remainder = normalized.substring("examples/".length());
+    var separator = remainder.indexOf('/');
+    if (separator <= 0) {
+      return null;
+    }
+    return remainder.substring(0, separator);
   }
 
   private static @Nullable ClassifiedDocument classifyProviderDocument(String path) {

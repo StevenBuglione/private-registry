@@ -27,6 +27,7 @@ const moduleDetail: PackageDetail = {
   target: "aws",
   version: "2.4.1",
   versions: ["2.4.1"],
+  examples: [{ name: "complete", path: "examples/complete" }],
   description: "Approved VPC module.",
   provider: "aws",
   owner: "Cloud Platform",
@@ -35,6 +36,25 @@ const moduleDetail: PackageDetail = {
   risk: "low",
   verified: true,
   updatedAt: "2026-07-22T12:00:00Z",
+  publishedAt: "2025-04-02T00:00:00Z",
+  sourceRepository: "https://github.com/platform/terraform-aws-vpc",
+  sourceTag: "v2.4.1",
+  downloadStatisticsByVersion: {
+    "2.4.1": {
+      allTime: 314_159,
+      week: 2_718,
+      month: 8_154,
+      year: 81_540,
+      observedAt: "2026-07-22T12:00:00Z",
+    },
+  },
+  downloadStatistics: {
+    allTime: 552_494,
+    week: 13_101,
+    month: 39_613,
+    year: 294_700,
+    observedAt: "2026-07-22T12:00:00Z",
+  },
   apmIds: ["APM0000001"],
   documentation: "# VPC Module\n\nModule readme.",
   symbols: [
@@ -83,6 +103,7 @@ const providerDetail: PackageDetail = {
   version: "6.8.0",
   versions: ["6.8.0", "6.7.0"],
   description: "AWS infrastructure provider.",
+  sourceRepository: "https://github.com/hashicorp/terraform-provider-aws",
   documentation: "# AWS Provider\n\nProvider overview.",
   artifactRepository: "iac-provider-release-local",
   artifactPath: "hashicorp/aws/6.8.0/provider.zip",
@@ -259,6 +280,21 @@ describe("PackageDetailPage symbol-driven views", () => {
     );
 
     const inputs = screen.getByRole("region", { name: "Optional Inputs" });
+    expect(screen.getAllByText("552,494")).toHaveLength(2);
+    expect(
+      screen.getByRole("option", { name: "All versions" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "Download statistics version" }),
+      "2.4.1",
+    );
+    expect(screen.getByText("314,159")).toBeInTheDocument();
+    expect(screen.getByText("April 2, 2025")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Examples/ }));
+    expect(screen.getByRole("menuitem", { name: /complete/ })).toHaveAttribute(
+      "href",
+      "https://github.com/platform/terraform-aws-vpc/tree/v2.4.1/examples/complete",
+    );
     expect(within(inputs).getByText("cidr_block")).toBeInTheDocument();
     expect(within(inputs).getByText("10.0.0.0/16")).toBeInTheDocument();
     expect(

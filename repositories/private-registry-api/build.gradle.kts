@@ -82,6 +82,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.postgresql:postgresql:42.7.12")
     implementation("org.jfrog.artifactory.client:artifactory-java-client-services:2.21.2")
+    implementation("org.apache.groovy:groovy")
     compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
     implementation("com.github.ben-manes.caffeine:caffeine")
 

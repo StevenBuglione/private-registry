@@ -4,6 +4,7 @@ import type {
   ApmAccess,
   CatalogPage,
   CatalogQuery,
+  DownloadStatistics,
   GovernanceRecord,
   HomepageSettings,
   HomepageSettingsUpdate,
@@ -48,6 +49,10 @@ const wireKeys = [
   "document_path",
   "documentation",
   "documentPath",
+  "download_count",
+  "download_statistics",
+  "downloadCount",
+  "downloadStatistics",
   "email",
   "entitled_apms",
   "entitledApms",
@@ -73,6 +78,8 @@ const wireKeys = [
   "loginUrl",
   "logout_url",
   "logoutUrl",
+  "last_downloaded_at",
+  "lastDownloadedAt",
   "markdown",
   "message",
   "name",
@@ -94,6 +101,7 @@ const wireKeys = [
   "provider",
   "provider_name",
   "published_at",
+  "publishedAt",
   "readme",
   "redirect_uri",
   "redirect_url",
@@ -113,6 +121,8 @@ const wireKeys = [
   "sourceAddress",
   "sourceRepository",
   "sourceRepositoryUrl",
+  "source_tag",
+  "sourceTag",
   "sub",
   "subject",
   "summary",
@@ -128,6 +138,16 @@ const wireKeys = [
   "total",
   "total_count",
   "totalElements",
+  "all_time",
+  "allTime",
+  "week",
+  "week_downloads",
+  "month",
+  "month_downloads",
+  "year",
+  "year_downloads",
+  "observed_at",
+  "observedAt",
   "type",
   "type_kind",
   "updated_at",
@@ -461,14 +481,27 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
     .find(
       (version) => firstString(version.version, version.id) === summary.version,
     );
+  const symbols = firstArray(envelope.symbols)
+    .map(normalizeSymbol)
+    .filter((symbol): symbol is PackageSymbol => symbol !== null);
+  const rawDownloadStatistics = objectValue(
+    selectedVersion?.downloadStatistics ??
+      selectedVersion?.download_statistics ??
+      envelope.downloadStatistics ??
+      envelope.download_statistics,
+  );
+  const downloadStatisticsByVersion =
+    normalizeVersionDownloadStatistics(rawVersions);
+  const downloadStatistics = aggregateVersionDownloadStatistics(rawVersions);
   return {
     ...summary,
     versions: stringList(envelope.versions).length
       ? stringList(envelope.versions)
       : [summary.version].filter((value) => value !== "—"),
-    symbols: firstArray(envelope.symbols)
-      .map(normalizeSymbol)
-      .filter((symbol): symbol is PackageSymbol => symbol !== null),
+    symbols,
+    examples: symbols
+      .filter((symbol) => symbol.kind === "example")
+      .map((symbol) => ({ name: symbol.name, path: symbol.path })),
     documentation: optionalString(
       envelope.documentation,
       envelope.markdown,
@@ -497,6 +530,103 @@ function normalizePackageDetail(raw: JsonObject): PackageDetail {
       selectedVersion?.packageDigest,
       selectedVersion?.package_digest,
     ),
+    publishedAt: optionalString(
+      selectedVersion?.publishedAt,
+      selectedVersion?.published_at,
+    ),
+    sourceRepository: optionalString(
+      selectedVersion?.sourceRepository,
+      selectedVersion?.source_repository,
+    ),
+    sourceTag: optionalString(
+      selectedVersion?.sourceTag,
+      selectedVersion?.source_tag,
+    ),
+    downloadStatisticsByVersion,
+    downloadStatistics:
+      downloadStatistics ??
+      (rawDownloadStatistics === undefined
+        ? undefined
+        : normalizeDownloadStatistics(rawDownloadStatistics)),
+  };
+}
+
+function normalizeVersionDownloadStatistics(
+  rawVersions: unknown[],
+): Record<string, DownloadStatistics> {
+  return Object.fromEntries(
+    rawVersions.filter(isObject).flatMap((version) => {
+      const versionNumber = firstString(version.version, version.id);
+      const rawStatistics = objectValue(
+        version.downloadStatistics ?? version.download_statistics,
+      );
+      return versionNumber === "" || rawStatistics === undefined
+        ? []
+        : [[versionNumber, normalizeDownloadStatistics(rawStatistics)]];
+    }),
+  );
+}
+
+function aggregateVersionDownloadStatistics(
+  rawVersions: unknown[],
+): DownloadStatistics | undefined {
+  const versions = rawVersions.filter(isObject);
+  const statistics = versions
+    .map((version) =>
+      objectValue(version.downloadStatistics ?? version.download_statistics),
+    )
+    .filter((value): value is JsonObject => value !== undefined)
+    .map(normalizeDownloadStatistics);
+  if (statistics.length === 0 || statistics.length !== versions.length) {
+    return undefined;
+  }
+
+  return {
+    allTime: statistics.reduce((sum, value) => sum + value.allTime, 0),
+    week: sumCompletePeriod(statistics, "week"),
+    month: sumCompletePeriod(statistics, "month"),
+    year: sumCompletePeriod(statistics, "year"),
+    lastDownloadedAt: latestTimestamp(
+      statistics.map((value) => value.lastDownloadedAt),
+    ),
+    observedAt:
+      latestTimestamp(statistics.map((value) => value.observedAt)) ?? "",
+  };
+}
+
+function sumCompletePeriod(
+  statistics: DownloadStatistics[],
+  period: "week" | "month" | "year",
+): number | undefined {
+  const values = statistics.map((value) => value[period]);
+  return values.every((value): value is number => value !== undefined)
+    ? values.reduce((sum, value) => sum + value, 0)
+    : undefined;
+}
+
+function latestTimestamp(values: (string | undefined)[]): string | undefined {
+  return values
+    .filter((value): value is string => value !== undefined && value !== "")
+    .sort()
+    .at(-1);
+}
+
+function normalizeDownloadStatistics(raw: JsonObject): DownloadStatistics {
+  return {
+    allTime: firstNumber(
+      raw.allTime,
+      raw.all_time,
+      raw.downloadCount,
+      raw.download_count,
+    ),
+    week: optionalNumber(raw.week, raw.week_downloads),
+    month: optionalNumber(raw.month, raw.month_downloads),
+    year: optionalNumber(raw.year, raw.year_downloads),
+    lastDownloadedAt: optionalString(
+      raw.lastDownloadedAt,
+      raw.last_downloaded_at,
+    ),
+    observedAt: firstString(raw.observedAt, raw.observed_at),
   };
 }
 
@@ -746,6 +876,19 @@ function firstNumber(...values: unknown[]): number {
   );
   const result = Number(value);
   return Number.isFinite(result) ? result : 0;
+}
+
+function optionalNumber(...values: unknown[]): number | undefined {
+  const value = values.find(
+    (candidate) =>
+      candidate !== null &&
+      candidate !== undefined &&
+      (typeof candidate === "number" ||
+        (typeof candidate === "string" && candidate.trim() !== "")),
+  );
+  if (value === undefined) return undefined;
+  const result = Number(value);
+  return Number.isFinite(result) ? result : undefined;
 }
 
 function stringList(value: unknown): string[] {

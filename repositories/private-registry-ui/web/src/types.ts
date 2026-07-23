@@ -72,12 +72,32 @@ export interface GovernanceRecord {
 export interface PackageDetail extends PackageSummary {
   versions: string[];
   symbols: PackageSymbol[];
+  examples: PackageExample[];
   documentation?: string | undefined;
   governance?: GovernanceRecord | undefined;
   installSource?: string | undefined;
   artifactRepository?: string | undefined;
   artifactPath?: string | undefined;
   packageDigest?: string | undefined;
+  publishedAt?: string | undefined;
+  sourceRepository?: string | undefined;
+  sourceTag?: string | undefined;
+  downloadStatisticsByVersion: Record<string, DownloadStatistics>;
+  downloadStatistics?: DownloadStatistics | undefined;
+}
+
+export interface PackageExample {
+  name: string;
+  path: string;
+}
+
+export interface DownloadStatistics {
+  allTime: number;
+  week?: number | undefined;
+  month?: number | undefined;
+  year?: number | undefined;
+  lastDownloadedAt?: string | undefined;
+  observedAt: string;
 }
 
 export interface PackageSymbol {

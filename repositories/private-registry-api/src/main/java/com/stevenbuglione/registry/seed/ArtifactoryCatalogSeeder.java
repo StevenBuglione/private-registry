@@ -104,8 +104,11 @@ public class ArtifactoryCatalogSeeder implements ApplicationRunner {
                           catalog,
                           entry,
                           version,
-                          Instant.parse("2026-07-01T00:00:00Z")
-                              .minusSeconds((long) entry.versions().indexOf(version) * 86_400)));
+                          entry.publishedAt(
+                              version,
+                              Instant.parse("2026-07-01T00:00:00Z")
+                                  .minusSeconds(
+                                      (long) entry.versions().indexOf(version) * 86_400))));
         });
     if (properties.packages().isEmpty() && properties.versions().isEmpty()) {
       verifyCompleteMirror(catalog);

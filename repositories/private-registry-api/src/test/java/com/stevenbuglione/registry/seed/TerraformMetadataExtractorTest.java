@@ -75,7 +75,8 @@ class TerraformMetadataExtractorTest {
             "resource:aws_vpc.this",
             "data-source:aws_caller_identity.current",
             "dependency:labels",
-            "dependency:aws");
+            "dependency:aws",
+            "example:complete");
     assertThat(result.symbols())
         .extracting(TerraformMetadataExtractor.ExtractedSymbol::name)
         .doesNotContain("example_only", "aws_vpc.nested_only");

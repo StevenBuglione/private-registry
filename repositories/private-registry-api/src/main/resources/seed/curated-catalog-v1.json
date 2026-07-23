@@ -658,6 +658,9 @@
         "0.16.0",
         "0.15.0"
       ],
+      "version_published_at": {
+        "0.16.0": "2025-04-02T00:00:00Z"
+      },
       "download_template": "https://github.com/Azure/terraform-azurerm-avm-res-web-site/archive/refs/tags/v{version}.zip",
       "expected_sha256": {
         "0.16.0:archive": "1f356740b45117b7d3fd5b2c96c573bb3675522358919cc930cfddbdb39f5ab5",

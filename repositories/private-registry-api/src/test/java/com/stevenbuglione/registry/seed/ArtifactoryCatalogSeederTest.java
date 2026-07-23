@@ -52,6 +52,7 @@ class ArtifactoryCatalogSeederTest {
             List.of(),
             List.of("APM0000001"),
             List.of("5.21.0"),
+            Map.of(),
             "https://github.com/terraform-aws-modules/terraform-aws-vpc/archive/refs/tags/v{version}.zip",
             Map.of());
 
@@ -223,6 +224,7 @@ class ArtifactoryCatalogSeederTest {
         List.of(),
         List.of("APM0000001"),
         List.of("1.0.0"),
+        Map.of(),
         template,
         Map.of());
   }

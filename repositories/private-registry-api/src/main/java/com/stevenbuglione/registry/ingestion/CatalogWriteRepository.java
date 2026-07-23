@@ -225,6 +225,10 @@ public class CatalogWriteRepository {
                         ON CONFLICT (package_id, version) DO UPDATE SET
                             documentation_digest = EXCLUDED.documentation_digest,
                             documentation_root = EXCLUDED.documentation_root,
+                            source_repository = EXCLUDED.source_repository,
+                            source_commit = EXCLUDED.source_commit,
+                            source_tag = EXCLUDED.source_tag,
+                            published_at = EXCLUDED.published_at,
                             deprecated = EXCLUDED.deprecated,
                             revoked = EXCLUDED.revoked,
                             active = NOT EXCLUDED.revoked

@@ -244,6 +244,19 @@ describe("OpenAPI response normalization", () => {
               artifact_path:
                 "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
               package_digest: `sha256:${"a".repeat(64)}`,
+              download_statistics: {
+                download_count: 11,
+                week_downloads: 4,
+                observed_at: "2026-07-22T12:00:00Z",
+              },
+            },
+            {
+              version: "6.7.0",
+              download_statistics: {
+                download_count: 7,
+                week_downloads: 3,
+                observed_at: "2026-07-22T11:00:00Z",
+              },
             },
           ],
           symbols: [
@@ -286,6 +299,11 @@ describe("OpenAPI response normalization", () => {
       artifactRepository: "iac-provider-release-local",
       artifactPath:
         "hashicorp/aws/6.8.0/terraform-provider-aws_6.8.0_linux_amd64.zip",
+      downloadStatistics: {
+        allTime: 18,
+        week: 7,
+        observedAt: "2026-07-22T12:00:00Z",
+      },
       symbols: [
         {
           kind: "input",

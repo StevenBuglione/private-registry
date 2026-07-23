@@ -4,7 +4,9 @@ import {
   CheckIcon,
   ClipboardIcon,
   CubeIcon,
+  DownloadSimpleIcon,
   FileTextIcon,
+  HandshakeIcon,
   InfoIcon,
   LinkSimpleIcon,
   ListIcon,
@@ -35,8 +37,10 @@ import {
 } from "../hooks";
 import { runtimeConfig } from "../runtime-config";
 import type {
+  DownloadStatistics,
   GovernanceRecord,
   PackageDetail,
+  PackageExample,
   PackageKind,
   PackageSummary,
   PackageSymbol,
@@ -109,7 +113,9 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
     runtimeConfig().jfrogHostname,
   );
   const providerSnippet = buildProviderConfigurationSnippet(item);
-  const sourceRepository = safeExternalUrl(governanceData?.sourceRepository);
+  const sourceRepository = safeExternalUrl(
+    item.sourceRepository ?? governanceData?.sourceRepository,
+  );
   const setTab = (value: string) => {
     const next = new URLSearchParams(searchParams);
     next.set("tab", value);
@@ -153,7 +159,13 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
           <div>
             <div className="package-name-line">
               <h1>{item.name}</h1>
-              <ApprovalBadge value={item.approval} verified={item.verified} />
+              {kind === "module" && item.verified ? (
+                <span className="registry-tier-badge">
+                  <HandshakeIcon size={14} weight="fill" /> Partner
+                </span>
+              ) : (
+                <ApprovalBadge value={item.approval} verified={item.verified} />
+              )}
             </div>
             <span>
               {item.namespace}/{item.name}
@@ -190,39 +202,49 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
             ) : null}
           </div>
         </div>
-        <p className="package-description">{item.description}</p>
-        <div className="package-facts">
-          {kind === "module" ? (
-            <span className="package-provider-fact">
-              Provider:
-              <PackageIcon kind="provider" name={item.provider} size="small" />
-              <strong>{item.provider}</strong>
-            </span>
-          ) : null}
-          <span>
-            Versions: <strong>{item.versions.length}</strong>
-          </span>
-          <span>
-            Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
-          </span>
-          {hasText(sourceRepository) ? (
+        {kind === "provider" ? (
+          <p className="package-description">{item.description}</p>
+        ) : null}
+        {kind === "module" ? (
+          <>
+            <ModuleFacts item={item} sourceRepository={sourceRepository} />
+            {item.examples.length > 0 ? (
+              <div className="module-examples-row">
+                <ExamplesMenu
+                  examples={item.examples}
+                  sourceRepository={sourceRepository}
+                  sourceTag={item.sourceTag}
+                />
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="package-facts">
             <span>
-              Source code:{" "}
-              <a href={sourceRepository} target="_blank" rel="noreferrer">
-                {item.namespace}/{item.name}
-              </a>
+              Versions: <strong>{item.versions.length}</strong>
             </span>
-          ) : null}
-          <span>
-            Lifecycle: <strong>{item.lifecycle}</strong>
-          </span>
-          <span>
-            Published: <strong>{formatCalendarDate(item.updatedAt)}</strong>
-          </span>
-          <span>
-            Risk: <strong>{item.risk}</strong>
-          </span>
-        </div>
+            <span>
+              Owner: <strong>{governanceData?.owner ?? item.owner}</strong>
+            </span>
+            {hasText(sourceRepository) ? (
+              <span>
+                Source code:{" "}
+                <a href={sourceRepository} target="_blank" rel="noreferrer">
+                  {item.namespace}/{item.name}
+                </a>
+              </span>
+            ) : null}
+            <span>
+              Lifecycle: <strong>{item.lifecycle}</strong>
+            </span>
+            <span>
+              Published: <strong>{formatCalendarDate(item.updatedAt)}</strong>
+            </span>
+            <span>
+              Risk: <strong>{item.risk}</strong>
+            </span>
+          </div>
+        )}
         {kind === "provider" ? (
           <span className="package-category">{capitalize(item.lifecycle)}</span>
         ) : null}
@@ -321,6 +343,12 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
                 className="source-install-sidebar"
                 aria-label="Installation and governance"
               >
+                {kind === "module" ? (
+                  <ModuleDownloadsCard
+                    statistics={item.downloadStatistics}
+                    statisticsByVersion={item.downloadStatisticsByVersion}
+                  />
+                ) : null}
                 <InstallPanel snippet={installSnippet} kind={kind} />
                 <GovernanceCard
                   item={item}
@@ -334,6 +362,201 @@ export function PackageDetailPage({ kind }: { kind: PackageKind }) {
       )}
     </div>
   );
+}
+
+function ModuleFacts({
+  item,
+  sourceRepository,
+}: {
+  item: PackageDetail;
+  sourceRepository: string | undefined;
+}) {
+  const statistics = item.downloadStatistics;
+  return (
+    <div className="module-package-facts" aria-label="Module metadata">
+      <div>
+        <span>Provider:</span>
+        <strong className="package-provider-fact">
+          <PackageIcon kind="provider" name={item.provider} size="small" />
+          {item.provider}
+        </strong>
+      </div>
+      <div title="Downloads served by this JFrog Artifactory mirror">
+        <span>Downloads:</span>
+        <strong>{formatDownloadCount(statistics?.allTime)}</strong>
+      </div>
+      <div title="Rolling history is available after a seven-day local baseline exists">
+        <span>This week:</span>
+        <strong>{formatDownloadCount(statistics?.week)}</strong>
+      </div>
+      <div>
+        <span>Versions:</span>
+        <strong>{item.versions.length}</strong>
+      </div>
+      {hasText(sourceRepository) ? (
+        <div className="module-source-fact">
+          <span>Source code:</span>
+          <a href={sourceRepository} target="_blank" rel="noreferrer">
+            {shortExternalUrl(sourceRepository)}
+          </a>
+        </div>
+      ) : null}
+      <div>
+        <span>Published:</span>
+        <strong>
+          {formatCalendarDate(item.publishedAt ?? item.updatedAt)}
+        </strong>
+      </div>
+      <div>
+        <span>Published by:</span>
+        <strong>{item.namespace}</strong>
+      </div>
+    </div>
+  );
+}
+
+function ExamplesMenu({
+  examples,
+  sourceRepository,
+  sourceTag,
+}: {
+  examples: PackageExample[];
+  sourceRepository: string | undefined;
+  sourceTag: string | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="examples-menu">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((value) => !value);
+        }}
+      >
+        Examples <CaretRightIcon size={13} className={open ? "is-open" : ""} />
+      </button>
+      {open ? (
+        <div className="examples-menu-popover" role="menu">
+          {examples.map((example) => {
+            const url = sourceExampleUrl(
+              sourceRepository,
+              sourceTag,
+              example.path,
+            );
+            return url === undefined ? (
+              <span key={example.path} role="menuitem">
+                {example.name}
+              </span>
+            ) : (
+              <a
+                key={example.path}
+                role="menuitem"
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {example.name} <ArrowSquareOutIcon size={13} />
+              </a>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ModuleDownloadsCard({
+  statistics,
+  statisticsByVersion,
+}: {
+  statistics: DownloadStatistics | undefined;
+  statisticsByVersion: Record<string, DownloadStatistics>;
+}) {
+  const [statisticsVersion, setStatisticsVersion] = useState("all");
+  const displayedStatistics =
+    statisticsVersion === "all"
+      ? statistics
+      : statisticsByVersion[statisticsVersion];
+  return (
+    <section
+      className="module-downloads-card"
+      title="Download counts served by this Registry's JFrog Artifactory mirror"
+    >
+      <div className="module-downloads-header">
+        <h2>
+          <DownloadSimpleIcon size={15} /> Module Downloads
+        </h2>
+        <select
+          aria-label="Download statistics version"
+          value={statisticsVersion}
+          onChange={(event) => {
+            setStatisticsVersion(event.target.value);
+          }}
+        >
+          <option value="all">All versions</option>
+          {Object.keys(statisticsByVersion).map((version) => (
+            <option key={version} value={version}>
+              Version {version}
+            </option>
+          ))}
+        </select>
+      </div>
+      <dl>
+        <div>
+          <dt>Downloads this week</dt>
+          <dd>{formatDownloadCount(displayedStatistics?.week)}</dd>
+        </div>
+        <div>
+          <dt>Downloads this month</dt>
+          <dd>{formatDownloadCount(displayedStatistics?.month)}</dd>
+        </div>
+        <div>
+          <dt>Downloads this year</dt>
+          <dd>{formatDownloadCount(displayedStatistics?.year)}</dd>
+        </div>
+        <div>
+          <dt>Downloads over all time</dt>
+          <dd>{formatDownloadCount(displayedStatistics?.allTime)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function formatDownloadCount(value: number | undefined): string {
+  return value === undefined
+    ? "—"
+    : new Intl.NumberFormat("en-US").format(value);
+}
+
+function shortExternalUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.hostname}${url.pathname}`.replace(/\/$/, "");
+  } catch {
+    return value;
+  }
+}
+
+function sourceExampleUrl(
+  sourceRepository: string | undefined,
+  sourceTag: string | undefined,
+  path: string,
+): string | undefined {
+  if (!hasText(sourceRepository) || !hasText(sourceTag)) return undefined;
+  try {
+    const url = new URL(sourceRepository);
+    if (url.hostname !== "github.com") return undefined;
+    url.pathname = `${url.pathname.replace(/\/$/, "")}/tree/${encodeURIComponent(sourceTag)}/${path
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function ProviderOverview({
@@ -1113,7 +1336,7 @@ function symbolsForModuleTab(
       "provider_dependency",
       "provider_requirement",
     ],
-    resources: ["resource", "data_source", "datasource", "module_call"],
+    resources: ["resource"],
   };
   const kinds = accepted[tab] ?? [];
   return symbols.filter((symbol) =>
@@ -1360,6 +1583,7 @@ function formatCalendarDate(value: string): string {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   }).format(date);
 }
 

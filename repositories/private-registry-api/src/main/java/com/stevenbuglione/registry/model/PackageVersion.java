@@ -1,6 +1,7 @@
 package com.stevenbuglione.registry.model;
 
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 public record PackageVersion(
     String version,
@@ -10,7 +11,10 @@ public record PackageVersion(
     String documentationRoot,
     String artifactRepository,
     String artifactPath,
+    String sourceRepository,
     String sourceCommit,
+    String sourceTag,
     boolean prerelease,
     boolean deprecated,
-    boolean revoked) {}
+    boolean revoked,
+    @Nullable DownloadStatistics downloadStatistics) {}

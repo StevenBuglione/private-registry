@@ -18,7 +18,15 @@ import tools.jackson.databind.annotation.JsonNaming;
 public final class CatalogManifestV1 {
 
   private static final Set<String> SYMBOL_KINDS =
-      Set.of("input", "output", "resource", "data-source", "function", "guide", "dependency");
+      Set.of(
+          "input",
+          "output",
+          "resource",
+          "data-source",
+          "function",
+          "guide",
+          "dependency",
+          "example");
   private static final Set<String> REGISTRY_TIERS =
       Set.of("official", "partner", "partner-premier", "community");
   private static final Set<String> REGISTRY_CATEGORIES =

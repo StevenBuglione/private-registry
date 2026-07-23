@@ -73,6 +73,8 @@ registry:
     incremental-reconciliation-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_DELAY:15m}
     incremental-reconciliation-initial-delay: ${REGISTRY_INCREMENTAL_RECONCILIATION_INITIAL_DELAY:15m}
     full-reconciliation-cron: ${REGISTRY_FULL_RECONCILIATION_CRON:0 17 2 * * *}
+    download-statistics-delay: ${REGISTRY_DOWNLOAD_STATISTICS_DELAY:15m}
+    download-statistics-initial-delay: ${REGISTRY_DOWNLOAD_STATISTICS_INITIAL_DELAY:30s}
   seed:
     enabled: ${REGISTRY_SEED_ENABLED:false}
   security:
