@@ -93,7 +93,7 @@ public class TrafficAnalyticsService {
         clock.instant(),
         days,
         summary(since, today),
-        dailyTraffic(days),
+        dailyTraffic(days, today),
         topRoutes(since),
         visitors(since, visitorLimit),
         recentAccess(since));
@@ -131,13 +131,13 @@ public class TrafficAnalyticsService {
         .single();
   }
 
-  private List<DailyTraffic> dailyTraffic(int days) {
+  private List<DailyTraffic> dailyTraffic(int days, LocalDate today) {
     return jdbc.sql(
             """
             WITH report_days AS (
                 SELECT generate_series(
-                    current_date - (:days - 1),
-                    current_date,
+                    CAST(:today AS date) - (:days - 1),
+                    CAST(:today AS date),
                     interval '1 day')::date AS day
             )
             SELECT report_days.day,
@@ -150,6 +150,7 @@ public class TrafficAnalyticsService {
              ORDER BY report_days.day
             """)
         .param("days", days)
+        .param("today", today)
         .query(
             (resultSet, rowNumber) ->
                 new DailyTraffic(

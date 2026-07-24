@@ -61,7 +61,9 @@ When external secrets use external CMKs, set the matching `*_secret_kms_key_arn`
 
 ### UI
 
-`REGISTRY_DATA_API_URL`, `REGISTRY_ENTERPRISE_API_URL`, `REGISTRY_JFROG_HOSTNAME`, `REGISTRY_ENVIRONMENT`, `REGISTRY_SUPPORT_URL`, and feature flags. The container creates `/config/runtime.json` at startup.
+`REGISTRY_API_BASE_URL` (set to `/api/v1`), `REGISTRY_JFROG_HOSTNAME`,
+`REGISTRY_ENVIRONMENT`, and `REGISTRY_SUPPORT_URL`. The container creates
+`/config/runtime.json` at startup.
 
 ### API/workers
 

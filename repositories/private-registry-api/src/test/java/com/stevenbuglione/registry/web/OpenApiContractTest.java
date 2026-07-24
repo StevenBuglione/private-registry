@@ -35,10 +35,12 @@ class OpenApiContractTest {
             "/api/v1/catalog/packages/provider/{namespace}/{name}/{version}/documentation",
             "/api/v1/catalog/packages/module/{namespace}/{name}/{target}/{version}/documentation",
             "/api/v1/catalog/events",
-            "/internal/webhooks/jfrog",
+            "/api/v1/internal/webhooks/jfrog",
             "/health/live",
             "/health/ready",
             "/health/worker");
+    assertThat(paths.keySet())
+        .allMatch(path -> path.startsWith("/api/v1/") || path.startsWith("/health/"));
     assertThat(paths.keySet())
         .noneMatch(
             path ->

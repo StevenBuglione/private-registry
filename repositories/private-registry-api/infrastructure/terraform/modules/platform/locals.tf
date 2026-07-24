@@ -19,7 +19,7 @@ locals {
     migrations = "${local.name}-migrations"
   }
 
-  api_paths = ["/api/*", "/registry/docs/*", "/top/*"]
+  api_paths = ["/api/v1/*", "/swagger-ui*", "/oauth2/*", "/login/*", "/logout"]
 
   selected_cluster_arn       = var.is_dr_region ? try(aws_rds_cluster.secondary[0].arn, null) : try(aws_rds_cluster.primary[0].arn, null)
   selected_cluster_id        = var.is_dr_region ? try(aws_rds_cluster.secondary[0].id, null) : try(aws_rds_cluster.primary[0].id, null)

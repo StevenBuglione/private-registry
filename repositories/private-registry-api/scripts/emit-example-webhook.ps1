@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string] $Endpoint = 'http://127.0.0.1:8080/internal/webhooks/jfrog',
+    [string] $Endpoint = 'http://127.0.0.1:8080/api/v1/internal/webhooks/jfrog',
     [string] $Repository = 'iac-catalog-release-local',
     [string] $Path = 'v1/providers/hashicorp/null/3.2.4/catalog-manifest.json'
 )

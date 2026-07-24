@@ -8,6 +8,6 @@
 | documentation | package documentation routes | PostgreSQL validated content |
 | governance | package governance route | PostgreSQL |
 | live invalidation | `GET /api/v1/catalog/events` | PostgreSQL `LISTEN`/`NOTIFY` plus authorization |
-| JFrog change intake | `POST /internal/webhooks/jfrog` | signature validation plus PostgreSQL durable queue |
+| JFrog change intake | `POST /api/v1/internal/webhooks/jfrog` | signature validation plus PostgreSQL durable queue |
 
 Unauthorized and nonexistent package routes return the same 404 response. The browser never receives Graph tokens, JFrog credentials, or unauthorized metadata.

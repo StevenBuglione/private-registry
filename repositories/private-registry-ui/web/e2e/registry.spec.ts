@@ -261,7 +261,7 @@ test("authorized home and theme are accessible at desktop and mobile sizes", asy
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Registry" })).toBeVisible();
   await expect(
-    page.getByRole("link", { name: /Azure by HashiCorp/i }),
+    page.getByRole("link", { name: /Azure by HashiCorp/i }).first(),
   ).toBeVisible();
 
   const desktopScan = await new AxeBuilder({ page }).analyze();
@@ -345,8 +345,8 @@ test("header and search geometry match the Terraform Registry shell", async ({
   expect(geometry.searchRow.height).toBe(62);
   expect(geometry.search.y).toBe(70);
   expect(geometry.search.height).toBe(42);
-  expect(geometry.search.width).toBe(1152);
-  expect(geometry.search.x).toBe((geometry.clientWidth - 1152) / 2);
+  expect(geometry.search.width).toBe(1200);
+  expect(geometry.search.x).toBe((geometry.clientWidth - 1200) / 2);
   expect(geometry.searchRadius).toBe("6px");
 
   const favicon = page.locator('link[rel="icon"][type="image/svg+xml"]');

@@ -29,16 +29,20 @@ export function HomePage() {
   const moduleCount = modules.data?.total ?? 0;
   const homepageSettings = settings.data ?? DEFAULT_HOMEPAGE_SETTINGS;
   const featuredProviders = useFeaturedPackages(
-    settings.isPending ? [] : homepageSettings.featuredProviderIds,
+    settings.isPending || !homepageSettings.featuredProvidersEnabled
+      ? []
+      : homepageSettings.featuredProviderIds,
   );
   const featuredModules = useFeaturedPackages(
-    settings.isPending ? [] : homepageSettings.featuredModuleIds,
+    settings.isPending || !homepageSettings.featuredModulesEnabled
+      ? []
+      : homepageSettings.featuredModuleIds,
   );
   const catalogError =
     providers.isError ||
     modules.isError ||
-    featuredProviders.isError ||
-    featuredModules.isError;
+    (homepageSettings.featuredProvidersEnabled && featuredProviders.isError) ||
+    (homepageSettings.featuredModulesEnabled && featuredModules.isError);
 
   return (
     <div className="home-page">
@@ -95,30 +99,34 @@ export function HomePage() {
         </div>
       ) : (
         <div className="home-catalog source-container">
-          <CatalogSection
-            eyebrow="Featured providers"
-            description="Popular infrastructure plugins available in your Registry."
-            href="/providers"
-            loading={
-              settings.isPending ||
-              providers.isPending ||
-              featuredProviders.isPending
-            }
-            items={featuredProviders.items}
-            variant="providers"
-          />
-          <CatalogSection
-            eyebrow="Featured modules"
-            description="Reusable Terraform configurations selected for your teams."
-            href="/modules"
-            loading={
-              settings.isPending ||
-              modules.isPending ||
-              featuredModules.isPending
-            }
-            items={featuredModules.items}
-            variant="modules"
-          />
+          {homepageSettings.featuredProvidersEnabled ? (
+            <CatalogSection
+              eyebrow="Featured providers"
+              description="Popular infrastructure plugins available in your Registry."
+              href="/providers"
+              loading={
+                settings.isPending ||
+                providers.isPending ||
+                featuredProviders.isPending
+              }
+              items={featuredProviders.items}
+              variant="providers"
+            />
+          ) : null}
+          {homepageSettings.featuredModulesEnabled ? (
+            <CatalogSection
+              eyebrow="Featured modules"
+              description="Reusable Terraform configurations selected for your teams."
+              href="/modules"
+              loading={
+                settings.isPending ||
+                modules.isPending ||
+                featuredModules.isPending
+              }
+              items={featuredModules.items}
+              variant="modules"
+            />
+          ) : null}
           <HowTerraformWorks />
         </div>
       )}
@@ -149,6 +157,8 @@ const DEFAULT_HOMEPAGE_SETTINGS: HomepageSettings = {
   notificationTitle: "Your private Registry is ready",
   notificationMessage:
     "Browse Terraform providers and modules available to your account.",
+  featuredProvidersEnabled: true,
+  featuredModulesEnabled: true,
   featuredProviderIds: DEFAULT_FEATURED_PROVIDER_IDS,
   featuredModuleIds: DEFAULT_FEATURED_MODULE_IDS,
   updatedAt: "",

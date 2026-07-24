@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/internal/webhooks/jfrog")
+@RequestMapping("/api/v1/internal/webhooks/jfrog")
 @ConditionalOnProperty(prefix = "registry.eventing.webhook", name = "enabled", havingValue = "true")
 public class JfrogWebhookController {
 

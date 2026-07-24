@@ -601,7 +601,7 @@ paths:
                 $ref: '#/components/schemas/ApiStatus'
         '401':
           $ref: '#/components/responses/Unauthorized'
-  /internal/webhooks/jfrog:
+  /api/v1/internal/webhooks/jfrog:
     post:
       tags: [Webhook]
       operationId: receiveJfrogWebhook
@@ -804,6 +804,8 @@ components:
         - notification_enabled
         - notification_title
         - notification_message
+        - featured_providers_enabled
+        - featured_modules_enabled
         - featured_provider_ids
         - featured_module_ids
       properties:
@@ -815,6 +817,12 @@ components:
           type: string
           maxLength: 500
           description: HTTPS or Registry-relative URL.
+        featured_providers_enabled:
+          type: boolean
+          description: Whether the featured provider section is visible on the homepage.
+        featured_modules_enabled:
+          type: boolean
+          description: Whether the featured module section is visible on the homepage.
         featured_provider_ids:
           type: array
           maxItems: 6

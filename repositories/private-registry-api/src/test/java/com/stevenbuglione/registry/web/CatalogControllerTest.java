@@ -61,11 +61,17 @@ class CatalogControllerTest {
     when(catalog.findPackages(eq(accessContext), any(CatalogQuery.class)))
         .thenReturn(new CatalogPage<>(List.of(module), null, 1));
 
-    mvc.perform(get("/registry/docs/search").queryParam("q", "vpc"))
+    mvc.perform(get("/api/v1/registry/docs/search").queryParam("q", "vpc"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].title").value("AWS VPC"))
         .andExpect(jsonPath("$[0].link_variables.target_system").value("aws"))
         .andExpect(jsonPath("$[0].link_variables.version").value("2.4.1"));
+  }
+
+  @Test
+  void doesNotExposeLegacyUnversionedCatalogRoutes() throws Exception {
+    mvc.perform(get("/registry/docs/search")).andExpect(status().isNotFound());
+    mvc.perform(get("/top/providers")).andExpect(status().isNotFound());
   }
 
   @Test
@@ -74,12 +80,12 @@ class CatalogControllerTest {
         .thenReturn(new CatalogPage<>(List.of(module), null, 1));
     when(catalog.getPackage(accessContext, module.id())).thenReturn(module);
 
-    mvc.perform(get("/registry/docs/modules/index.json"))
+    mvc.perform(get("/api/v1/registry/docs/modules/index.json"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.modules[0].addr.namespace").value("cloud-platform"))
         .andExpect(jsonPath("$.modules[0].versions[0].id").value("2.4.1"));
 
-    mvc.perform(get("/registry/docs/modules/cloud-platform/vpc/aws/2.4.1/index.json"))
+    mvc.perform(get("/api/v1/registry/docs/modules/cloud-platform/vpc/aws/2.4.1/index.json"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value("2.4.1"))
         .andExpect(jsonPath("$.readme").value(true))
@@ -96,7 +102,7 @@ class CatalogControllerTest {
         .thenReturn(
             new CatalogService.DocumentContent("# AWS VPC\n", "text/markdown; charset=utf-8"));
 
-    mvc.perform(get("/registry/docs/modules/cloud-platform/vpc/aws/latest/README.md"))
+    mvc.perform(get("/api/v1/registry/docs/modules/cloud-platform/vpc/aws/latest/README.md"))
         .andExpect(status().isOk())
         .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_MARKDOWN))
         .andExpect(content().string(org.hamcrest.Matchers.containsString("AWS VPC")));
@@ -107,7 +113,7 @@ class CatalogControllerTest {
     var provider = TestCatalogFixtures.provider();
     when(catalog.getPackage(accessContext, provider.id())).thenReturn(provider);
 
-    mvc.perform(get("/registry/docs/providers/platform/cloud/3.8.0/index.json"))
+    mvc.perform(get("/api/v1/registry/docs/providers/platform/cloud/3.8.0/index.json"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.docs.resources[0].name").value("cloud_project"))
         .andExpect(jsonPath("$.docs.datasources[0].name").value("cloud_identity"))
@@ -140,7 +146,7 @@ class CatalogControllerTest {
 
   @Test
   void rejectsIncompleteModuleRoute() throws Exception {
-    mvc.perform(get("/registry/docs/modules/incomplete")).andExpect(status().isBadRequest());
+    mvc.perform(get("/api/v1/registry/docs/modules/incomplete")).andExpect(status().isBadRequest());
   }
 
   @Test

@@ -187,6 +187,8 @@ beforeEach(() => {
       notificationEnabled: true,
       notificationTitle: "Registry notice",
       notificationMessage: "Terraform catalog content.",
+      featuredProvidersEnabled: true,
+      featuredModulesEnabled: true,
       featuredProviderIds: ["provider/hashicorp/aws"],
       featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
       updatedAt: "2026-07-22T12:00:00Z",
@@ -492,6 +494,16 @@ describe("application composition", () => {
     );
     await user.click(screen.getByRole("button", { name: /hashicorp\/aws/i }));
     await user.click(
+      screen.getByRole("checkbox", {
+        name: "Featured providers visibility",
+      }),
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Featured modules visibility",
+      }),
+    );
+    await user.click(
       screen.getByRole("button", {
         name: "Remove module/terraform-aws-modules/iam/aws",
       }),
@@ -505,8 +517,10 @@ describe("application composition", () => {
         notificationMessage: "The catalog will be read-only tonight.",
         notificationLinkLabel: "Status",
         notificationLinkUrl: "/status",
+        featuredProvidersEnabled: false,
+        featuredModulesEnabled: false,
         featuredProviderIds: [],
-        featuredModuleIds: [],
+        featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
       }),
     );
 
@@ -726,6 +740,8 @@ describe("application composition", () => {
         notificationEnabled: true,
         notificationTitle: "Registry notice",
         notificationMessage: "Terraform catalog content.",
+        featuredProvidersEnabled: true,
+        featuredModulesEnabled: true,
         featuredProviderIds: [],
         featuredModuleIds: [],
         updatedAt: "2026-07-23T12:00:00Z",
@@ -746,6 +762,42 @@ describe("application composition", () => {
         name: "No packages match these filters",
       }),
     ).toHaveLength(2);
+  });
+
+  it("independently hides disabled featured homepage sections", () => {
+    hookMocks.useHomepageSettings.mockReturnValue({
+      data: {
+        notificationEnabled: true,
+        notificationTitle: "Registry notice",
+        notificationMessage: "Terraform catalog content.",
+        featuredProvidersEnabled: false,
+        featuredModulesEnabled: true,
+        featuredProviderIds: ["provider/hashicorp/aws"],
+        featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
+        updatedAt: "2026-07-23T12:00:00Z",
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderWithRegistry(<HomePage />);
+
+    expect(hookMocks.useFeaturedPackages).toHaveBeenNthCalledWith(1, []);
+    expect(hookMocks.useFeaturedPackages).toHaveBeenNthCalledWith(2, [
+      "module/terraform-aws-modules/iam/aws",
+    ]);
+    expect(
+      screen.queryByText("Featured providers", { selector: "p" }),
+    ).toBeNull();
+    expect(
+      screen.getByText("Featured modules", { selector: "p" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "How Terraform, providers and modules work",
+      }),
+    ).toBeVisible();
   });
 
   it("renders home loading, empty, error, and administrator states truthfully", () => {
@@ -805,8 +857,9 @@ describe("application composition", () => {
     ).toHaveLength(2);
   });
 
-  it("updates Terraform-style module filters and URL pagination", async () => {
+  it("updates module filters and pagination without changing scroll position", async () => {
     const user = userEvent.setup();
+    const scrollTo = vi.spyOn(window, "scrollTo");
     hookMocks.useCatalogPage.mockReturnValue(
       queryResult({
         items: [provider, modulePackage],
@@ -820,8 +873,10 @@ describe("application composition", () => {
     await user.click(screen.getByRole("button", { name: "Filter Modules" }));
     expect(screen.getByRole("checkbox", { name: "AWS" })).toBeChecked();
     await user.click(screen.getByRole("checkbox", { name: "Azure" }));
+    expect(scrollTo).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Next page" }));
     expect(screen.getByText("10–11 of 42")).toBeVisible();
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it("renders catalog loading, API failure, and empty results", () => {

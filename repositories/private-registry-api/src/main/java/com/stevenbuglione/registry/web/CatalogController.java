@@ -15,10 +15,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/v1")
 public class CatalogController {
 
   private final CatalogService catalog;
@@ -81,7 +83,7 @@ public class CatalogController {
     return packageRoute(authentication, id, segments.subList(2, segments.size()), "index.md");
   }
 
-  @GetMapping("/api/v1/enterprise/packages/{*path}")
+  @GetMapping("/enterprise/packages/{*path}")
   public ResponseEntity<?> enterprisePackage(
       Authentication authentication, @PathVariable String path) {
     var context = identities.accessContext(authentication);

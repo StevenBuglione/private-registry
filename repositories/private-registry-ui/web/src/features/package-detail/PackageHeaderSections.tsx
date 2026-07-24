@@ -45,7 +45,6 @@ export function PackageHeaderActions({
           {item.versions.map((version) => (
             <option key={version} value={version}>
               Version {version}
-              {version === item.versions[0] ? " (latest)" : ""}
             </option>
           ))}
         </select>
@@ -127,6 +126,7 @@ export function ProviderFacts({
   sourceRepository: string | undefined;
 }) {
   const statistics = item.downloadStatistics;
+  const category = providerCategory(item.name);
   return (
     <div className="provider-package-facts" aria-label="Provider metadata">
       <div className="provider-facts-row">
@@ -161,8 +161,17 @@ export function ProviderFacts({
           <strong>{item.namespace}</strong>
         </div>
       </div>
+      {category === undefined ? null : (
+        <span className="provider-category">{category}</span>
+      )}
     </div>
   );
+}
+
+function providerCategory(name: string): string | undefined {
+  return ["aws", "azurerm", "google"].includes(name.toLowerCase())
+    ? "Public Cloud"
+    : undefined;
 }
 
 export function ModuleChildHeader({
@@ -194,13 +203,13 @@ export function ModuleChildHeader({
     <header className="package-source-header module-child-header source-container">
       <nav className="source-breadcrumbs" aria-label={`Module ${childKind}`}>
         <Link to="/browse/modules">Modules</Link>
-        <CaretRightIcon size={12} />
+        <span aria-hidden="true">/</span>
         <Link to={namespaceHref(item.namespace)}>{item.namespace}</Link>
-        <CaretRightIcon size={12} />
+        <span aria-hidden="true">/</span>
         <Link to={rootHref}>{item.name}</Link>
-        <CaretRightIcon size={12} />
+        <span aria-hidden="true">/</span>
         <Link to={rootHref}>v{item.version}</Link>
-        <CaretRightIcon size={12} />
+        <span aria-hidden="true">/</span>
         <span>{childName}</span>
       </nav>
       <h1>
