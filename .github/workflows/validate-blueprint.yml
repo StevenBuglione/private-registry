@@ -62,7 +62,7 @@ jobs:
           docker compose -f compose.yaml -f compose.ci.yaml up --build --wait
           curl --fail --silent --show-error http://localhost:18080/health/ready
           curl --fail --silent --show-error http://localhost:13000/config/runtime.json
-          curl --fail --silent --show-error 'http://localhost:13000/registry/docs/search?q=vpc'
+          curl --fail --silent --show-error 'http://localhost:13000/api/v1/registry/docs/search?q=vpc'
       - name: Capture Compose diagnostics
         if: failure() && steps.compose.outcome == 'failure'
         working-directory: repositories/private-registry-api

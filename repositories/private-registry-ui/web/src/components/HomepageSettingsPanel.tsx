@@ -92,6 +92,8 @@ function HomepageSettingsForm({
     notificationMessage: initialSettings.notificationMessage,
     notificationLinkLabel: initialSettings.notificationLinkLabel,
     notificationLinkUrl: initialSettings.notificationLinkUrl,
+    featuredProvidersEnabled: initialSettings.featuredProvidersEnabled,
+    featuredModulesEnabled: initialSettings.featuredModulesEnabled,
     featuredProviderIds: initialSettings.featuredProviderIds,
     featuredModuleIds: initialSettings.featuredModuleIds,
   }));
@@ -223,7 +225,14 @@ function HomepageSettingsForm({
             title="Featured providers"
             kind="provider"
             items={providers}
+            enabled={form.featuredProvidersEnabled}
             selectedIds={form.featuredProviderIds}
+            onEnabledChange={(enabled) => {
+              setForm((current) => ({
+                ...current,
+                featuredProvidersEnabled: enabled,
+              }));
+            }}
             onToggle={(packageId) => {
               toggleFeatured("featuredProviderIds", packageId);
             }}
@@ -232,7 +241,14 @@ function HomepageSettingsForm({
             title="Featured modules"
             kind="module"
             items={modules}
+            enabled={form.featuredModulesEnabled}
             selectedIds={form.featuredModuleIds}
+            onEnabledChange={(enabled) => {
+              setForm((current) => ({
+                ...current,
+                featuredModulesEnabled: enabled,
+              }));
+            }}
             onToggle={(packageId) => {
               toggleFeatured("featuredModuleIds", packageId);
             }}
@@ -265,13 +281,17 @@ function FeaturedPackagePicker({
   title,
   kind,
   items,
+  enabled,
   selectedIds,
+  onEnabledChange,
   onToggle,
 }: {
   title: string;
   kind: PackageKind;
   items: PackageSummary[];
+  enabled: boolean;
   selectedIds: string[];
+  onEnabledChange: (enabled: boolean) => void;
   onToggle: (packageId: string) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -301,20 +321,42 @@ function FeaturedPackagePicker({
   }, [items, query]);
 
   return (
-    <section className="admin-feature-picker" aria-label={title}>
+    <section
+      className={`admin-feature-picker${enabled ? "" : " disabled"}`}
+      aria-label={title}
+    >
       <header>
         <div>
-          <h3>{title}</h3>
-          <span>
-            {selectedIds.length}/{MAX_FEATURED_PACKAGES} selected
-          </span>
+          <div>
+            <h3>{title}</h3>
+            <span>
+              {selectedIds.length}/{MAX_FEATURED_PACKAGES} selected
+            </span>
+          </div>
+          <label className="admin-switch">
+            <input
+              type="checkbox"
+              aria-label={`${title} visibility`}
+              checked={enabled}
+              onChange={(event) => {
+                onEnabledChange(event.target.checked);
+              }}
+            />
+            <span>{enabled ? "Visible" : "Hidden"}</span>
+          </label>
         </div>
+        <p className="admin-feature-visibility-note">
+          {enabled
+            ? "Shown on the homepage for entitled users."
+            : "Hidden from the homepage. Selections are retained."}
+        </p>
         <label className="admin-package-search">
           <MagnifyingGlassIcon size={16} aria-hidden="true" />
           <span className="sr-only">Search {kind}s</span>
           <input
             type="search"
             value={query}
+            disabled={!enabled}
             placeholder={`Search ${kind}s`}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -324,6 +366,7 @@ function FeaturedPackagePicker({
             <button
               type="button"
               aria-label={`Clear ${kind} search`}
+              disabled={!enabled}
               onClick={() => {
                 setQuery("");
               }}
@@ -350,6 +393,7 @@ function FeaturedPackagePicker({
                 <button
                   type="button"
                   aria-label={`Remove ${item?.name ?? id}`}
+                  disabled={!enabled}
                   onClick={() => {
                     onToggle(id);
                   }}
@@ -375,7 +419,8 @@ function FeaturedPackagePicker({
                 className={selected ? "selected" : ""}
                 aria-pressed={selected}
                 disabled={
-                  !selected && selectedIds.length >= MAX_FEATURED_PACKAGES
+                  !enabled ||
+                  (!selected && selectedIds.length >= MAX_FEATURED_PACKAGES)
                 }
                 key={id}
                 onClick={() => {

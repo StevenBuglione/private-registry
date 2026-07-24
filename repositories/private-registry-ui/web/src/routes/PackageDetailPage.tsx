@@ -1,4 +1,3 @@
-import { CaretRightIcon } from "@phosphor-icons/react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
 import { VerificationBadge } from "../components/Badges";
@@ -173,9 +172,9 @@ export function PackageDetailPage({
             >
               {kind === "provider" ? "Providers" : "Modules"}
             </Link>
-            <CaretRightIcon size={12} />
+            <span aria-hidden="true">/</span>
             <Link to={namespaceHref(item.namespace)}>{item.namespace}</Link>
-            <CaretRightIcon size={12} />
+            <span aria-hidden="true">/</span>
             <Link
               to={
                 kind === "provider"
@@ -185,13 +184,14 @@ export function PackageDetailPage({
             >
               {item.name}
             </Link>
-            <CaretRightIcon size={12} />
+            <span aria-hidden="true">/</span>
             <span>v{item.version}</span>
           </nav>
           <div className="package-title-row">
             <PackageIcon
               kind={kind}
               name={kind === "module" ? item.provider : item.name}
+              {...(kind === "module" ? { namespace: item.namespace } : {})}
               size="large"
             />
             <div>
@@ -344,7 +344,6 @@ export function PackageDetailPage({
                 {kind === "module" ? (
                   <>
                     {moduleChildKind === undefined &&
-                    tab === "readme" &&
                     !hasRootModuleConfiguration(item.symbols) &&
                     item.submodules.length > 0 ? (
                       <ModuleRootConfigurationNotice

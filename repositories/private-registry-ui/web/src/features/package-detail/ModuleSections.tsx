@@ -10,12 +10,9 @@ import { MarkdownDocument } from "./MarkdownDocument";
 import {
   capitalize,
   cleanSymbolDescription,
-  dependencyDescription,
   dependencyKind,
   formatDefaultValue,
   formatDownloadCount,
-  resourceProvider,
-  symbolKindLabel,
   symbolsForModuleTab,
 } from "./model";
 
@@ -100,19 +97,37 @@ export function DownloadStatisticsCard({
       <dl>
         <div>
           <dt>Downloads this week</dt>
-          <dd>{formatDownloadCount(displayedStatistics?.week)}</dd>
+          <dd
+            className={displayedStatistics?.week === undefined ? "empty" : ""}
+          >
+            {formatDownloadCount(displayedStatistics?.week)}
+          </dd>
         </div>
         <div>
           <dt>Downloads this month</dt>
-          <dd>{formatDownloadCount(displayedStatistics?.month)}</dd>
+          <dd
+            className={displayedStatistics?.month === undefined ? "empty" : ""}
+          >
+            {formatDownloadCount(displayedStatistics?.month)}
+          </dd>
         </div>
         <div>
           <dt>Downloads this year</dt>
-          <dd>{formatDownloadCount(displayedStatistics?.year)}</dd>
+          <dd
+            className={displayedStatistics?.year === undefined ? "empty" : ""}
+          >
+            {formatDownloadCount(displayedStatistics?.year)}
+          </dd>
         </div>
         <div>
           <dt>Downloads over all time</dt>
-          <dd>{formatDownloadCount(displayedStatistics?.allTime)}</dd>
+          <dd
+            className={
+              displayedStatistics?.allTime === undefined ? "empty" : ""
+            }
+          >
+            {formatDownloadCount(displayedStatistics?.allTime)}
+          </dd>
         </div>
       </dl>
     </section>
@@ -148,7 +163,9 @@ export function ModuleTabContent({
 
   if (tab === "inputs") return <InputDefinitions symbols={items} />;
   if (tab === "outputs") return <OutputDefinitions symbols={items} />;
-  return <SymbolList title={title} symbols={items} />;
+  if (tab === "dependencies") return <DependencyDefinitions symbols={items} />;
+  if (tab === "resources") return <ResourceDefinitions symbols={items} />;
+  return null;
 }
 
 function InputDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
@@ -283,69 +300,110 @@ function DefinitionCopyButton({ value }: { value: string }) {
   );
 }
 
-function SymbolList({
-  title,
-  symbols,
-}: {
-  title: string;
-  symbols: PackageSymbol[];
-}) {
+function DependencyDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
+  const moduleDependencies = symbols.filter(
+    (symbol) => dependencyKind(symbol) === "Module",
+  );
+  const providerDependencies = symbols.filter(
+    (symbol) => dependencyKind(symbol) === "Provider",
+  );
   return (
-    <section className="module-symbol-panel">
-      <div className="symbol-panel-heading">
-        <div>
-          <h2>{title}</h2>
+    <section
+      className="module-symbol-panel module-registry-sections"
+      aria-label="Dependencies"
+    >
+      <section className="module-registry-section">
+        <h2>Dependencies</h2>
+        <p>
+          Dependencies are external modules that this module references. A
+          module is considered external if it isn&apos;t within the same
+          repository.
+        </p>
+        {moduleDependencies.length === 0 ? (
           <p>
-            {title === "Dependencies"
-              ? "External providers and modules required by this version."
-              : "Infrastructure objects declared by this module version."}
+            <strong>This module has no external module dependencies.</strong>
           </p>
-        </div>
-        <span>{symbols.length}</span>
-      </div>
-      <ul className="symbol-list">
-        {symbols.map((symbol) => {
-          const dependency = title === "Dependencies";
-          const source = dependency
-            ? (symbol.source ?? symbol.description)
-            : symbol.path;
-          return (
+        ) : (
+          <DependencyList symbols={moduleDependencies} />
+        )}
+      </section>
+      <section className="module-registry-section">
+        <h2>Provider Dependencies</h2>
+        <p>
+          Providers are Terraform plugins that will be automatically installed
+          during <code>terraform init</code> if available on the Terraform
+          Registry.
+        </p>
+        {providerDependencies.length === 0 ? (
+          <p>
+            <strong>This module has no provider dependencies.</strong>
+          </p>
+        ) : (
+          <DependencyList symbols={providerDependencies} />
+        )}
+      </section>
+    </section>
+  );
+}
+
+function DependencyList({ symbols }: { symbols: PackageSymbol[] }) {
+  return (
+    <ul className="module-registry-list">
+      {symbols.map((symbol) => {
+        const source = symbol.source ?? symbol.description ?? symbol.name;
+        const displayName =
+          symbol.name.split("/").filter(Boolean).at(-1) ?? symbol.name;
+        return (
+          <li key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
+            {displayName} ({source})
+            {symbol.defaultValue === undefined ? null : (
+              <>
+                {" "}
+                <code>{formatDefaultValue(symbol.defaultValue)}</code>
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function ResourceDefinitions({ symbols }: { symbols: PackageSymbol[] }) {
+  return (
+    <section
+      className="module-symbol-panel module-registry-sections"
+      aria-label="Resources"
+    >
+      <section className="module-registry-section">
+        <h2>Resources</h2>
+        <p>
+          This is the list of resources that the module <em>may</em> create. The
+          module can create zero or more of each of these resources depending on
+          the <code>count</code> value. The count value is determined at
+          runtime. The goal of this page is to present the types of resources
+          that may be created.
+        </p>
+        <p>
+          This list contains all the resources this plus any submodules may
+          create. When using this module, it may create fewer resources if you
+          use a submodule.
+        </p>
+        <p>
+          This module defines{" "}
+          <strong>
+            {symbols.length} {symbols.length === 1 ? "resource" : "resources"}
+          </strong>
+          .
+        </p>
+        <ul className="module-registry-list module-resource-list">
+          {symbols.map((symbol) => (
             <li key={`${symbol.kind}-${symbol.name}-${symbol.path}`}>
-              <div>
-                <code>{symbol.name}</code>
-                <span className="symbol-kind">
-                  {symbolKindLabel(symbol.kind)}
-                </span>
-              </div>
-              <p>
-                {dependency
-                  ? dependencyDescription(symbol)
-                  : cleanSymbolDescription(symbol.description)}
-              </p>
-              <dl>
-                <div>
-                  <dt>{dependency ? "Kind" : "Provider"}</dt>
-                  <dd>
-                    {dependency
-                      ? dependencyKind(symbol)
-                      : resourceProvider(symbol)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{dependency ? "Source" : "Declared in"}</dt>
-                  <dd>{source ?? "Unknown"}</dd>
-                </div>
-                {dependency && symbol.defaultValue !== undefined ? (
-                  <div>
-                    <dt>Version</dt>
-                    <dd>{formatDefaultValue(symbol.defaultValue)}</dd>
-                  </div>
-                ) : null}
-              </dl>
+              <code>{symbol.name}</code>
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      </section>
     </section>
   );
 }

@@ -135,7 +135,7 @@ variables.
 
 | Variable | Required | Secret | Default | Meaning |
 |---|---:|---:|---|---|
-| `REGISTRY_WEBHOOK_ENABLED` | API | No | `false` | Enables `POST /internal/webhooks/jfrog`. |
+| `REGISTRY_WEBHOOK_ENABLED` | API | No | `false` | Enables `POST /api/v1/internal/webhooks/jfrog`. |
 | `REGISTRY_WEBHOOK_SECRET` | API | Yes | empty | HMAC shared secret. Generate at least 32 random bytes. |
 | `REGISTRY_WEBHOOK_ORIGIN` | API | No | empty | Allowed origin set; comma-separated when multiple values are required. |
 | `REGISTRY_WEBHOOK_SUBSCRIPTION_ID` | API | No | empty | Exact configured subscription ID. |
@@ -258,12 +258,6 @@ Do not configure these unless a future adapter explicitly implements them:
 - `REGISTRY_JFROG_BASE_URL`
 - `REGISTRY_JFROG_TOKEN_SECRET_ARN`
 - `REGISTRY_AUTHORIZATION_CONFIG_SECRET_ARN`
-- `REGISTRY_DATA_API_URL`
-- `REGISTRY_ENTERPRISE_API_URL`
-- `REGISTRY_FEATURE_PROVIDERS`
-- `REGISTRY_FEATURE_MODULES`
-- `REGISTRY_FEATURE_SECURITY`
-- `REGISTRY_FEATURE_AUDIT`
 
 Their presence in the current AWS Terraform scaffold is a known blocker, not an
 application contract.

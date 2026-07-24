@@ -66,7 +66,7 @@ class SecurityConfigurationTest {
     var payload = "{\"event_type\":\"deployed\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
     mvc.perform(
-            post("/internal/webhooks/jfrog")
+            post("/api/v1/internal/webhooks/jfrog")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
                 .header("X-JFrog-Signature", "invalid")
@@ -80,8 +80,8 @@ class SecurityConfigurationTest {
 
   @Test
   void keepsApiAndNonPostWebhookRequestsClosed() throws Exception {
-    mvc.perform(get("/api/closed")).andExpect(status().isUnauthorized());
-    mvc.perform(get("/internal/webhooks/jfrog")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/closed")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/internal/webhooks/jfrog")).andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -222,7 +222,7 @@ class SecurityConfigurationTest {
 
   @RestController
   static class ClosedApiController {
-    @GetMapping("/api/closed")
+    @GetMapping("/api/v1/closed")
     String closed() {
       return "closed";
     }

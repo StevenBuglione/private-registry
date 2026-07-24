@@ -35,7 +35,8 @@ public class SecurityConfiguration {
     http.csrf(
             csrf ->
                 csrf.csrfTokenRepository(csrfRepository)
-                    .ignoringRequestMatchers("/internal/webhooks/**", "/api/v1/sync/artifacts"))
+                    .ignoringRequestMatchers(
+                        "/api/v1/internal/webhooks/**", "/api/v1/sync/artifacts"))
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .logout(AbstractHttpConfigurer::disable)
@@ -43,7 +44,7 @@ public class SecurityConfiguration {
             exceptions ->
                 exceptions.defaultAuthenticationEntryPointFor(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                    PathPatternRequestMatcher.pathPattern("/api/**")))
+                    PathPatternRequestMatcher.pathPattern("/api/v1/**")))
         .addFilterBefore(albAuthenticationFilter, AnonymousAuthenticationFilter.class)
         .authorizeHttpRequests(
             authorize -> {
@@ -51,7 +52,9 @@ public class SecurityConfiguration {
                   .requestMatchers("/health/**", "/actuator/health/**", "/actuator/info")
                   .permitAll();
               authorize.requestMatchers("/oauth2/**", "/login/**").permitAll();
-              authorize.requestMatchers(HttpMethod.POST, "/internal/webhooks/jfrog").permitAll();
+              authorize
+                  .requestMatchers(HttpMethod.POST, "/api/v1/internal/webhooks/jfrog")
+                  .permitAll();
               authorize.requestMatchers(HttpMethod.POST, "/api/v1/sync/artifacts").permitAll();
               authorize.requestMatchers("/api/v1/admin/**").access(registryAdministrators);
               authorize

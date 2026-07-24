@@ -59,15 +59,10 @@ locals {
   }, var.extra_task_environment)
 
   ui_environment = {
-    REGISTRY_DATA_API_URL       = "/registry/docs/"
-    REGISTRY_ENTERPRISE_API_URL = "/api/v1/enterprise"
-    REGISTRY_JFROG_HOSTNAME     = var.jfrog_hostname
-    REGISTRY_ENVIRONMENT        = var.environment
-    REGISTRY_SUPPORT_URL        = var.support_url
-    REGISTRY_FEATURE_PROVIDERS  = "true"
-    REGISTRY_FEATURE_MODULES    = "true"
-    REGISTRY_FEATURE_SECURITY   = "true"
-    REGISTRY_FEATURE_AUDIT      = "false"
+    REGISTRY_API_BASE_URL   = "/api/v1"
+    REGISTRY_JFROG_HOSTNAME = var.jfrog_hostname
+    REGISTRY_ENVIRONMENT    = var.environment
+    REGISTRY_SUPPORT_URL    = var.support_url
   }
 }
 

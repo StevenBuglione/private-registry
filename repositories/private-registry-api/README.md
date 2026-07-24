@@ -22,7 +22,7 @@ This repository owns the Java 25 Spring Boot catalog API, database migrations, s
 ```bash
 docker compose up --build --wait
 curl http://localhost:8080/health/ready
-curl 'http://localhost:8080/registry/docs/search?q=vpc'
+curl 'http://localhost:8080/api/v1/registry/docs/search?q=vpc'
 ```
 
 Open <http://localhost:3000> for the complete UI. Compose starts PostgreSQL,

@@ -46,6 +46,8 @@ public class HomepageSettingsService {
                    notification_message,
                    notification_link_label,
                    notification_link_url,
+                   featured_providers_enabled,
+                   featured_modules_enabled,
                    updated_at
               FROM registry_homepage_settings
              WHERE id = 1
@@ -58,6 +60,8 @@ public class HomepageSettingsService {
                         resultSet.getString("notification_message"),
                         resultSet.getString("notification_link_label"),
                         resultSet.getString("notification_link_url"),
+                        resultSet.getBoolean("featured_providers_enabled"),
+                        resultSet.getBoolean("featured_modules_enabled"),
                         resultSet.getTimestamp("updated_at").toInstant()))
             .single();
     return new HomepageSettings(
@@ -66,6 +70,8 @@ public class HomepageSettingsService {
         presentation.notificationMessage(),
         presentation.notificationLinkLabel(),
         presentation.notificationLinkUrl(),
+        presentation.featuredProvidersEnabled(),
+        presentation.featuredModulesEnabled(),
         featuredPackageIds("provider", accessContext),
         featuredPackageIds("module", accessContext),
         presentation.updatedAt());
@@ -86,6 +92,8 @@ public class HomepageSettingsService {
                    notification_message = :notificationMessage,
                    notification_link_label = :notificationLinkLabel,
                    notification_link_url = :notificationLinkUrl,
+                   featured_providers_enabled = :featuredProvidersEnabled,
+                   featured_modules_enabled = :featuredModulesEnabled,
                    updated_by = :updatedBy,
                    updated_at = now()
              WHERE id = 1
@@ -95,6 +103,8 @@ public class HomepageSettingsService {
         .param("notificationMessage", normalized.notificationMessage())
         .param("notificationLinkLabel", normalized.notificationLinkLabel())
         .param("notificationLinkUrl", normalized.notificationLinkUrl())
+        .param("featuredProvidersEnabled", normalized.featuredProvidersEnabled())
+        .param("featuredModulesEnabled", normalized.featuredModulesEnabled())
         .param("updatedBy", actorSubject)
         .update();
     var after = get();
@@ -212,6 +222,8 @@ public class HomepageSettingsService {
         message,
         linkLabel,
         linkUrl,
+        update.featuredProvidersEnabled(),
+        update.featuredModulesEnabled(),
         validatePackageIds(
             update.featuredProviderIds(),
             PROVIDER_ID,
@@ -293,6 +305,8 @@ public class HomepageSettingsService {
       String notificationMessage,
       @Nullable String notificationLinkLabel,
       @Nullable String notificationLinkUrl,
+      boolean featuredProvidersEnabled,
+      boolean featuredModulesEnabled,
       Instant updatedAt) {}
 
   private record Feature(String kind, UUID packageId, int displayOrder) {}
@@ -303,6 +317,8 @@ public class HomepageSettingsService {
       String notificationMessage,
       @Nullable String notificationLinkLabel,
       @Nullable String notificationLinkUrl,
+      boolean featuredProvidersEnabled,
+      boolean featuredModulesEnabled,
       List<String> featuredProviderIds,
       List<String> featuredModuleIds) {
 

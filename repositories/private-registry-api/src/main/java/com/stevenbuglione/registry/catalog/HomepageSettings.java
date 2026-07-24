@@ -10,6 +10,8 @@ public record HomepageSettings(
     String notificationMessage,
     @Nullable String notificationLinkLabel,
     @Nullable String notificationLinkUrl,
+    boolean featuredProvidersEnabled,
+    boolean featuredModulesEnabled,
     List<String> featuredProviderIds,
     List<String> featuredModuleIds,
     Instant updatedAt) {

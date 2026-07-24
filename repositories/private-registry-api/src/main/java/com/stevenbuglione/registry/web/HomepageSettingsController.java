@@ -44,6 +44,8 @@ public class HomepageSettingsController {
       String notificationMessage,
       @Nullable String notificationLinkLabel,
       @Nullable String notificationLinkUrl,
+      boolean featuredProvidersEnabled,
+      boolean featuredModulesEnabled,
       @Nullable List<String> featuredProviderIds,
       @Nullable List<String> featuredModuleIds) {
 
@@ -54,6 +56,8 @@ public class HomepageSettingsController {
           notificationMessage,
           notificationLinkLabel,
           notificationLinkUrl,
+          featuredProvidersEnabled,
+          featuredModulesEnabled,
           featuredProviderIds == null ? List.of() : featuredProviderIds,
           featuredModuleIds == null ? List.of() : featuredModuleIds);
     }

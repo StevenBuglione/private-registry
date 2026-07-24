@@ -302,17 +302,23 @@ class RegistryAdministrationIntegrationTest {
                 "The Registry will remain readable.",
                 "Status",
                 "/status",
+                false,
+                true,
                 List.of("provider/hashicorp/aws"),
                 List.of("module/terraform-aws-modules/iam/aws")),
             "admin-home");
 
     assertThat(updated.notificationTitle()).isEqualTo("Planned maintenance");
+    assertThat(updated.featuredProvidersEnabled()).isFalse();
+    assertThat(updated.featuredModulesEnabled()).isTrue();
     var event = audit.recent(1, null).getFirst();
     assertThat(event.action()).isEqualTo("registry.homepage.updated");
     assertThat(event.actorId()).isEqualTo("admin-home");
     assertThat(event.detail().path("before").isObject()).isTrue();
     assertThat(event.detail().path("after").path("notificationTitle").stringValue())
         .isEqualTo("Planned maintenance");
+    assertThat(event.detail().path("after").path("featuredProvidersEnabled").booleanValue())
+        .isFalse();
     assertThat(Set.copyOf(updated.featuredProviderIds())).containsExactly("provider/hashicorp/aws");
     assertThat(Set.copyOf(updated.featuredModuleIds()))
         .containsExactly("module/terraform-aws-modules/iam/aws");

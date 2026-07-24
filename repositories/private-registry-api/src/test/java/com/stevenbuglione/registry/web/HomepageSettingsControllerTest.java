@@ -34,6 +34,8 @@ class HomepageSettingsControllerTest {
 
     var filtered = controller.get(authentication);
 
+    assertThat(filtered.featuredProvidersEnabled()).isFalse();
+    assertThat(filtered.featuredModulesEnabled()).isTrue();
     assertThat(filtered.featuredProviderIds()).containsExactly("provider/hashicorp/aws");
     assertThat(filtered.featuredModuleIds())
         .containsExactly("module/terraform-aws-modules/iam/aws");
@@ -52,6 +54,8 @@ class HomepageSettingsControllerTest {
             "Approved content is available.",
             null,
             null,
+            false,
+            true,
             List.of("provider/hashicorp/aws"),
             List.of("module/terraform-aws-modules/iam/aws"));
 
@@ -66,6 +70,8 @@ class HomepageSettingsControllerTest {
         "Approved content is available.",
         null,
         null,
+        false,
+        true,
         List.of("provider/hashicorp/aws"),
         List.of("module/terraform-aws-modules/iam/aws"),
         Instant.parse("2026-07-22T12:00:00Z"));

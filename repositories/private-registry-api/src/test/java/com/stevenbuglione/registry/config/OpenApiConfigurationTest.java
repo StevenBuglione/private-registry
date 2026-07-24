@@ -44,9 +44,9 @@ class OpenApiConfigurationTest {
             .addPathItem("/api/v1/analytics/page-views", post())
             .addPathItem("/api/v1/sync/artifacts", post())
             .addPathItem("/api/v1/artifactory/status", get())
-            .addPathItem("/registry/docs/search", get())
+            .addPathItem("/api/v1/registry/docs/search", get())
             .addPathItem("/api/v1/enterprise/packages/{path}", get())
-            .addPathItem("/internal/webhooks/jfrog", post())
+            .addPathItem("/api/v1/internal/webhooks/jfrog", post())
             .addPathItem("/health/ready", get())
             .addPathItem("/api/v1/status", get()));
 
@@ -64,9 +64,9 @@ class OpenApiConfigurationTest {
                 Map.entry("/api/v1/analytics/page-views", "Traffic analytics"),
                 Map.entry("/api/v1/sync/artifacts", "Artifact sync"),
                 Map.entry("/api/v1/artifactory/status", "Artifactory"),
-                Map.entry("/registry/docs/search", "Compatibility"),
+                Map.entry("/api/v1/registry/docs/search", "Compatibility"),
                 Map.entry("/api/v1/enterprise/packages/{path}", "Compatibility"),
-                Map.entry("/internal/webhooks/jfrog", "Webhook"),
+                Map.entry("/api/v1/internal/webhooks/jfrog", "Webhook"),
                 Map.entry("/health/ready", "Health"),
                 Map.entry("/api/v1/status", "Health")));
     var syncPath = Objects.requireNonNull(openApi.getPaths().get("/api/v1/sync/artifacts"));

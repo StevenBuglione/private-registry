@@ -81,6 +81,8 @@ class HomepageSettingsServiceTest {
         "Approved content is available.",
         linkLabel,
         linkUrl,
+        true,
+        true,
         providerIds,
         List.of("module/terraform-aws-modules/iam/aws"));
   }

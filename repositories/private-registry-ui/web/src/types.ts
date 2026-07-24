@@ -23,6 +23,8 @@ export interface HomepageSettings {
   notificationMessage: string;
   notificationLinkLabel?: string | undefined;
   notificationLinkUrl?: string | undefined;
+  featuredProvidersEnabled: boolean;
+  featuredModulesEnabled: boolean;
   featuredProviderIds: string[];
   featuredModuleIds: string[];
   updatedAt: string;

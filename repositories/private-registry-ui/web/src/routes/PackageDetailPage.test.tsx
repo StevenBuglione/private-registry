@@ -324,6 +324,7 @@ describe("PackageDetailPage symbol-driven views", () => {
     expect(
       screen.getByRole("heading", { name: "Top downloaded aws modules" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Public Cloud")).toBeInTheDocument();
     expect(
       screen.getByText("Showing 1 - 1 of 7 available modules"),
     ).toBeInTheDocument();
@@ -402,18 +403,27 @@ describe("PackageDetailPage symbol-driven views", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Dependencies (1)" }));
-    expect(screen.getAllByText("hashicorp/aws")).toHaveLength(2);
     expect(
-      screen.getByText("Provider requirement for hashicorp/aws."),
+      screen.getByText("This module has no external module dependencies."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_content, element) =>
+          element?.tagName === "LI" &&
+          element.textContent.includes("aws (hashicorp/aws)"),
+      ),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Resources (1)" }));
     const resource = screen.getByText("aws_vpc.this").closest("li");
     expect(resource).not.toBeNull();
     if (resource === null) throw new Error("Expected a resource list item");
-    expect(within(resource).getByText("aws")).toBeInTheDocument();
     expect(
-      within(resource).getByText("resources/aws_vpc.this"),
+      screen.getByText(
+        (_content, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "This module defines 1 resource.",
+      ),
     ).toBeInTheDocument();
 
     const result = await axe.run(container, {

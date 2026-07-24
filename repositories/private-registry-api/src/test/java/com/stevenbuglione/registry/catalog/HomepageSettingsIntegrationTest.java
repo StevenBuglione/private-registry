@@ -59,6 +59,8 @@ class HomepageSettingsIntegrationTest {
                    notification_message = 'Available packages.',
                    notification_link_label = NULL,
                    notification_link_url = NULL,
+                   featured_providers_enabled = true,
+                   featured_modules_enabled = true,
                    updated_by = 'test',
                    updated_at = now()
             """)
@@ -183,10 +185,42 @@ class HomepageSettingsIntegrationTest {
         .isInstanceOf(RuntimeException.class);
   }
 
+  @Test
+  void featureSectionVisibilityIsPersistedIndependently() {
+    var updated =
+        service.update(
+            new HomepageSettingsService.Update(
+                true,
+                "Registry",
+                "Available packages.",
+                null,
+                null,
+                false,
+                true,
+                List.of(),
+                List.of()),
+            "registry-admin");
+
+    assertThat(updated.featuredProvidersEnabled()).isFalse();
+    assertThat(updated.featuredModulesEnabled()).isTrue();
+    assertThat(service.get().featuredProvidersEnabled()).isFalse();
+    assertThat(service.get().featuredModulesEnabled()).isTrue();
+    assertThat(
+            jdbc.sql(
+                    """
+                    SELECT featured_providers_enabled
+                      FROM registry_homepage_settings
+                     WHERE id = 1
+                    """)
+                .query(Boolean.class)
+                .single())
+        .isFalse();
+  }
+
   private static HomepageSettingsService.Update update(
       List<String> providers, List<String> modules) {
     return new HomepageSettingsService.Update(
-        true, "Registry", "Available packages.", null, null, providers, modules);
+        true, "Registry", "Available packages.", null, null, true, true, providers, modules);
   }
 
   private static UUID insertPackage(

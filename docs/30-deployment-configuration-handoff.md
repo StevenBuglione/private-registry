@@ -618,7 +618,7 @@ as an operational failure.
 ### Swagger/OpenAPI
 
 - Swagger UI: `/swagger-ui.html`
-- OpenAPI JSON: `/v3/api-docs`
+- OpenAPI JSON: `/api/v1/openapi`
 
 Expose them through the API target group and normal authentication. Do not make the
 interactive documentation public merely to simplify routing.

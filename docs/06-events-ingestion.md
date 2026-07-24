@@ -1,6 +1,6 @@
 # Events and ingestion
 
-JFrog sends a signed JSON webhook to `/internal/webhooks/jfrog`. The API validates signature, origin, subscription, repository/path allowlist, content type, and size before inserting the normalized event into PostgreSQL.
+JFrog sends a signed JSON webhook to `/api/v1/internal/webhooks/jfrog`. The API validates signature, origin, subscription, repository/path allowlist, content type, and size before inserting the normalized event into PostgreSQL.
 
 `catalog_event_queue.event_id` is unique. A duplicate delivery returns the original publication identity without creating duplicate work. Consumers claim available rows with `FOR UPDATE SKIP LOCKED`, allowing any API replica to work safely.
 

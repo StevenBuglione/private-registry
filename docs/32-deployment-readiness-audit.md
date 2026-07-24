@@ -117,23 +117,23 @@ batches configured groups accordingly.
 consent according to organization policy, and prove APM-A, APM-B, no-entitlement, and
 administrator behavior with real identities.
 
-### 7. ALB routes do not expose required API endpoints
+### 7. ALB routes expose API and authentication endpoints
 
-`local.api_paths` currently contains only `/api/*`, `/registry/docs/*`, and `/top/*`.
-Production Nginx serves the SPA and does not proxy API requests.
+Application endpoints, compatibility endpoints, the OpenAPI document, and JFrog webhook
+intake are consolidated under `/api/v1/*`. `local.api_paths` routes the following paths to
+the API target group:
 
-**Required correction:** explicitly route at least:
-
-- `/api/*`
-- `/registry/docs/*`
-- `/top/*`
+- `/api/v1/*`
 - `/swagger-ui*`
-- `/v3/api-docs*`
-- `/internal/webhooks/jfrog`
+- `/oauth2/*`
+- `/login/*`
+- `/logout`
 
-The webhook route must not use interactive OIDC. Protect it with its HMAC and strict
-origin/subscription/repository/path allowlists. Decide separately whether metrics are
-internal-only or routed through a management listener.
+The last three paths are Spring Security protocol endpoints and are intentionally not API
+versioned. Production Nginx serves the SPA and does not proxy API requests. The webhook
+route must not use interactive OIDC; protect it with its HMAC and strict
+origin/subscription/repository/path allowlists. Keep metrics internal-only or route them
+through a separate management listener.
 
 ### 8. The internal ALB may be unreachable from JFrog
 

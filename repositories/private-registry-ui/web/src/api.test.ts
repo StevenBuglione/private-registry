@@ -176,6 +176,8 @@ describe("OpenAPI response normalization", () => {
           notification_enabled: true,
           notification_title: "Registry notice",
           notification_message: "Terraform packages are available.",
+          featured_providers_enabled: true,
+          featured_modules_enabled: false,
           featured_provider_ids: ["provider/hashicorp/aws"],
           featured_module_ids: ["module/terraform-aws-modules/iam/aws"],
           updated_at: "2026-07-22T12:00:00Z",
@@ -188,6 +190,8 @@ describe("OpenAPI response normalization", () => {
     expect(settings).toMatchObject({
       notificationEnabled: true,
       notificationTitle: "Registry notice",
+      featuredProvidersEnabled: true,
+      featuredModulesEnabled: false,
       featuredProviderIds: ["provider/hashicorp/aws"],
       featuredModuleIds: ["module/terraform-aws-modules/iam/aws"],
     });
@@ -197,6 +201,8 @@ describe("OpenAPI response normalization", () => {
         notificationEnabled: false,
         notificationTitle: "Maintenance",
         notificationMessage: "The catalog is read-only.",
+        featuredProvidersEnabled: false,
+        featuredModulesEnabled: true,
         featuredProviderIds: [],
         featuredModuleIds: [],
       },
@@ -217,6 +223,8 @@ describe("OpenAPI response normalization", () => {
       notification_enabled: false,
       notification_title: "Maintenance",
       notification_message: "The catalog is read-only.",
+      featured_providers_enabled: false,
+      featured_modules_enabled: true,
       featured_provider_ids: [],
       featured_module_ids: [],
     });

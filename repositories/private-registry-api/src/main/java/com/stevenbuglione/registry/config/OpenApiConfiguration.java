@@ -26,10 +26,10 @@ public class OpenApiConfiguration {
           new RouteGroup("/api/v1/analytics/", "Traffic analytics"),
           new RouteGroup("/api/v1/sync/artifacts", "Artifact sync"),
           new RouteGroup("/api/v1/artifactory/status", "Artifactory"),
-          new RouteGroup("/registry/", "Compatibility"),
-          new RouteGroup("/top/", "Compatibility"),
+          new RouteGroup("/api/v1/registry/", "Compatibility"),
+          new RouteGroup("/api/v1/top/", "Compatibility"),
           new RouteGroup("/api/v1/enterprise/", "Compatibility"),
-          new RouteGroup("/internal/webhooks/", "Webhook"));
+          new RouteGroup("/api/v1/internal/webhooks/", "Webhook"));
 
   @Bean
   OpenAPI registryOpenApi() {

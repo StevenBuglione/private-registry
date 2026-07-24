@@ -175,7 +175,6 @@ export function CatalogPage({ kind }: { kind?: PackageKind }) {
                 if (page === 1) next.delete("page");
                 else next.set("page", String(page));
                 setSearchParams(next);
-                window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             />
           ) : null}

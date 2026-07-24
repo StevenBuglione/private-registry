@@ -8,13 +8,17 @@ import type { PackageKind } from "../types";
 export function PackageIcon({
   kind,
   name,
+  namespace,
   size = "medium",
 }: {
   kind: PackageKind;
   name?: string;
+  namespace?: string;
   size?: "small" | "medium" | "large";
 }) {
-  const logo = providerLogo(name);
+  const moduleNamespaceLogo =
+    kind === "module" ? namespaceLogo(namespace) : undefined;
+  const logo = moduleNamespaceLogo ?? providerLogo(name);
   const Icon =
     kind === "provider"
       ? ProviderIcon
@@ -23,7 +27,9 @@ export function PackageIcon({
         : CubeIcon;
   return (
     <span
-      className={`package-icon package-icon-${kind} package-icon-${size}`}
+      className={`package-icon package-icon-${kind} package-icon-${size}${
+        moduleNamespaceLogo === undefined ? "" : " package-icon-namespace"
+      }`}
       aria-hidden="true"
     >
       {logo !== undefined ? (
@@ -33,6 +39,14 @@ export function PackageIcon({
       )}
     </span>
   );
+}
+
+function namespaceLogo(namespace?: string): string | undefined {
+  const normalized =
+    namespace?.toLowerCase().replaceAll(/[^a-z0-9]/g, "") ?? "";
+  if (normalized === "terraformawsmodules")
+    return "/assets/namespaces/terraform-aws-modules.png";
+  return undefined;
 }
 
 function providerLogo(name?: string): string | undefined {

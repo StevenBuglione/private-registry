@@ -10,7 +10,7 @@ Primary interfaces:
 - `GET /api/v1/catalog/packages/{kind}/{namespace}/{name}[/{target}][/{version}]`
 - version, documentation, and governance subresources beneath the package route
 - `GET /api/v1/catalog/events`
-- `POST /internal/webhooks/jfrog`
+- `POST /api/v1/internal/webhooks/jfrog`
 
 Contract rules:
 
