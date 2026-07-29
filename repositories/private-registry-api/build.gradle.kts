@@ -21,7 +21,7 @@ plugins {
     jacoco
     pmd
     id("org.springframework.boot") version "4.1.0"
-    id("com.diffplug.spotless") version "8.8.0"
+    id("com.diffplug.spotless") version "8.9.0"
     id("net.ltgt.errorprone") version "5.1.0"
     id("com.github.spotbugs") version "6.5.9"
     id("info.solidsoft.pitest") version "1.19.0"
