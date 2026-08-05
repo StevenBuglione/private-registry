@@ -87,7 +87,7 @@ dependencies {
     compileOnly("org.apache.httpcomponents:httpclient:4.5.13")
     implementation("com.github.ben-manes.caffeine:caffeine")
 
-    compileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
     compileOnly("org.checkerframework:checker-qual:4.2.1")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
@@ -103,7 +103,7 @@ dependencies {
     testImplementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
-    testCompileOnly("org.jspecify:jspecify:1.0.0")
+    testCompileOnly("org.jspecify:jspecify:1.0.1")
     testCompileOnly("org.checkerframework:checker-qual:4.2.1")
     testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
