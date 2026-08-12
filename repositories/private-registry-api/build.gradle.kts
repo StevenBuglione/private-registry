@@ -23,7 +23,7 @@ plugins {
     id("org.springframework.boot") version "4.1.0"
     id("com.diffplug.spotless") version "8.8.0"
     id("net.ltgt.errorprone") version "5.1.0"
-    id("com.github.spotbugs") version "6.5.9"
+    id("com.github.spotbugs") version "6.5.10"
     id("info.solidsoft.pitest") version "1.19.0"
     id("org.cyclonedx.bom") version "3.3.0"
 }
@@ -102,7 +102,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation(platform("org.springframework.modulith:spring-modulith-bom:2.1.0"))
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.2")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
     testCompileOnly("org.jspecify:jspecify:1.0.0")
     testCompileOnly("org.checkerframework:checker-qual:4.2.1")
     testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
