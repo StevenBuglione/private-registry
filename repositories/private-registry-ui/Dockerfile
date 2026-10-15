@@ -12,7 +12,7 @@ ARG VITE_BUILD_SHA=unknown
 ENV VITE_BUILD_SHA=${VITE_BUILD_SHA}
 RUN pnpm build
 
-FROM nginx:1.29-alpine
+FROM nginx:1.31-alpine
 ARG NGINX_CONFIG=deploy/nginx/default.conf
 RUN apk upgrade --no-cache \
     && apk add --no-cache curl gettext \
