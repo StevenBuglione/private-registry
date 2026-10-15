@@ -61,10 +61,10 @@ dependencies {
         implementation("com.fasterxml.jackson.core:jackson-databind:2.21.5") {
             because("2.21.5 fixes CVE-2026-54515")
         }
-        implementation("org.apache.logging.log4j:log4j-api:2.25.5") {
+        implementation("org.apache.logging.log4j:log4j-api:2.26.1") {
             because("2.25.5 fixes CVE-2026-49844")
         }
-        implementation("org.apache.logging.log4j:log4j-to-slf4j:2.25.5") {
+        implementation("org.apache.logging.log4j:log4j-to-slf4j:2.26.1") {
             because("keep the Log4j bridge aligned with the patched API release")
         }
     }
